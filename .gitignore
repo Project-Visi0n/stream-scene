@@ -1,10 +1,17 @@
-# node modules
+
+# Node modules
 node_modules/
 
-# .env
-.env
+# TypeScript build info
+*.tsbuildinfo
 
-# build
+# Build folders
 dist/
+build/
+
+# Environment files
+.env
+.env.*
 
 
+node_modules/
