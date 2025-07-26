@@ -1,0 +1,15 @@
+# Node modules
+node_modules/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Build folders
+dist/
+build/
+
+# Environment files
+.env
+.env.*
+
+
