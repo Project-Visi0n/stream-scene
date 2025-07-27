@@ -1,28 +1,21 @@
 {
   "compilerOptions": {
-    /* Visit https://aka.ms/tsconfig to read more about this file */
-
-    /* Language and Environment */
-    "target": "es2020",                                  /* Use modern JavaScript output */
-    "module": "esnext",                                  /* Use ES Modules */
-    "baseUrl": "./src",                                  /* Base URL for absolute imports */
+    "target": "es2020",
+    "module": "commonjs",
+    "jsx": "react-jsx",
+    "baseUrl": "./",
     "paths": {
-      "@components/*": ["components/*"],                 // Example path mapping
-      "@utils/*": ["utils/*"]
+      "@components/*": ["client/src/components/*"],
+      "@utils/*": ["client/src/utils/*"]
     },
-
-    /* Emit */
-    "sourceMap": true,                                   /* Generate source maps for debugging */
-    "outDir": "./dist",                                  /* Build output folder */
-
-    /* Interop Constraints */
+    "outDir": "dist",
+    "sourceMap": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
-
-    /* Type Checking */
     "strict": true,
-
-    /* Completeness */
-    "skipLibCheck": true
-  }
+    "skipLibCheck": true,
+    "moduleResolution": "node"
+  },
+  "include": ["client/src", "server/src"],
+  "exclude": ["node_modules", "dist"]
 }

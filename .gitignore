@@ -15,3 +15,9 @@ build/
 
 
 node_modules/
+
+# Ignore backend build output and secrets
+server/dist/
+server/node_modules/
+server/.env
+
