@@ -7,7 +7,7 @@
     "dev:client": "webpack serve --config webpack.config.js --mode development",
     "dev:server": "ts-node-dev --respawn --transpile-only server/src/server.ts",
     "build": "webpack --config webpack.config.js && tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server/src/server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
@@ -20,6 +20,7 @@
     "sequelize": "^6.37.7"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.11",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
     "@types/node": "^24.1.0",
@@ -29,9 +30,10 @@
     "@types/sequelize": "^4.28.20",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.2.0",
-    "postcss": "^8.5.6",
-    "style-loader": "^3.3.4",
     "css-loader": "^6.8.1",
+    "postcss": "^8.5.6",
+    "postcss-loader": "^8.1.1",
+    "style-loader": "^3.3.4",
     "tailwindcss": "^4.1.11",
     "ts-loader": "^9.5.2",
     "ts-node-dev": "^2.0.0",

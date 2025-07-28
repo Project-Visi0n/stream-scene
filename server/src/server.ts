@@ -3,8 +3,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 import sequelize from './db/db';
 
-// 🌱 Load environment variables from server/.env
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+// Load environment variables from root .env
+dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
 
 const PORT = process.env.PORT || 3001;
 const app = express();
