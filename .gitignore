@@ -1,23 +1,24 @@
 
-# Node modules
+
+# Node modules (both client and server)
 node_modules/
+server/node_modules/
 
 # TypeScript build info
 *.tsbuildinfo
 
-# Build folders
+
+# Build output (dist, build)
 dist/
 build/
+server/dist/
 
-# Environment files
+
+# Environment files (all variations)
 .env
 .env.*
-
-
-node_modules/
-
-# Ignore backend build output and secrets
-server/dist/
-server/node_modules/
 server/.env
 
+# OS-specific junk
+.DS_Store
+Thumbs.db

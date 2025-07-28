@@ -1,12 +1,12 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
-import HtmlWebpackPlugin from 'html-webpack-plugin';
+import HtmlWebpackPlugin from 'html-webpack-plugin'; 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default {
-  entry: './client/src/index.ts',
+  entry: './client/client/src/index.tsx',
   output: {
     filename: 'bundle.js',
     path: path.resolve(__dirname, 'dist/public'),
@@ -28,10 +28,9 @@ export default {
       },
     ],
   },
-  plugins: [
+  plugins: [ 
     new HtmlWebpackPlugin({
-      template: './client/src/index.html',
-      filename: 'index.html',
+      template: './client/client/index.html',
     }),
   ],
   devtool: 'source-map',
