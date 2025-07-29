@@ -1,45 +1,22 @@
-// TodoTag.ts
+// server/src/models/TodoTag.ts
 import {
+  Table,
+  Column,
   Model,
-  DataTypes,
-} from 'sequelize';
-import sequelize from '../db/db';
+  DataType,
+  ForeignKey,
+} from 'sequelize-typescript';
 
-export interface TodoTagAttributes {
-  todo_id: number;
-  tag_id: number;
+import { Todo } from './Todos';
+import { Tag } from './Tag';
+
+@Table({ tableName: 'Todo_tags', timestamps: false })
+export class TodoTag extends Model {
+  @ForeignKey(() => Todo)
+  @Column({ type: DataType.BIGINT, primaryKey: true })
+  todo_id!: number;
+
+  @ForeignKey(() => Tag)
+  @Column({ type: DataType.BIGINT, primaryKey: true })
+  tag_id!: number;
 }
-
-class TodoTag extends Model<TodoTagAttributes> implements TodoTagAttributes {
-  public todo_id!: number;
-  public tag_id!: number;
-}
-
-TodoTag.init(
-  {
-    todo_id: {
-      type: DataTypes.BIGINT,
-      primaryKey: true,
-      references: {
-        model: 'todos',
-        key: 'id',
-      },
-    },
-    tag_id: {
-      type: DataTypes.BIGINT,
-      primaryKey: true,
-      references: {
-        model: 'tags',
-        key: 'id',
-      },
-    },
-  },
-  {
-    sequelize,
-    modelName: 'TodoTag',
-    tableName: 'Todo_tags',
-    timestamps: false,
-  }
-);
-
-export default TodoTag;

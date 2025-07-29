@@ -1,72 +1,57 @@
-import { Model, DataTypes, Optional } from 'sequelize';
-import sequelize from '../db/db';
+// server/src/models/Media.ts
+import {
+  Table,
+  Column,
+  Model,
+  DataType,
+  ForeignKey,
+  BelongsTo,
+  HasMany,
+  BelongsToMany,
+} from 'sequelize-typescript';
 
-export interface MediaAttributes {
-  id: number;
-  user_id?: number | null;
-  file_id?: string | null;
-  format?: string | null;
-  description?: string | null;
-  title?: string | null;
-  created_at?: Date | null;
-  external_link?: string | null;
+import { User } from './User';
+import { Comment } from './Comment';
+import { Tag } from './Tag';
+import { MediaTag } from './MediaTag';
+
+@Table({ tableName: 'media', timestamps: false })
+export class Media extends Model {
+  @Column({
+    type: DataType.BIGINT,
+    autoIncrement: true,
+    primaryKey: true,
+  })
+  id!: number;
+
+  @ForeignKey(() => User)
+  @Column(DataType.BIGINT)
+  user_id!: number;
+
+  @Column(DataType.STRING)
+  file_id!: string;
+
+  @Column(DataType.STRING)
+  format!: string;
+
+  @Column(DataType.TEXT)
+  description!: string;
+
+  @Column(DataType.STRING)
+  title!: string;
+
+  @Column(DataType.DATE)
+  created_at!: Date;
+
+  @Column(DataType.STRING)
+  external_link!: string;
+
+  @BelongsTo(() => User)
+  user!: User;
+
+  @HasMany(() => Comment)
+  comments!: Comment[];
+
+  @BelongsToMany(() => Tag, () => MediaTag)
+  tags!: Tag[];
 }
-
-export interface MediaCreationAttributes extends Optional<MediaAttributes, 'id'> {}
-
-class Media extends Model<MediaAttributes, MediaCreationAttributes> implements MediaAttributes {
-  public id!: number;
-  public user_id!: number | null;
-  public file_id!: string | null;
-  public format!: string | null;
-  public description!: string | null;
-  public title!: string | null;
-  public created_at!: Date | null;
-  public external_link!: string | null;
-}
-
-Media.init(
-  {
-    id: {
-      type: DataTypes.BIGINT,
-      autoIncrement: true,
-      primaryKey: true,
-    },
-    user_id: {
-      type: DataTypes.BIGINT,
-      allowNull: true,
-    },
-    file_id: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    format: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    description: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
-    title: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-    created_at: {
-      type: DataTypes.DATE,
-      allowNull: true,
-    },
-    external_link: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-  },
-  {
-    sequelize,
-    modelName: 'Media',
-    tableName: 'media', 
-    timestamps: false,
-  }
-);
-
-export default Media;

@@ -1,54 +1,31 @@
+// server/src/models/FileSegment.ts
 import {
+  Table,
+  Column,
   Model,
-  DataTypes,
-  Optional,
-} from 'sequelize';
-import sequelize from '../db/db';
-import Note from './Note';
+  DataType,
+  ForeignKey,
+  BelongsTo,
+} from 'sequelize-typescript';
 
-export interface FileSegmentAttributes {
-  id: number;
-  note_id?: number | null;
-  path?: string | null;
+import { Note } from './Note';
+
+@Table({ tableName: '`File Segment`', timestamps: false }) // 👈 if you must keep this name
+export class FileSegment extends Model {
+  @Column({
+    type: DataType.BIGINT,
+    primaryKey: true,
+    autoIncrement: true,
+  })
+  id!: number;
+
+  @ForeignKey(() => Note)
+  @Column(DataType.BIGINT)
+  note_id!: number;
+
+  @Column(DataType.TEXT)
+  path!: string;
+
+  @BelongsTo(() => Note)
+  note!: Note;
 }
-
-export interface FileSegmentCreationAttributes
-  extends Optional<FileSegmentAttributes, 'id'> {}
-
-class FileSegment
-  extends Model<FileSegmentAttributes, FileSegmentCreationAttributes>
-  implements FileSegmentAttributes
-{
-  public id!: number;
-  public note_id!: number | null;
-  public path!: string | null;
-}
-
-FileSegment.init(
-  {
-    id: {
-      type: DataTypes.BIGINT,
-      primaryKey: true,
-      autoIncrement: true,
-    },
-    note_id: {
-      type: DataTypes.BIGINT,
-      allowNull: true,
-    },
-    path: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
-  },
-  {
-    sequelize,
-    modelName: 'FileSegment',
-    tableName: '`File Segment`', 
-    timestamps: false,
-  }
-);
-
-// ----- Associations -----
-FileSegment.belongsTo(Note, { foreignKey: 'note_id' });
-
-export default FileSegment;

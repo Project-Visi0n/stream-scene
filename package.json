@@ -22,7 +22,8 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-router-dom": "^7.7.1",
-    "sequelize": "^6.37.7"
+    "sequelize": "^6.37.7",
+    "sequelize-typescript": "^2.1.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.11",
@@ -38,8 +39,6 @@
     "@types/sequelize": "^4.28.20",
     "autoprefixer": "^10.4.21",
     "concurrently": "^9.2.0",
-    "css-loader": "^6.8.1",
-    "html-webpack-plugin": "^5.6.3",
     "css-loader": "^6.8.1",
     "html-webpack-plugin": "^5.6.3",
     "postcss": "^8.5.6",

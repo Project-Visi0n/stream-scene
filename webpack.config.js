@@ -1,6 +1,6 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
-import HtmlWebpackPlugin from 'html-webpack-plugin'; 
+import HtmlWebpackPlugin from 'html-webpack-plugin';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -13,12 +13,12 @@ export default {
     publicPath: '/',
   },
   resolve: {
-    extensions: ['.ts', '.js'],
+    extensions: ['.tsx', '.ts', '.js'],
   },
   module: {
     rules: [
       {
-        test: /\.ts$/,
+        test: /\.(ts|tsx)$/, 
         use: 'ts-loader',
         exclude: /node_modules/,
       },
@@ -28,7 +28,7 @@ export default {
       },
     ],
   },
-  plugins: [ 
+  plugins: [
     new HtmlWebpackPlugin({
       template: './client/client/index.html',
     }),
