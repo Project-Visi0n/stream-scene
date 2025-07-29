@@ -12,7 +12,11 @@ build/
 # Environment files
 .env
 .env.*
+.env.production
 
+# SSH Keys
+*.pem
+*.ppk
 
 node_modules/
 
@@ -21,3 +25,5 @@ server/dist/
 server/node_modules/
 server/.env
 
+# GitHub Actions secrets (should be in repository secrets)
+secrets/
