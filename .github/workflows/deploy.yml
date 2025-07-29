@@ -1,4 +1,4 @@
-name: Deploy to EC2
+name: Deploy to EC2 (Development)
 
 on:
   push:
@@ -14,19 +14,7 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Build application
-      run: npm run build
-
-    - name: Deploy to EC2
+    - name: Deploy to EC2 (Development Mode)
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.EC2_HOST }}
@@ -37,6 +25,5 @@ jobs:
           cd /home/ubuntu/stream-scene
           git pull origin ${{ github.ref_name }}
           npm install
-          npm run build
-          pm2 restart stream-scene-server || pm2 start dist/server/src/server.js --name stream-scene-server
+          pm2 restart stream-scene-dev || pm2 start server/src/server.ts --name stream-scene-dev --interpreter ts-node
           pm2 save

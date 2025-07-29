@@ -6,11 +6,8 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:client": "webpack serve --config webpack.config.js --mode development",
     "dev:server": "ts-node-dev --respawn --transpile-only server/src/server.ts",
-    "build": "webpack --config webpack.config.js --mode production && tsc",
-    "build:server": "tsc",
-    "build:client": "webpack --config webpack.config.js --mode production",
-    "start": "node dist/server/src/server.js",
-    "start:prod": "NODE_ENV=production node dist/server/src/server.js"
+    "build": "webpack --config webpack.config.js && tsc",
+    "start": "node dist/server/src/server.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
