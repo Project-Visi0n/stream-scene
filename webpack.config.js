@@ -39,7 +39,7 @@ export default {
     static: {
       directory: path.resolve(__dirname, 'dist/public'),
     },
-    port: 3001,
+    port: 3000,
     hot: true,
     open: true,
     historyApiFallback: true,
