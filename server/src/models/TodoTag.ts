@@ -7,7 +7,7 @@ import {
   ForeignKey,
 } from 'sequelize-typescript';
 
-import { Todo } from './Todos';
+import { Todo } from './Todo';
 import { Tag } from './Tag';
 
 @Table({ tableName: 'Todo_tags', timestamps: false })

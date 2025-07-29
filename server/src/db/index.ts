@@ -5,7 +5,7 @@ dotenv.config();
 // Import Sequelize and your models
 import { Sequelize } from 'sequelize-typescript';
 import { User } from '../models/User';
-import { Todo } from '../models/Todos';
+import { Todo } from '../models/Todo';
 import { Tag } from '../models/Tag';
 import { TodoTag } from '../models/TodoTag';
 import { Note } from '../models/Note';

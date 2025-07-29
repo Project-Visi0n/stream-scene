@@ -1,17 +1,10 @@
 // server/src/models/User.ts
-import {
-  Table,
-  Column,
-  Model,
-  DataType,
-  HasMany,
-} from 'sequelize-typescript';
-import { Todo } from './Todos';
+import { Table, Column, Model, DataType } from 'sequelize-typescript';
 
 @Table({ tableName: 'users', timestamps: true })
 export class User extends Model {
   @Column({
-    type: DataType.INTEGER.UNSIGNED,
+    type: DataType.BIGINT,
     autoIncrement: true,
     primaryKey: true,
   })
@@ -28,7 +21,13 @@ export class User extends Model {
     type: DataType.STRING,
     allowNull: false,
   })
-  name!: string;
+  firstName!: string;
+
+  @Column({
+    type: DataType.STRING,
+    allowNull: false,
+  })
+  lastName!: string;
 
   @Column({
     type: DataType.STRING,
@@ -38,7 +37,4 @@ export class User extends Model {
 
   @Column(DataType.STRING)
   profilePic?: string;
-
-  @HasMany(() => Todo)
-  todos!: Todo[];
 }

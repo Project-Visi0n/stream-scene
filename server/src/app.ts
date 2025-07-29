@@ -4,7 +4,8 @@ import cors from "cors";
 import passport from "./config/passport";
 import authRoutes from "./routes/auth";
 import routes from "./routes";
-import { sequelize } from "./db";
+import db from "./db";
+const sequelize = db.sequelize;
 
 const app = express();
 

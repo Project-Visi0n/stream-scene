@@ -10,7 +10,7 @@ import {
 
 import { Project } from './Project';
 
-@Table({ tableName: 'Budget Item', timestamps: false }) // 👈 if your DB requires this name
+@Table({ tableName: 'Budget Item', timestamps: false }) 
 export class BudgetItem extends Model {
   @Column({
     type: DataType.BIGINT,

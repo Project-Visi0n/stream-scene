@@ -1,9 +1,13 @@
 import React from 'react';
+import GoogleLoginButton from './GoogleLoginButton'; 
 
-const App = () => {
+const App: React.FC = () => {
   return (
-    <div>
-      <h1>Hello StreamScene </h1>
+    <div className="App">
+      <h1>Stream Scene</h1>
+      <p>Lights Camera Action!!</p>
+      <p>By: Jasmine and Bradley </p>
+      <GoogleLoginButton />
     </div>
   );
 };

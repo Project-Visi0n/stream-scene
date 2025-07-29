@@ -3,7 +3,7 @@ import React from 'react';
 const GoogleLoginButton: React.FC = () => {
   const handleGoogleLogin = (): void => {
     // Redirect to the backend Google OAuth route
-    window.location.href = 'http://localhost:3000/auth/google';
+    window.location.href = 'http://localhost:8000/auth/google';
   };
 
   return (
