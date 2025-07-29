@@ -1,68 +1,40 @@
+// server/src/models/BudgetItem.ts
 import {
+  Table,
+  Column,
   Model,
-  DataTypes,
-  Optional,
-} from 'sequelize';
-import sequelize from '../db/db'; // ← your new db file path
+  DataType,
+  ForeignKey,
+  BelongsTo,
+} from 'sequelize-typescript';
 
-export interface BudgetItemAttributes {
-  id: number;
-  project_id?: number | null;
-  created_at?: Date | null;
-  dollar_limit?: string | null;
-  dollar_current?: string | null;
-  description?: string | null;
+import { Project } from './Project';
+
+@Table({ tableName: 'Budget Item', timestamps: false }) 
+export class BudgetItem extends Model {
+  @Column({
+    type: DataType.BIGINT,
+    primaryKey: true,
+    autoIncrement: true,
+  })
+  id!: number;
+
+  @ForeignKey(() => Project)
+  @Column(DataType.BIGINT)
+  project_id!: number;
+
+  @Column(DataType.DATE)
+  created_at!: Date;
+
+  @Column(DataType.TEXT)
+  dollar_limit!: string;
+
+  @Column(DataType.TEXT)
+  dollar_current!: string;
+
+  @Column(DataType.TEXT)
+  description!: string;
+
+  @BelongsTo(() => Project)
+  project!: Project;
 }
-
-export interface BudgetItemCreationAttributes
-  extends Optional<BudgetItemAttributes, 'id'> {}
-
-class BudgetItem
-  extends Model<BudgetItemAttributes, BudgetItemCreationAttributes>
-  implements BudgetItemAttributes
-{
-  public id!: number;
-  public project_id!: number | null;
-  public created_at!: Date | null;
-  public dollar_limit!: string | null;
-  public dollar_current!: string | null;
-  public description!: string | null;
-}
-
-BudgetItem.init(
-  {
-    id: {
-      type: DataTypes.BIGINT,
-      primaryKey: true,
-      autoIncrement: true,
-    },
-    project_id: {
-      type: DataTypes.BIGINT,
-      allowNull: true,
-    },
-    created_at: {
-      type: DataTypes.DATE,
-      allowNull: true,
-    },
-    dollar_limit: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
-    dollar_current: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
-    description: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
-  },
-  {
-    sequelize,
-    modelName: 'BudgetItem',
-    tableName: 'Budget Item',
-    timestamps: false,
-  }
-);
-
-export default BudgetItem;

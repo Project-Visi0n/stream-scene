@@ -1,60 +1,35 @@
+// server/src/models/Project.ts
 import {
+  Table,
+  Column,
   Model,
-  DataTypes,
-  Optional,
-} from 'sequelize';
-import sequelize from '../db/db';
-import User from './User';
-import BudgetItem from './BudgetItem';
-import ProjectUser from './ProjectUser';
+  DataType,
+  BelongsToMany,
+  HasMany,
+} from 'sequelize-typescript';
 
-export interface ProjectAttributes {
-  id: number;
-  googlesheets_id?: number | null;
-  created_at?: number | null;
+import { User } from './User';
+import { BudgetItem } from './BudgetItem';
+import { ProjectUser } from './ProjectUser';
+
+@Table({ tableName: 'Project', timestamps: false })
+export class Project extends Model {
+  @Column({
+    type: DataType.BIGINT,
+    primaryKey: true,
+    autoIncrement: true,
+  })
+  id!: number;
+
+  @Column(DataType.BIGINT)
+  googlesheets_id!: number;
+
+  @Column(DataType.BIGINT)
+  created_at!: number;
+
+  @BelongsToMany(() => User, () => ProjectUser)
+  users!: User[];
+
+  @HasMany(() => BudgetItem)
+  budgetItems!: BudgetItem[];
 }
-
-export interface ProjectCreationAttributes
-  extends Optional<ProjectAttributes, 'id'> {}
-
-class Project
-  extends Model<ProjectAttributes, ProjectCreationAttributes>
-  implements ProjectAttributes
-{
-  public id!: number;
-  public googlesheets_id!: number | null;
-  public created_at!: number | null;
-}
-
-Project.init(
-  {
-    id: {
-      type: DataTypes.BIGINT,
-      primaryKey: true,
-      autoIncrement: true,
-    },
-    googlesheets_id: {
-      type: DataTypes.BIGINT,
-      allowNull: true,
-    },
-    created_at: {
-      type: DataTypes.BIGINT,
-      allowNull: true,
-    },
-  },
-  {
-    sequelize,
-    modelName: 'Project',
-    tableName: 'Project',
-    timestamps: false,
-  }
-);
-
-// Associations
-Project.belongsToMany(User, {
-  through: ProjectUser,
-  foreignKey: 'project_id',
-});
-Project.hasMany(BudgetItem, { foreignKey: 'project_id' });
-
-export default Project;

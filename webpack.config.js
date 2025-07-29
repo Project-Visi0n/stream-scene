@@ -6,19 +6,19 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 export default {
-  entry: './client/src/index.ts',
+  entry: './client/client/src/index.tsx',
   output: {
     filename: 'bundle.js',
     path: path.resolve(__dirname, 'dist/public'),
     publicPath: '/',
   },
   resolve: {
-    extensions: ['.ts', '.js'],
+    extensions: ['.tsx', '.ts', '.js'],
   },
   module: {
     rules: [
       {
-        test: /\.ts$/,
+        test: /\.(ts|tsx)$/, 
         use: 'ts-loader',
         exclude: /node_modules/,
       },
@@ -30,8 +30,7 @@ export default {
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: './client/src/index.html',
-      filename: 'index.html',
+      template: './client/client/index.html',
     }),
   ],
   devtool: 'source-map',
@@ -43,5 +42,13 @@ export default {
     hot: true,
     open: true,
     historyApiFallback: true,
+    proxy: [
+      {
+        context: ['/auth', '/api'],
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+      },
+    ],
   },
 };

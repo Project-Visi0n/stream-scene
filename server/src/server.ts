@@ -1,36 +1,35 @@
-import express from 'express';
 import dotenv from 'dotenv';
 import path from 'path';
-import sequelize from './db/db';
+import app from './app'; 
+import db from './db'; 
+const sequelize = db.sequelize; 
 
-// Load environment variables from root .env
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+dotenv.config({ path: path.resolve(__dirname, '../.env') });
 
-const PORT = process.env.PORT || 3001;
-const app = express();
+const PORT = process.env.PORT || 8000;
 
-app.use(express.json());
-
-// Test route
-app.get('/healthz', (_req, res) => {
-  res.json({
-    ok: true,
-    message: 'StreamScene API healthy',
-    ts: new Date().toISOString(),
-  });
-});
-
-// Boot up the DB and server
+// Boot up the DB, sync the models, and start the server
 const startServer = async () => {
   try {
+    // Test DB connection
+    console.log('Starting DB connection...');
     await sequelize.authenticate();
-    console.log('Connected to DB');
+    console.log('Connected to DB successfully!');
 
+
+   
+
+
+    // Start the server
+    console.log('Starting the server...');
     app.listen(PORT, () => {
       console.log(`Server listening on port ${PORT}`);
     });
   } catch (err) {
-    console.error(' Failed to connect to DB:', err);
+    console.error('Error during server startup:', err);
+    if (err instanceof Error) {
+      console.error('Error details:', err.message);
+    }
   }
 };
 
