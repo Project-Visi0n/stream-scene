@@ -1,0 +1,30 @@
+name: Deploy to EC2 (Development)
+
+on:
+  push:
+    branches: [ main, intial-setup-branch ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Deploy to EC2 (Development Mode)
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          cd /home/ubuntu/stream-scene
+          git pull origin ${{ github.ref_name }}
+          npm install
+          npm install ts-node typescript
+          pm2 restart stream-scene-dev || pm2 start server/src/server.ts --name stream-scene-dev --interpreter ./node_modules/.bin/ts-node
+          pm2 save

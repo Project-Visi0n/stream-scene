@@ -22,3 +22,19 @@ server/.env
 # OS-specific junk
 .DS_Store
 Thumbs.db
+
+.env.production
+
+# SSH Keys
+*.pem
+*.ppk
+
+node_modules/
+
+# Ignore backend build output and secrets
+server/dist/
+server/node_modules/
+server/.env
+
+# GitHub Actions secrets (should be in repository secrets)
+secrets/
