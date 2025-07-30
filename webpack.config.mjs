@@ -44,5 +44,4 @@ export default {
     historyApiFallback: true,
     // proxy removed since client and server run on the same port
   },
-  type: "module",
 };
