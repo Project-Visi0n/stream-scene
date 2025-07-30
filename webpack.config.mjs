@@ -42,13 +42,6 @@ export default {
     hot: true,
     open: true,
     historyApiFallback: true,
-    proxy: [
-      {
-        context: ['/auth', '/api'],
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        secure: false,
-      },
-    ],
+    // proxy removed since client and server run on the same port
   },
 };
