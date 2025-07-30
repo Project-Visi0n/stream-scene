@@ -4,7 +4,7 @@
     "module": "commonjs",
     "lib": ["esnext"],
     "outDir": "./dist",
-    "rootDir": "./src",
+    "rootDir": ".",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -13,11 +13,11 @@
     "moduleResolution": "node",
     "experimentalDecorators": true,
     "emitDecoratorMetadata": true,
-    "baseUrl": "./src",
+    "baseUrl": ".",
     "paths": {
       "@models/*": ["models/*"]
     }
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "types", "routes", "models", "middleware", "db", "config", "app.ts", "server.ts"],
   "exclude": ["node_modules", "dist"]
 }
