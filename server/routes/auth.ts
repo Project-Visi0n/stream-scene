@@ -18,29 +18,52 @@ declare global {
 }
 
 // Initiate Google OAuth
-router.get('/google',
+router.get(
+  '/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
 // Google OAuth callback
-router.get('/google/callback',
+router.get(
+  '/google/callback',
   passport.authenticate('google', { failureRedirect: '/login' }),
   (req: Request, res: Response) => {
-    res.redirect('http://localhost:3001/dashboard');
+    res.redirect('http://localhost:3001/dashboard'); // frontend port
   }
 );
 
 // Logout route
 router.get('/logout', (req: Request, res: Response, next: NextFunction) => {
-  try {
-    req.logout((err) => {
+  req.logout((err) => {
     if (err) {
+      console.error('Logout error:', err);
       return next(err);
     }
-    res.redirect('http://localhost:3001');
+    res.redirect('http://localhost:3001'); // frontend home
   });
-} catch (err) {
-  next (err);
+});
+
+// Check if user is authenticated
+router.get('/user', (req: Request, res: Response) => {
+  if (req.isAuthenticated() && req.user) {
+    res.json({
+      authenticated: true,
+      user: {
+        id: req.user.id,
+        firstName: req.user.firstName,
+        lastName: req.user.lastName,
+        email: req.user.email,
+        profilePicture: req.user.profilePicture,
+      },
+    });
+  } else {
+    res.json({ authenticated: false });
+  }
+});
+
+export default router;
+
+
 });
 
 // Check if user is authenticated
@@ -62,3 +85,4 @@ router.get('/user', (req: Request, res: Response) => {
 });
 
 export default router;
+

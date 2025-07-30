@@ -22,6 +22,6 @@
     "forceConsistentCasingInFileNames": true,
     "typeRoots": ["./node_modules/@types", "./types"]
   },
-  "include": ["client/src/**/*", "server/src/**/*", "types/**/*"],
+  "include": ["client/src/**/*", "server/src/**/*", "types/**/*", "server/types", "server/routes", "server/models", "server/middleware", "server/db", "server/config", "server/app.ts", "server/server.ts"],
   "exclude": ["node_modules", "dist"]
 }

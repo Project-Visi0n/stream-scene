@@ -17,7 +17,7 @@ const useAuth = (): UseAuthReturn => {
 
   const checkAuthStatus = async (): Promise<void> => {
     try {
-      const response = await fetch('http://localhost:3000/auth/user', {
+      const response = await fetch('http://localhost:8000/auth/user', {
         credentials: 'include'
       });
       const data: AuthResponse = await response.json();
