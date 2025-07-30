@@ -28,7 +28,7 @@ router.get(
   '/google/callback',
   passport.authenticate('google', { failureRedirect: '/login' }),
   (req: Request, res: Response) => {
-    res.redirect('http://localhost:3001/dashboard'); // frontend port
+    res.redirect('http://localhost:8000/dashboard'); // frontend port
   }
 );
 
@@ -39,7 +39,7 @@ router.get('/logout', (req: Request, res: Response, next: NextFunction) => {
       console.error('Logout error:', err);
       return next(err);
     }
-    res.redirect('http://localhost:3001'); // frontend home
+    res.redirect('http://localhost:8000'); // frontend home
   });
 });
 
