@@ -64,25 +64,7 @@ router.get('/user', (req: Request, res: Response) => {
 export default router;
 
 
-});
 
-// Check if user is authenticated
-router.get('/user', (req: Request, res: Response) => {
-  if (req.isAuthenticated() && req.user) {
-    res.json({
-      authenticated: true,
-      user: {
-        id: req.user.id,
-        firstName: req.user.firstName,
-        lastName: req.user.lastName,
-        email: req.user.email,
-        profilePicture: req.user.profilePicture
-      }
-    });
-  } else {
-    res.json({ authenticated: false });
-  }
-});
 
-export default router;
+
 
