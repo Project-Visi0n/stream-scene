@@ -1,11 +1,10 @@
+import dotenv from 'dotenv';
+import path from 'path';
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
 import passport from 'passport';
 import { Strategy as GoogleStrategy, Profile } from 'passport-google-oauth20';
 import { User } from '../models/User';
-
-import dotenv from 'dotenv';
-import path from 'path';
-
-dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 console.log('GOOGLE_CLIENT_ID loaded in passport.ts:', process.env.GOOGLE_CLIENT_ID);
 
@@ -61,19 +60,8 @@ passport.serializeUser((user: any, done) => {
   done(null, user.id);
 });
 
-// Load user from session
 passport.deserializeUser(async (id: number, done) => {
-  try {
-    const user = await User.findByPk(id);
-
-    if (!user) {
-      return done(null, false);
-    }
-
-    return done(null, user);
-  } catch (err) {
-    return done(err as Error, null);
-  }
+  const user = await User.findByPk(id);
+  done(null, user);
 });
 
-export default passport;

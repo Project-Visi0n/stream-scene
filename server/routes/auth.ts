@@ -18,15 +18,17 @@ declare global {
 }
 
 // Initiate Google OAuth
-router.get('/google',
+router.get(
+  '/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
 // Google OAuth callback
-router.get('/google/callback',
+router.get(
+  '/google/callback',
   passport.authenticate('google', { failureRedirect: '/login' }),
   (req: Request, res: Response) => {
-    res.redirect('http://localhost:8000/dashboard');
+    res.redirect('http://localhost:8000/dashboard'); // frontend port
   }
 );
 
@@ -34,9 +36,10 @@ router.get('/google/callback',
 router.get('/logout', (req: Request, res: Response, next: NextFunction) => {
   req.logout((err) => {
     if (err) {
+      console.error('Logout error:', err);
       return next(err);
     }
-    res.redirect('http://localhost:8000');
+    res.redirect('http://localhost:8000'); // frontend home
   });
 });
 
@@ -50,8 +53,8 @@ router.get('/user', (req: Request, res: Response) => {
         firstName: req.user.firstName,
         lastName: req.user.lastName,
         email: req.user.email,
-        profilePicture: req.user.profilePicture
-      }
+        profilePicture: req.user.profilePicture,
+      },
     });
   } else {
     res.json({ authenticated: false });
@@ -59,3 +62,9 @@ router.get('/user', (req: Request, res: Response) => {
 });
 
 export default router;
+
+
+
+
+
+
