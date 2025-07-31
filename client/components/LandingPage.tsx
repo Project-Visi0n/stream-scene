@@ -1,5 +1,5 @@
 import React from 'react';
-import Taskbar from './Taskbar';
+import Taskbar  from './Taskbar';
 
 const StreamSceneLandingPage: React.FC = () => {
   return (

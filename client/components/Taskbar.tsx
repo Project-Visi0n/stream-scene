@@ -132,3 +132,5 @@ const Taskbar: React.FC<TaskbarProps> = ({ className = '' }) => {
     </nav>
   );
 };
+
+export default Taskbar;
