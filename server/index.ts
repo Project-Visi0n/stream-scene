@@ -1,13 +1,13 @@
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
-import db from './db';
-import App from './components/App';
+// import db from './db';
+
 
 import authRoutes from './routes/auth';
 import indexRoutes from './routes/index';
 
-dotenv.config({ path: path.resolve(__dirname, '../.env') });
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 8000;
@@ -29,21 +29,26 @@ app.use(express.static(path.resolve(__dirname, '../../client/dist')));
 
 // React Router support (fallback route)
 app.get('*', (_req, res) => {
-  res.sendFile(path.resolve(__dirname, '../../client/dist/index.html'));
+  res.sendFile(path.resolve(__dirname, '../../client/index.html'));
 });
 
 // Start server after DB connection is successful
-const startServer = async () => {
-  try {
-    await db.sequelize.authenticate();
-    console.log(' Connected to the database');
+// // const startServer = async () => {
+//   try {
+//     await db.sequelize.authenticate();
+//     console.log(' Connected to the database');
 
-    app.listen(PORT, () => {
-      console.log(`Server is running at http://localhost:${PORT}`);
-    });
-  } catch (error) {
-    console.error(' Failed to start server:', error);
-  }
-};
+//     app.listen(PORT, () => {
+//       console.log(`Server is running at http://localhost:${PORT}`);
+//     });
+//   } catch (error) {
+//     console.error(' Failed to start server:', error);
+//   }
+// };
 
-startServer();
+// startServer();
+
+// Simple start without DB
+app.listen(PORT, () => {
+  console.log(`Server is running at http://localhost:${PORT}`);
+});

@@ -1,7 +1,10 @@
+import dotenv from 'dotenv';
+dotenv.config();
 import express from "express";
 import session from "express-session";
 import cors from "cors";
-import passport from "./config/passport";
+import passport from 'passport';
+import "./config/passport";
 import authRoutes from "./routes/auth";
 import routes from "./routes";
 import db from "./db";
@@ -39,5 +42,11 @@ app.use('/auth', authRoutes);
 
 // Main API routes
 app.use('/api', routes);
+
+const PORT = process.env.PORT || 8000;
+
+app.listen(PORT, () => {
+  console.log(`Server is running at http://localhost:${PORT}`);
+});
 
 export default app;
