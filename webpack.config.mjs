@@ -26,15 +26,10 @@ export default {
     ],
   },
   devServer: {
-    port: 3001,
-    static: {
-      directory: path.join(process.cwd(), 'dist'),
-    },
+    port: 8000,
+    hot: true,
+    open: true,
     historyApiFallback: true, 
-    proxy: {
-      '/api': 'http://localhost:8000',
-      '/auth': 'http://localhost:8000',
-    },
   },
   plugins: [
     new HtmlWebpackPlugin({

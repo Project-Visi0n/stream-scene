@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import GoogleLoginButton from './GoogleLoginButton';
-import StreamSceneTodoList from './StreamSceneTodoList';
 
 const App: React.FC = () => {
   const [showTasks, setShowTasks] = useState(false);
@@ -18,7 +17,7 @@ const App: React.FC = () => {
         {showTasks ? 'Back to Login' : 'Show Task Form'}
       </button>
 
-      {showTasks ? <StreamSceneTodoList /> : <GoogleLoginButton />}
+      {<GoogleLoginButton />}
     </div>
   );
 };
