@@ -4,8 +4,8 @@
   "main": "server/server.ts",
   "scripts": {
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
-    "dev:client": "webpack serve --config webpack.config.js --mode development",
-    "dev:server": "nodemon --watch server --ext ts --exec ts-node server/server.ts",
+    "dev:client": "webpack serve --config webpack.config.mjs --mode development",
+    "dev:server": "nodemon --watch server --ext ts --exec ts-node server/app.ts",
     "build": "webpack --config webpack.config.mjs && tsc",
     "start": "node dist/server.js",
     "db:migrate": "sequelize-cli db:migrate",
