@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import ProjectHubCanvas from "./ProjectHubCanvas";
+import ProjectHubTabs from "./ProjectHubTabs";
 
 
 const ProjectHub: React.FC = () => {
@@ -19,15 +19,15 @@ const ProjectHub: React.FC = () => {
       <div className="absolute bottom-20 right-10 w-5 h-5 bg-pink-300/50 rounded-full animate-pulse"></div>
 
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-8">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-8 text-center">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 text-center">
           <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
             Project Hub
           </span>
         </h1>
         <p className="text-base sm:text-lg text-gray-300 mb-8 text-center max-w-2xl">
-          Sketch your ideas, plan your projects, and bring your creative vision to life
+          Sketch your ideas, upload files, and manage your creative projects
         </p>
-        <ProjectHubCanvas />
+        <ProjectHubTabs />
       </div>
     </div>
   );
