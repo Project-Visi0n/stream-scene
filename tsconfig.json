@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
-    "target": "es2020",
+    "target": "ES2020",
     "module": "commonjs",
+    "lib": ["ES2020", "DOM"],
     "jsx": "react-jsx",
     "baseUrl": "./",
     "paths": {
@@ -9,13 +10,18 @@
       "@utils/*": ["client/src/utils/*"]
     },
     "outDir": "dist",
-    "sourceMap": true,
+    "rootDir": "./", 
+    "moduleResolution": "node",
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
     "strict": true,
     "skipLibCheck": true,
-    "moduleResolution": "node"
+    "forceConsistentCasingInFileNames": true,
+    "typeRoots": ["./node_modules/@types", "./types"]
   },
-  "include": ["client/src", "server/src"],
+  "include": ["client/src/**/*", "server/src/**/*", "types/**/*", "server/types", "server/routes", "server/models", "server/middleware", "server/db", "server/config", "server/app.ts", "server/server.ts"],
   "exclude": ["node_modules", "dist"]
 }
