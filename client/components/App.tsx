@@ -7,7 +7,7 @@ import ProjectHub from './ProjectHub/ProjectHub';
 
 const App: React.FC = () => {
   return (
-    <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center justify-center">
+    <div className="min-h-screen bg-gray-900 text-white">
       <Routes>
         <Route path="/" element={<StreamSceneLandingPage />} />
         <Route path="/project-hub" element={<ProjectHub />} />

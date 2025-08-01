@@ -5,6 +5,7 @@ const canvasStyles = {
   border: "1px solid #ccc",
   borderRadius: "4px",
   marginBottom: "20px",
+  touchAction: "none", // Prevents scrolling while drawing on mobile
 };
 
 
@@ -14,18 +15,26 @@ const ProjectHubCanvas: React.FC = () => {
   const [eraserMode, setEraserMode] = useState<boolean>(false);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-      <div style={{ display: "flex", gap: "16px", marginBottom: "12px" }}>
-        <label style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "100%", padding: "0 16px" }}>
+      <div style={{ 
+        display: "flex", 
+        flexWrap: "wrap",
+        gap: "12px", 
+        marginBottom: "12px",
+        justifyContent: "center",
+        alignItems: "center"
+      }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "14px" }}>
           Color:
           <input
             type="color"
             value={strokeColor}
             onChange={e => setStrokeColor(e.target.value)}
             disabled={eraserMode}
+            style={{ width: "40px", height: "30px" }}
           />
         </label>
-        <label style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "14px" }}>
           Size:
           <input
             type="range"
@@ -33,25 +42,31 @@ const ProjectHubCanvas: React.FC = () => {
             max={20}
             value={strokeWidth}
             onChange={e => setStrokeWidth(Number(e.target.value))}
+            style={{ width: "80px" }}
           />
-          <span>{strokeWidth}px</span>
+          <span style={{ minWidth: "30px" }}>{strokeWidth}px</span>
         </label>
-        <label style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "14px" }}>
           <input
             type="checkbox"
             checked={eraserMode}
             onChange={e => setEraserMode(e.target.checked)}
+            style={{ width: "18px", height: "18px" }}
           />
           Eraser
         </label>
       </div>
-      <ReactSketchCanvas
-        style={canvasStyles}
-        width="600px"
-        height="400px"
-        strokeWidth={strokeWidth}
-        strokeColor={eraserMode ? "#fff" : strokeColor}
-      />
+      <div style={{ width: "100%", maxWidth: "600px", aspectRatio: "3/2" }}>
+        <ReactSketchCanvas
+          style={{
+            ...canvasStyles,
+            width: "100%",
+            height: "100%"
+          }}
+          strokeWidth={strokeWidth}
+          strokeColor={eraserMode ? "#fff" : strokeColor}
+        />
+      </div>
     </div>
   );
 };
