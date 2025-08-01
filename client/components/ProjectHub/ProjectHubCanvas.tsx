@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { ReactSketchCanvas, ReactSketchCanvasRef } from "react-sketch-canvas";
+import { motion } from "framer-motion";
 
 const canvasStyles = {
   borderRadius: "8px", // Slightly smaller radius than container
@@ -34,26 +35,48 @@ const ProjectHubCanvas: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col items-center w-full max-w-4xl px-4">
+    <motion.div 
+      className="flex flex-col items-center w-full max-w-4xl px-4"
+      initial={{ opacity: 0, y: 50 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: 0.2 }}
+    >
       {/* Controls Container */}
-      <div className="mb-6 p-4 sm:p-6 rounded-xl bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm shadow-xl">
+      <motion.div 
+        className="mb-6 p-4 sm:p-6 rounded-xl bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm shadow-xl"
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.4 }}
+      >
         <div className="flex flex-wrap justify-center items-center gap-4 sm:gap-6">
           {/* Color Picker */}
-          <div className="flex items-center gap-3">
+          <motion.div 
+            className="flex items-center gap-3"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, delay: 0.6 }}
+          >
             <span className="text-sm font-medium text-purple-300">Color:</span>
             <div className="relative">
-              <input
+              <motion.input
                 type="color"
                 value={strokeColor}
                 onChange={e => setStrokeColor(e.target.value)}
                 disabled={eraserMode}
                 className="w-10 h-10 rounded-lg border-2 border-purple-400/30 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
               />
             </div>
-          </div>
+          </motion.div>
 
           {/* Brush Size */}
-          <div className="flex items-center gap-3">
+          <motion.div 
+            className="flex items-center gap-3"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, delay: 0.7 }}
+          >
             <span className="text-sm font-medium text-purple-300">Size:</span>
             <input
               type="range"
@@ -64,10 +87,15 @@ const ProjectHubCanvas: React.FC = () => {
               className="w-20 sm:w-24 accent-purple-500"
             />
             <span className="text-sm text-gray-300 min-w-[35px] font-mono">{strokeWidth}px</span>
-          </div>
+          </motion.div>
 
           {/* Eraser Toggle */}
-          <div className="flex items-center gap-3">
+          <motion.div 
+            className="flex items-center gap-3"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, delay: 0.8 }}
+          >
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
@@ -77,22 +105,34 @@ const ProjectHubCanvas: React.FC = () => {
               />
               <span className="text-sm font-medium text-purple-300">Eraser</span>
             </label>
-          </div>
+          </motion.div>
 
           {/* Clear All Button */}
-          <div className="flex items-center">
-            <button
+          <motion.div 
+            className="flex items-center"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, delay: 0.9 }}
+          >
+            <motion.button
               onClick={clearCanvas}
-              className="px-4 py-2 bg-red-600/80 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-all duration-200 hover:scale-105 shadow-lg"
+              className="px-4 py-2 bg-red-600/80 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-lg"
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
             >
               Clear All
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
 
       {/* Canvas Container */}
-      <div className="w-full max-w-3xl">
+      <motion.div 
+        className="w-full max-w-3xl"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.8, delay: 0.5 }}
+      >
         <div className="relative p-4 sm:p-6 rounded-2xl bg-gradient-to-br from-purple-600/10 to-pink-600/10 border border-purple-500/20 backdrop-blur-sm shadow-2xl overflow-hidden">
           <div style={{ width: "100%", aspectRatio: "4/3" }}>
             <ReactSketchCanvas
@@ -108,8 +148,8 @@ const ProjectHubCanvas: React.FC = () => {
             />
           </div>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 };
 
