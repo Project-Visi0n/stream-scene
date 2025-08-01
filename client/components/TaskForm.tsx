@@ -1,8 +1,20 @@
 import React, { useState } from 'react';
 
+interface Task {
+  id: number;
+  title: string;
+  description: string;
+  type: 'creative' | 'admin';
+  priority: 'low' | 'medium' | 'high';
+  deadline: string;
+  estimatedHours: number;
+  status: 'pending' | 'completed';
+  createdAt: string;
+}
+
 const StreamSceneTodoList = () => {
-  const [tasks, setTasks] = useState([]);
-  const [newTask, setNewTask] = useState({
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [newTask, setNewTask] = useState<Omit<Task, 'id' | 'status' | 'createdAt'>>({
     title: '',
     description: '',
     type: 'creative', 
@@ -15,7 +27,7 @@ const StreamSceneTodoList = () => {
   const addTask = () => {
     if (!newTask.title.trim()) return;
 
-    const task = {
+    const task: Task = {
       id: Date.now(),
       ...newTask,
       status: 'pending',
@@ -60,26 +72,26 @@ const StreamSceneTodoList = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-gray-900 min-h-screen">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-white mb-2">StreamScene Tasks</h1>
-        <p className="text-gray-400">Manage your creative and admin work</p>
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 bg-gray-900 min-h-screen">
+      <div className="mb-6 sm:mb-8">
+        <h1 className="text-2xl sm:text-3xl font-bold text-white mb-2">StreamScene Tasks</h1>
+        <p className="text-gray-400 text-sm sm:text-base">Manage your creative and admin work</p>
       </div>
 
       {/* Add Task Button */}
-      <div className="mb-8">
+      <div className="mb-6 sm:mb-8">
         <button
           onClick={() => setShowForm(!showForm)}
-          className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors border border-gray-700"
+          className="flex items-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg transition-colors border border-gray-700 text-sm sm:text-base w-full sm:w-auto justify-center sm:justify-start"
         >
-          <span className={`text-xl transition-transform ${showForm ? 'rotate-45' : ''}`}>+</span>
+          <span className={`text-lg sm:text-xl transition-transform ${showForm ? 'rotate-45' : ''}`}>+</span>
           {showForm ? 'Close Form' : 'Add New Task'}
         </button>
       </div>
 
       {/* Task Form */}
       {showForm && (
-        <div className="bg-gray-800 rounded-lg p-6 mb-8 border border-gray-700">
+        <div className="bg-gray-800 rounded-lg p-4 sm:p-6 mb-6 sm:mb-8 border border-gray-700">
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -90,7 +102,7 @@ const StreamSceneTodoList = () => {
                   type="text"
                   value={newTask.title}
                   onChange={(e) => setNewTask({...newTask, title: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="w-full bg-gray-900 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-purple-500 text-sm sm:text-base"
                   placeholder="Enter task title..."
                   required
                 />
@@ -102,8 +114,8 @@ const StreamSceneTodoList = () => {
                 </label>
                 <select
                   value={newTask.type}
-                  onChange={(e) => setNewTask({...newTask, type: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-purple-500"
+                  onChange={(e) => setNewTask({...newTask, type: e.target.value as 'creative' | 'admin'})}
+                  className="w-full bg-gray-900 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-purple-500 text-sm sm:text-base"
                 >
                   <option value="creative">Creative Work</option>
                   <option value="admin">Admin Work</option>
@@ -118,20 +130,20 @@ const StreamSceneTodoList = () => {
               <textarea
                 value={newTask.description}
                 onChange={(e) => setNewTask({...newTask, description: e.target.value})}
-                className="w-full bg-gray-900 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-purple-500 h-20 resize-none"
+                className="w-full bg-gray-900 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-purple-500 h-20 resize-none text-sm sm:text-base"
                 placeholder="Task description (optional)..."
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Priority
                 </label>
                 <select
                   value={newTask.priority}
-                  onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-purple-500"
+                  onChange={(e) => setNewTask({...newTask, priority: e.target.value as 'low' | 'medium' | 'high'})}
+                  className="w-full bg-gray-900 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-purple-500 text-sm sm:text-base"
                 >
                   <option value="low">Low</option>
                   <option value="medium">Medium</option>
@@ -147,7 +159,7 @@ const StreamSceneTodoList = () => {
                   type="date"
                   value={newTask.deadline}
                   onChange={(e) => setNewTask({...newTask, deadline: e.target.value})}
-                  className="w-full bg-gray-900 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="w-full bg-gray-900 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-purple-500 text-sm sm:text-base"
                 />
               </div>
 
@@ -161,21 +173,21 @@ const StreamSceneTodoList = () => {
                   step="0.5"
                   value={newTask.estimatedHours}
                   onChange={(e) => setNewTask({...newTask, estimatedHours: parseFloat(e.target.value)})}
-                  className="w-full bg-gray-900 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-purple-500"
+                  className="w-full bg-gray-900 border border-gray-600 text-white px-3 py-2 rounded-lg focus:outline-none focus:border-purple-500 text-sm sm:text-base"
                 />
               </div>
             </div>
 
-            <div className="flex gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-4">
               <button
                 onClick={addTask}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors"
+                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg transition-colors text-sm sm:text-base"
               >
                 Add Task
               </button>
               <button
                 onClick={() => setShowForm(false)}
-                className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors"
+                className="bg-gray-700 hover:bg-gray-600 text-white px-6 py-2 rounded-lg transition-colors text-sm sm:text-base"
               >
                 Cancel
               </button>
