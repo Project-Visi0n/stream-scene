@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
 
 const StreamSceneLandingPage: React.FC = () => {
   return (
@@ -76,16 +77,29 @@ const StreamSceneLandingPage: React.FC = () => {
         {/* Feature Cards */}
         <div className="flex flex-wrap justify-center gap-6 w-full max-w-none px-0 mb-12">
           {[
-            { icon: '📁', title: 'Project Hub', desc: 'Organize all your creative projects in one place' },
+            { icon: '📁', title: 'Project Hub', desc: 'Organize all your creative projects in one place', link: '/project-hub' },
             { icon: '💰', title: 'Budget Tracker', desc: 'Keep your finances on track with smart tools' },
             { icon: '▶️', title: 'Demos & Trailers', desc: 'Showcase your best work professionally' },
             { icon: '📅', title: 'AI Weekly Planner', desc: 'Smart scheduling with AI assistance' }
           ].map((feature, index) => (
-            <div key={index} className="flex-1 min-w-[250px] max-w-[300px] group p-6 rounded-xl bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/20">
-              <div className="text-3xl mb-3">{feature.icon}</div>
-              <h3 className="text-lg font-semibold text-purple-300 mb-2">{feature.title}</h3>
-              <p className="text-gray-400 text-sm leading-relaxed">{feature.desc}</p>
-            </div>
+            feature.link ? (
+              <Link
+                key={index}
+                to={feature.link}
+                className="flex-1 min-w-[250px] max-w-[300px] group p-6 rounded-xl bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/20 cursor-pointer"
+                style={{ textDecoration: 'none' }}
+              >
+                <div className="text-3xl mb-3">{feature.icon}</div>
+                <h3 className="text-lg font-semibold text-purple-300 mb-2">{feature.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">{feature.desc}</p>
+              </Link>
+            ) : (
+              <div key={index} className="flex-1 min-w-[250px] max-w-[300px] group p-6 rounded-xl bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/20">
+                <div className="text-3xl mb-3">{feature.icon}</div>
+                <h3 className="text-lg font-semibold text-purple-300 mb-2">{feature.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">{feature.desc}</p>
+              </div>
+            )
           ))}
         </div>
 
