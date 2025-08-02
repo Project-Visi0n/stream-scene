@@ -1,8 +1,11 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy, Profile } from 'passport-google-oauth20';
-import { User } from '../models/User';
+import { User } from '../models/User'; // Re-enable with minimal User model
 
 console.log('GOOGLE_CLIENT_ID loaded in passport.ts:', process.env.GOOGLE_CLIENT_ID);
+console.log('GOOGLE_CLIENT_SECRET loaded:', process.env.GOOGLE_CLIENT_SECRET ? 'EXISTS' : 'MISSING');
+console.log('GOOGLE_CALLBACK_URL loaded:', process.env.GOOGLE_CALLBACK_URL);
+console.log('SESSION_SECRET loaded:', process.env.SESSION_SECRET ? 'EXISTS' : 'MISSING');
 
 // Set up Google OAuth strategy
 passport.use(
@@ -15,7 +18,7 @@ passport.use(
     async (accessToken: string, refreshToken: string, profile: Profile, done) => {
       try {
         const email = profile.emails?.[0]?.value;
-        const photo = profile.photos?.[0]?.value ?? null;
+        const photo = profile.photos?.[0]?.value || undefined;
 
         if (!email) {
           return done(new Error('No email found in Google profile'), false);
@@ -57,7 +60,11 @@ passport.serializeUser((user: any, done) => {
 });
 
 passport.deserializeUser(async (id: number, done) => {
-  const user = await User.findByPk(id);
-  done(null, user);
+  try {
+    const user = await User.findByPk(id);
+    done(null, user);
+  } catch (err) {
+    console.error('Error deserializing user:', err);
+    done(err, null);
+  }
 });
-
