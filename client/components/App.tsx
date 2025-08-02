@@ -2,7 +2,7 @@ import React from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import StreamSceneLandingPage from './LandingPage';
-import ProjectHub from './ProjectHub/ProjectHub';
+import ProjectCenter from './ProjectCenter/ProjectCenter';
 import AIWeeklyPlanner from './AIWeeklyPlanner';
 
 const App: React.FC = () => {
@@ -52,7 +52,7 @@ const App: React.FC = () => {
             } 
           />
           <Route 
-            path="/project-hub" 
+            path="/project-center" 
             element={
               <motion.div
                 initial="initial"
@@ -62,7 +62,7 @@ const App: React.FC = () => {
                 transition={pageTransition}
                 className="absolute inset-0"
               >
-                <ProjectHub />
+                <ProjectCenter />
               </motion.div>
             } 
           />

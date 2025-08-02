@@ -71,7 +71,7 @@ const StreamSceneLandingPage: React.FC = () => {
         {/* Feature Cards */}
         <div className="flex flex-wrap justify-center gap-4 sm:gap-6 w-full max-w-6xl px-4 mb-8 sm:mb-12">
           {[
-            { icon: '📁', title: 'Project Hub', desc: 'Organize all your creative projects in one place', link: '/project-hub' },
+            { icon: '📁', title: 'Project Center', desc: 'Organize all your creative projects in one place', link: '/project-center' },
             { icon: '💰', title: 'Budget Tracker', desc: 'Keep your finances on track with smart tools' },
             { icon: '▶️', title: 'Demos & Trailers', desc: 'Showcase your best work professionally' },
             { icon: '🤖', title: 'AI Weekly Planner', desc: 'Smart task scheduling with AI assistance', link: '/ai-planner' }

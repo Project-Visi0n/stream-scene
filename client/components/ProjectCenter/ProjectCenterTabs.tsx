@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import FileUpload from './FileUpload';
-import ProjectHubCanvas from './ProjectHubCanvas';
+import ProjectCenterCanvas from './ProjectCenterCanvas';
 
 interface Tab {
   id: string;
@@ -10,7 +10,7 @@ interface Tab {
   component: React.ReactNode;
 }
 
-const ProjectHubTabs: React.FC = () => {
+const ProjectCenterTabs: React.FC = () => {
   const [activeTab, setActiveTab] = useState('canvas');
 
   const tabs: Tab[] = [
@@ -18,7 +18,7 @@ const ProjectHubTabs: React.FC = () => {
       id: 'canvas',
       label: 'Canvas',
       icon: '🎨',
-      component: <ProjectHubCanvas />
+      component: <ProjectCenterCanvas />
     },
     {
       id: 'files',
@@ -81,4 +81,4 @@ const ProjectHubTabs: React.FC = () => {
   );
 };
 
-export default ProjectHubTabs;
+export default ProjectCenterTabs;
