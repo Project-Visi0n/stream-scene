@@ -33,6 +33,7 @@ const StreamSceneLandingPage: React.FC = () => {
          <GoogleLoginButton/>
         </div>
       </nav>
+      
 
       {/* Main Content */}
       <main className="relative z-10 flex flex-col items-center justify-center min-h-[calc(100vh-6rem)] px-4 sm:px-0">
