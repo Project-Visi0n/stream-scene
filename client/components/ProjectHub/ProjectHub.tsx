@@ -1,10 +1,7 @@
-
 import React, { useState } from "react";
-import ProjectHubCanvas from "./ProjectHubCanvas";
-
+// import ProjectHubCanvas from "./ProjectHubCanvas";
 
 const ProjectHub: React.FC = () => {
-
   return (
     <div style={{ 
       display: "flex", 
@@ -20,7 +17,10 @@ const ProjectHub: React.FC = () => {
         textAlign: "center",
         color: "#fff"
       }}>Draw and Type Your Ideas</h2>
-      <ProjectHubCanvas />
+      {/* <ProjectHubCanvas /> */}
+      <p style={{ color: "#fff", textAlign: "center" }}>
+        Canvas component will be added when ProjectHubCanvas.tsx is available
+      </p>
     </div>
   );
 };
