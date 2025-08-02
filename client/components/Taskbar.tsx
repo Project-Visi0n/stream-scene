@@ -7,14 +7,14 @@ interface TaskbarProps {
 
 const Taskbar: React.FC<TaskbarProps> = ({ className = '' }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [activeItem, setActiveItem] = useState('project-hub');
+  const [activeItem, setActiveItem] = useState('project-center');
 
   const navigationItems = [
     {
-      id: 'project-hub',
-      label: 'Project Hub',
+      id: 'project-center',
+      label: 'Project Center',
       icon: '📁',
-      href: '#project-hub'
+      href: '#project-center'
     },
     {
       id: 'budget-tracker',
