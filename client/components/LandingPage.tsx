@@ -74,7 +74,7 @@ const StreamSceneLandingPage: React.FC = () => {
             { icon: '📁', title: 'Project Center', desc: 'Organize all your creative projects in one place', link: '/project-center' },
             { icon: '💰', title: 'Budget Tracker', desc: 'Keep your finances on track with smart tools' },
             { icon: '▶️', title: 'Demos & Trailers', desc: 'Showcase your best work professionally' },
-            { icon: '📅', title: 'AI Weekly Planner', desc: 'Smart scheduling with AI assistance' }
+            { icon: '🤖', title: 'AI Weekly Planner', desc: 'Smart task scheduling with AI assistance', link: '/ai-planner' }
           ].map((feature, index) => (
             feature.link ? (
               <Link
@@ -86,12 +86,18 @@ const StreamSceneLandingPage: React.FC = () => {
                 <div className="text-2xl sm:text-3xl mb-3">{feature.icon}</div>
                 <h3 className="text-base sm:text-lg font-semibold text-purple-300 mb-2">{feature.title}</h3>
                 <p className="text-gray-400 text-xs sm:text-sm leading-relaxed">{feature.desc}</p>
+                <div className="mt-3 text-purple-400 text-xs font-medium group-hover:text-purple-300 transition-colors">
+                  Click to explore →
+                </div>
               </Link>
             ) : (
-              <div key={index} className="flex-1 min-w-[280px] max-w-[320px] sm:min-w-[250px] sm:max-w-[300px] group p-4 sm:p-6 rounded-xl bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/20">
+              <div key={index} className="flex-1 min-w-[280px] max-w-[320px] sm:min-w-[250px] sm:max-w-[300px] group p-4 sm:p-6 rounded-xl bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/20 opacity-75">
                 <div className="text-2xl sm:text-3xl mb-3">{feature.icon}</div>
                 <h3 className="text-base sm:text-lg font-semibold text-purple-300 mb-2">{feature.title}</h3>
                 <p className="text-gray-400 text-xs sm:text-sm leading-relaxed">{feature.desc}</p>
+                <div className="mt-3 text-gray-500 text-xs font-medium">
+                  Coming soon...
+                </div>
               </div>
             )
           ))}
@@ -102,12 +108,15 @@ const StreamSceneLandingPage: React.FC = () => {
           <p className="text-gray-400 text-xs sm:text-sm mb-4 sm:mb-6">
             Ready to streamline your creative workflow?
           </p>
-          <button className="group px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105 transform text-sm sm:text-base">
+          <Link 
+            to="/ai-planner"
+            className="group inline-block px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105 transform text-sm sm:text-base"
+          >
             <span className="flex items-center justify-center">
-              Explore Features
-              <span className="ml-2 group-hover:translate-x-1 transition-transform duration-300">→</span>
+              Start with AI Planner
+              <span className="ml-2 group-hover:translate-x-1 transition-transform duration-300">🤖</span>
             </span>
-          </button>
+          </Link>
         </div>
       </main>
     </div>

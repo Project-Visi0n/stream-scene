@@ -1,14 +1,13 @@
-
 import React from 'react';
 import { Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import StreamSceneLandingPage from './LandingPage';
 import ProjectCenter from './ProjectCenter/ProjectCenter';
-
+import AIWeeklyPlanner from './AIWeeklyPlanner';
 
 const App: React.FC = () => {
   const location = useLocation();
-
+  
   const pageVariants = {
     initial: {
       x: "100%",
@@ -26,7 +25,7 @@ const App: React.FC = () => {
       scale: 1.2
     }
   };
-
+  
   const pageTransition = {
     type: "tween" as const,
     ease: "anticipate" as const,
@@ -67,6 +66,21 @@ const App: React.FC = () => {
               </motion.div>
             } 
           />
+          <Route 
+            path="/ai-planner" 
+            element={
+              <motion.div
+                initial="initial"
+                animate="in"
+                exit="out"
+                variants={pageVariants}
+                transition={pageTransition}
+                className="absolute inset-0"
+              >
+                <AIWeeklyPlanner />
+              </motion.div>
+            } 
+          />
         </Routes>
       </AnimatePresence>
     </div>
@@ -74,4 +88,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
