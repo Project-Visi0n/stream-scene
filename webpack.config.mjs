@@ -4,7 +4,7 @@ import HtmlWebpackPlugin from 'html-webpack-plugin';
 export default {
   entry: './client/index.tsx',
   output: {
-    path: path.resolve('./dist'),
+    path: path.resolve('./public'),
     filename: 'bundle.js',
     publicPath: '/',
     clean: true,

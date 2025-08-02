@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { ReactSketchCanvas } from "react-sketch-canvas";
+//@ts-ignore
+import  ReactSketchCanvas  from "react-sketch-canvas";
+
 
 const canvasStyles = {
   border: "1px solid #ccc",
