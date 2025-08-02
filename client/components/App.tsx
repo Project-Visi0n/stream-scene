@@ -1,4 +1,14 @@
-const pageVariants = {
+import React from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import StreamSceneLandingPage from './LandingPage';
+import ProjectHub from './ProjectHub/ProjectHub';
+import AIWeeklyPlanner from './AIWeeklyPlanner';
+
+const App: React.FC = () => {
+  const location = useLocation();
+  
+  const pageVariants = {
     initial: {
       x: "100%",
       opacity: 0,
@@ -20,15 +30,7 @@ const pageVariants = {
     type: "tween" as const,
     ease: "anticipate" as const,
     duration: 0.6
-  };import React from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
-import StreamSceneLandingPage from './LandingPage';
-import ProjectHub from './ProjectHub/ProjectHub';
-import AIWeeklyPlanner from './AIWeeklyPlanner';
-
-const App: React.FC = () => {
-  const location = useLocation();
+  };
 
   return (
     <div className="min-h-screen bg-gray-900 text-white overflow-hidden">
