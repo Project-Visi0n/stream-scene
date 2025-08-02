@@ -11,7 +11,7 @@ const canvasStyles = {
 };
 
 
-const ProjectHubCanvas: React.FC = () => {
+const ProjectCenterCanvas: React.FC = () => {
   const [strokeColor, setStrokeColor] = useState<string>("#000000");
   const [strokeWidth, setStrokeWidth] = useState<number>(2);
   const [eraserMode, setEraserMode] = useState<boolean>(false);
@@ -153,4 +153,4 @@ const ProjectHubCanvas: React.FC = () => {
   );
 };
 
-export default ProjectHubCanvas;
+export default ProjectCenterCanvas;

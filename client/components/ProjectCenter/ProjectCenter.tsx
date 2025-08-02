@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import ProjectHubTabs from "./ProjectHubTabs";
+import ProjectCenterTabs from "./ProjectCenterTabs";
 
 
-const ProjectHub: React.FC = () => {
+const ProjectCenter: React.FC = () => {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-gray-900 to-black relative overflow-hidden">
       {/* Background Effects */}
@@ -19,16 +19,16 @@ const ProjectHub: React.FC = () => {
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-8">
         <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold mb-4 text-center">
           <span className="bg-gradient-to-r from-purple-400 via-pink-400 to-purple-400 bg-clip-text text-transparent">
-            Project Hub
+            Project Center
           </span>
         </h1>
         <p className="text-base sm:text-lg text-gray-300 mb-8 text-center max-w-2xl">
           Sketch your ideas, upload files, and manage your creative projects
         </p>
-        <ProjectHubTabs />
+        <ProjectCenterTabs />
       </div>
     </div>
   );
 };
 
-export default ProjectHub;
+export default ProjectCenter;
