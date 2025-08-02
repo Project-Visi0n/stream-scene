@@ -6,6 +6,7 @@ import passport from 'passport';
 import path from 'path';
 import "./config/passport";
 import authRoutes from "./routes/auth";
+import routes from "./routes/index";
 
 const app = express();
 
@@ -33,6 +34,7 @@ app.use(express.static(path.join(__dirname, '../public')));
 
 // Auth routes - must come before catch-all routes
 app.use('/auth', authRoutes);
+app.use('/', routes);
 
 // API test route
 app.get('/test-server', (req, res) => {
@@ -45,7 +47,7 @@ app.get('*', (req, res) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) {
     return res.status(404).json({ error: 'Route not found' });
   }
-  
+
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 

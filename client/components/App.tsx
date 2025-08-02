@@ -1,15 +1,4 @@
-
-import React from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
-import { AnimatePresence, motion } from 'framer-motion';
-import StreamSceneLandingPage from './LandingPage';
-import ProjectHub from './ProjectHub/ProjectHub';
-
-
-const App: React.FC = () => {
-  const location = useLocation();
-
-  const pageVariants = {
+const pageVariants = {
     initial: {
       x: "100%",
       opacity: 0,
@@ -26,12 +15,20 @@ const App: React.FC = () => {
       scale: 1.2
     }
   };
-
+  
   const pageTransition = {
     type: "tween" as const,
     ease: "anticipate" as const,
     duration: 0.6
-  };
+  };import React from 'react';
+import { Routes, Route, useLocation } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import StreamSceneLandingPage from './LandingPage';
+import ProjectHub from './ProjectHub/ProjectHub';
+import AIWeeklyPlanner from './AIWeeklyPlanner';
+
+const App: React.FC = () => {
+  const location = useLocation();
 
   return (
     <div className="min-h-screen bg-gray-900 text-white overflow-hidden">
@@ -67,6 +64,21 @@ const App: React.FC = () => {
               </motion.div>
             } 
           />
+          <Route 
+            path="/ai-planner" 
+            element={
+              <motion.div
+                initial="initial"
+                animate="in"
+                exit="out"
+                variants={pageVariants}
+                transition={pageTransition}
+                className="absolute inset-0"
+              >
+                <AIWeeklyPlanner />
+              </motion.div>
+            } 
+          />
         </Routes>
       </AnimatePresence>
     </div>
@@ -74,4 +86,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
