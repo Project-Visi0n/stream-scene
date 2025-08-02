@@ -1,10 +1,8 @@
-
 import React, { useState } from "react";
 import ProjectHubTabs from "./ProjectHubTabs";
 
 
 const ProjectHub: React.FC = () => {
-
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-gray-900 to-black relative overflow-hidden">
       {/* Background Effects */}

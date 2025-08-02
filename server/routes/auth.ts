@@ -3,6 +3,11 @@ import passport from 'passport';
 
 const router = express.Router();
 
+// Test route
+router.get('/test', (req: Request, res: Response) => {
+  res.json({ message: 'Auth routes are working!' });
+});
+
 // Extend Request interface to include user
 declare global {
   namespace Express {
@@ -26,45 +31,10 @@ router.get(
 // Google OAuth callback
 router.get(
   '/google/callback',
-  passport.authenticate('google', { failureRedirect: '/login' }),
+  passport.authenticate('google', { failureRedirect: '/' }),
   (req: Request, res: Response) => {
-    res.redirect('http://localhost:8000/dashboard'); // frontend port
+    res.redirect('/dashboard');
   }
 );
 
-// Logout route
-router.get('/logout', (req: Request, res: Response, next: NextFunction) => {
-  req.logout((err) => {
-    if (err) {
-      console.error('Logout error:', err);
-      return next(err);
-    }
-    res.redirect('http://localhost:8000'); // frontend home
-  });
-});
-
-// Check if user is authenticated
-router.get('/user', (req: Request, res: Response) => {
-  if (req.isAuthenticated() && req.user) {
-    res.json({
-      authenticated: true,
-      user: {
-        id: req.user.id,
-        firstName: req.user.firstName,
-        lastName: req.user.lastName,
-        email: req.user.email,
-        profilePicture: req.user.profilePicture,
-      },
-    });
-  } else {
-    res.json({ authenticated: false });
-  }
-});
-
 export default router;
-
-
-
-
-
-

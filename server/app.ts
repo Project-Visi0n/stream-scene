@@ -1,52 +1,58 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import express from "express";
-import session from "express-session";
-import cors from "cors";
+import session from 'express-session';
 import passport from 'passport';
+import path from 'path';
 import "./config/passport";
 import authRoutes from "./routes/auth";
-import routes from "./routes";
-import db from "./db";
-const sequelize = db.sequelize;
 
 const app = express();
 
-// Enable CORS (if needed for frontend requests to backend)
-app.use(cors({
-  origin: 'http://localhost:8000', 
-  credentials: true // allow cookies/session to be sent
-}));
-
-// JSON & form middleware
+// Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session middleware (must come before passport)
+// Session middleware (REQUIRED for Google OAuth)
 app.use(session({
-  secret: process.env.SESSION_SECRET!,
+  secret: process.env.SESSION_SECRET || 'fallback-secret-key',
   resave: false,
   saveUninitialized: false,
-  cookie: {
-    secure: false,
-    maxAge: 24 * 60 * 60 * 1000
+  cookie: { 
+    secure: false, // Set to true in production with HTTPS
+    maxAge: 24 * 60 * 60 * 1000 // 24 hours
   }
 }));
 
-// Passport middleware
+// Passport middleware (REQUIRED for OAuth)
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Auth routes (Google login)
+// Serve static files from public directory
+app.use(express.static(path.join(__dirname, '../public')));
+
+// Auth routes - must come before catch-all routes
 app.use('/auth', authRoutes);
 
-// Main API routes
-app.use('/api', routes);
+// API test route
+app.get('/test-server', (req, res) => {
+  res.json({ message: 'Server is working!' });
+});
+
+// Catch-all handler for SPA routes - must be LAST
+app.get('*', (req, res) => {
+  // Don't serve index.html for API routes
+  if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) {
+    return res.status(404).json({ error: 'Route not found' });
+  }
+  
+  res.sendFile(path.join(__dirname, '../public/index.html'));
+});
 
 const PORT = process.env.PORT || 8000;
 
 app.listen(PORT, () => {
-  console.log(`Server is running at http://localhost:${PORT}`);
+  console.log(`Server is running at http://localhost:8000`);
 });
 
 export default app;
