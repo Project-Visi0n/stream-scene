@@ -1,1 +1,10 @@
 @import "tailwindcss";
+
+/* Custom hyperspace transition effects */
+.bg-gradient-radial {
+  background: radial-gradient(circle, var(--tw-gradient-stops));
+}
+
+.bg-gradient-conic {
+  background: conic-gradient(var(--tw-gradient-stops));
+}

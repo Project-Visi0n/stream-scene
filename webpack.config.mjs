@@ -1,16 +1,32 @@
 import path from 'path';
+import { fileURLToPath } from 'url';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
+import webpack from 'webpack';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 export default {
   entry: './client/index.tsx',
   output: {
-    path: path.resolve('./dist'),
+    path: path.resolve(__dirname, 'dist'),
     filename: 'bundle.js',
     publicPath: '/',
     clean: true,
   },
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.jsx'],
+    alias: {
+      'process/browser': 'process/browser.js',
+    },
+    fallback: {
+      "process": "process/browser.js",
+      "buffer": "buffer",
+      "stream": "stream-browserify",
+      "util": "util",
+      "crypto": "crypto-browserify",
+      "vm": "vm-browserify",
+    }
   },
   module: {
     rules: [
@@ -34,6 +50,13 @@ export default {
   plugins: [
     new HtmlWebpackPlugin({
       template: './client/index.html',
+    }),
+    new webpack.ProvidePlugin({
+      process: 'process/browser.js',
+      Buffer: ['buffer', 'Buffer'],
+    }),
+    new webpack.DefinePlugin({
+      'process.env': JSON.stringify(process.env),
     }),
   ],
   mode: 'development',
