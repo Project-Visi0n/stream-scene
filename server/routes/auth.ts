@@ -30,11 +30,11 @@ router.get(
 
 // Google OAuth callback
 router.get(
-  '/google/callback',
-  passport.authenticate('google', { failureRedirect: '/' }),
-  (req: Request, res: Response) => {
-    res.redirect('/dashboard');
-  }
+ '/google/callback',
+ passport.authenticate('google', { failureRedirect: 'http://localhost:8000/?error=auth_failed' }),
+ (req: Request, res: Response) => {
+   res.redirect('http://localhost:8000/');
+ }
 );
 
 export default router;
