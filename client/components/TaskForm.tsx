@@ -110,14 +110,14 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
   return (
     <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-md p-6">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">Create New Task</h2>
-        <p className="text-gray-600">Add a new task to your project schedule</p>
+        <h2 className="text-2xl font-bold text-black mb-2">Create New Task</h2>
+        <p className="text-black">Add a new task to your project schedule</p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Title */}
         <div>
-          <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="title" className="block text-sm font-medium text-black mb-2">
             Task Title *
           </label>
           <input
@@ -126,9 +126,10 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
             name="title"
             value={formData.title}
             onChange={handleChange}
-            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+            className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white ${
               errors.title ? 'border-red-300' : 'border-gray-300'
             }`}
+            style={{ backgroundColor: 'white', color: 'black' }}
             placeholder="Enter task title..."
             disabled={isLoading}
           />
@@ -137,7 +138,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
 
         {/* Description */}
         <div>
-          <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-2">
+          <label htmlFor="description" className="block text-sm font-medium text-black mb-2">
             Description
           </label>
           <textarea
@@ -146,7 +147,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
             value={formData.description}
             onChange={handleChange}
             rows={3}
-            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white"
+            style={{ backgroundColor: 'white', color: 'black' }}
             placeholder="Describe the task details..."
             disabled={isLoading}
           />
@@ -156,7 +158,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Priority */}
           <div>
-            <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="priority" className="block text-sm font-medium text-black mb-2">
               Priority *
             </label>
             <select
@@ -164,7 +166,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
               name="priority"
               value={formData.priority}
               onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${getPriorityColor(formData.priority)}`}
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white ${getPriorityColor(formData.priority)}`}
+              style={{ backgroundColor: 'white', color: 'black' }}
               disabled={isLoading}
             >
               <option value="low">🟢 Low Priority</option>
@@ -175,7 +178,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
 
           {/* Task Type */}
           <div>
-            <label htmlFor="task_type" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="task_type" className="block text-sm font-medium text-black mb-2">
               Task Type *
             </label>
             <select
@@ -183,7 +186,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
               name="task_type"
               value={formData.task_type}
               onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${getTaskTypeColor(formData.task_type)}`}
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white ${getTaskTypeColor(formData.task_type)}`}
+              style={{ backgroundColor: 'white', color: 'black' }}
               disabled={isLoading}
             >
               <option value="creative">🎨 Creative Work</option>
@@ -196,7 +200,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Deadline */}
           <div>
-            <label htmlFor="deadline" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="deadline" className="block text-sm font-medium text-black mb-2">
               Deadline *
             </label>
             <input
@@ -205,9 +209,10 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
               name="deadline"
               value={formData.deadline}
               onChange={handleChange}
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white ${
                 errors.deadline ? 'border-red-300' : 'border-gray-300'
               }`}
+              style={{ backgroundColor: 'white', color: 'black' }}
               disabled={isLoading}
             />
             {errors.deadline && <p className="mt-1 text-sm text-red-600">{errors.deadline}</p>}
@@ -215,7 +220,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
 
           {/* Estimated Hours */}
           <div>
-            <label htmlFor="estimated_hours" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="estimated_hours" className="block text-sm font-medium text-black mb-2">
               Estimated Hours
             </label>
             <input
@@ -226,9 +231,10 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
               onChange={handleChange}
               min="1"
               max="168"
-              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+              className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black bg-white ${
                 errors.estimated_hours ? 'border-red-300' : 'border-gray-300'
               }`}
+              style={{ backgroundColor: 'white', color: 'black' }}
               placeholder="Hours needed"
               disabled={isLoading}
             />
@@ -260,7 +266,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
             type="button"
             onClick={resetForm}
             disabled={isLoading}
-            className="flex-1 sm:flex-none bg-gray-300 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-1 sm:flex-none bg-gray-300 text-black py-2 px-4 rounded-md hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             🔄 Reset
           </button>
@@ -270,7 +276,7 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
               type="button"
               onClick={onCancel}
               disabled={isLoading}
-              className="flex-1 sm:flex-none bg-red-300 text-red-700 py-2 px-4 rounded-md hover:bg-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="flex-1 sm:flex-none bg-red-300 text-black py-2 px-4 rounded-md hover:bg-red-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               ❌ Cancel
             </button>

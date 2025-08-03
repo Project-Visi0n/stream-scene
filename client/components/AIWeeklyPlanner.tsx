@@ -103,7 +103,7 @@ const AIWeeklyPlanner: React.FC = () => {
           preferences: {
             workHoursPerDay: 8,
             workDaysPerWeek: 5,
-            creativeBias: 0.6 // 60% creative, 40% admin
+            creativeBias: 0.6 
           }
         })
       });
