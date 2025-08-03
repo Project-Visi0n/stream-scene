@@ -43,9 +43,9 @@ const ProjectCenterTabs: React.FC = () => {
   const activeTabData = tabs.find(tab => tab.id === activeTab);
 
   return (
-    <div className="w-full max-w-6xl mx-auto">
+    <div className="w-full max-w-6xl mx-auto flex flex-col items-center">
       {/* Tab Navigation */}
-      <div className="mb-8">
+      <div className="mb-8 w-full flex justify-center">
         <div className="flex flex-wrap justify-center gap-2 p-2 bg-slate-800/50 rounded-xl backdrop-blur-sm border border-purple-500/20">
           {tabs.map((tab) => (
             <motion.button
@@ -73,7 +73,7 @@ const ProjectCenterTabs: React.FC = () => {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -20 }}
         transition={{ duration: 0.3 }}
-        className="min-h-[400px]"
+        className="min-h-[400px] w-full flex justify-center"
       >
         {activeTabData?.component}
       </motion.div>

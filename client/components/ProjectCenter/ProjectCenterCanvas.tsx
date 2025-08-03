@@ -36,7 +36,7 @@ const ProjectCenterCanvas: React.FC = () => {
 
   return (
     <motion.div 
-      className="flex flex-col items-center w-full max-w-4xl px-4"
+      className="flex flex-col items-center w-full max-w-6xl mx-auto px-4"
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.8, delay: 0.2 }}
@@ -128,7 +128,7 @@ const ProjectCenterCanvas: React.FC = () => {
 
       {/* Canvas Container */}
       <motion.div 
-        className="w-full max-w-3xl"
+        className="w-full max-w-4xl mx-auto"
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.8, delay: 0.5 }}
