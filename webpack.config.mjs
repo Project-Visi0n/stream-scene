@@ -2,6 +2,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import webpack from 'webpack';
+import Dotenv from 'dotenv-webpack';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -55,9 +56,8 @@ export default {
       process: 'process/browser.js',
       Buffer: ['buffer', 'Buffer'],
     }),
-    new webpack.DefinePlugin({
-      'process.env': JSON.stringify(process.env),
-    }),
+    // Environment variables are now injected by dotenv-webpack only
+    new Dotenv(),
   ],
   mode: 'development',
 };
