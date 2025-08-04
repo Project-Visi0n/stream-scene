@@ -5,6 +5,7 @@ import StreamSceneLandingPage from './LandingPage';
 import ProjectCenter from './ProjectCenter/ProjectCenter';
 import AIWeeklyPlanner from './AIWeeklyPlanner';
 
+
 const App: React.FC = () => {
   const location = useLocation();
   
@@ -33,7 +34,7 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white overflow-hidden">
+    <div className="min-h-screen bg-gray-900 text-black overflow-hidden">
       <AnimatePresence mode="wait">
         <Routes location={location} key={location.pathname}>
           <Route 
