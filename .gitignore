@@ -40,3 +40,5 @@ server/.env
 secrets/
 public/bundle.js
 dist/
+.env.local
+.env

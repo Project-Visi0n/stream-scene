@@ -7,6 +7,8 @@ import path from 'path';
 import "./config/passport";
 import authRoutes from "./routes/auth";
 import routes from "./routes/index";
+import aiRoutes from "./routes/ai";
+import scheduleRoutes from "./routes/schedule";
 
 const app = express();
 
@@ -32,9 +34,11 @@ app.use(passport.session());
 // Serve static files from public directory
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Auth routes - must come before catch-all routes
+// Auth routes 
 app.use('/auth', authRoutes);
 app.use('/', routes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/schedule', scheduleRoutes);
 
 // API test route
 app.get('/test-server', (req, res) => {
