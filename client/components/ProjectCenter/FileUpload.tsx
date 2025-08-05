@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { uploadFileToS3, S3UploadResult, isS3Configured, deleteFileFromS3 } from '../../services/s3Service';
+import { uploadFileToS3, S3UploadResult, isS3Configured, deleteFileFromS3, getPresignedReadUrl } from '../../services/s3Service';
 
 interface UploadedFile {
   id: string;
@@ -37,15 +37,21 @@ const FileUpload: React.FC = () => {
       return { url: URL.createObjectURL(file) };
     }
 
+    // Always create a local blob URL for reliable preview
+    const localUrl = URL.createObjectURL(file);
+
     try {
       console.log('[FileUpload] handleS3Upload: Uploading file:', file);
       const s3Result = await uploadFileToS3(file);
       console.log('[FileUpload] handleS3Upload: S3 upload result:', s3Result);
-      return { url: s3Result.url, s3Key: s3Result.key };
+      
+      // Use local blob URL for preview, but store S3 info for later use
+      return { url: localUrl, s3Key: s3Result.key };
     } catch (s3Error) {
-      console.warn('[FileUpload] S3 upload failed, falling back to local preview:', s3Error);
-      setError('S3 upload failed. Using local preview. Check your AWS configuration.');
-      return { url: URL.createObjectURL(file) };
+      console.warn('[FileUpload] S3 upload failed, using local preview:', s3Error);
+      setError('S3 upload failed. Using local preview.');
+      // Use local blob URL as fallback
+      return { url: localUrl };
     }
   };
 
@@ -55,6 +61,8 @@ const FileUpload: React.FC = () => {
     setUploadProgress(0);
     
     try {
+      console.log('Starting upload for file:', file.name, 'Type:', file.type, 'Size:', file.size);
+      
       // Simulate progress for better UX
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + 10, 90));
@@ -64,6 +72,8 @@ const FileUpload: React.FC = () => {
       
       clearInterval(progressInterval);
       setUploadProgress(100);
+      
+      console.log('Upload completed. URL:', url, 'S3Key:', s3Key);
       
       const newFile: UploadedFile = {
         id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
@@ -75,6 +85,7 @@ const FileUpload: React.FC = () => {
         uploadedAt: new Date()
       };
 
+      console.log('Adding file to state:', newFile);
       setUploadedFiles(prev => [...prev, newFile]);
       
       // Reset progress after a short delay
@@ -125,47 +136,134 @@ const FileUpload: React.FC = () => {
     if (type.startsWith('video/')) return '🎥';
     if (type.startsWith('audio/')) return '🎵';
     if (type.startsWith('image/')) return '🖼️';
-    if (type.startsWith('text/') || type.includes('document')) return '📄';
+    if (type.startsWith('text/') || type.includes('document') || type.includes('pdf')) return '📄';
     return '📁';
   };
 
   const isVideoFile = (type: string) => type.startsWith('video/');
   const isAudioFile = (type: string) => type.startsWith('audio/');
   const isImageFile = (type: string) => type.startsWith('image/');
-  const isTextFile = (type: string) => type.startsWith('text/');
+  const isTextFile = (type: string) => type.startsWith('text/') || type.includes('pdf');
+  const isPDFFile = (type: string) => type.includes('pdf');
 
   // Individual file preview components
-  const VideoPreview = ({ url, type }: { url: string; type: string }) => (
-    <video 
-      controls 
-      className="w-full max-w-md rounded-lg shadow-lg"
-      style={{ maxHeight: '300px' }}
-    >
-      <source src={url} type={type} />
-      Your browser does not support the video tag.
-    </video>
-  );
-
-  const AudioPreview = ({ url, type, name }: { url: string; type: string; name: string }) => (
-    <div className="w-full max-w-md bg-slate-800/50 rounded-lg p-4">
-      <div className="flex items-center gap-3 mb-3">
-        <span className="text-2xl">🎵</span>
-        <span className="text-sm text-gray-300 truncate">{name}</span>
+  const VideoPreview = ({ url, type }: { url: string; type: string }) => {
+    const [videoError, setVideoError] = useState(false);
+    
+    return (
+      <div className="w-full max-w-md">
+        {!videoError ? (
+          <video 
+            controls 
+            className="w-full rounded-lg shadow-lg bg-black"
+            style={{ maxHeight: '300px' }}
+            crossOrigin="anonymous"
+            onError={(e) => {
+              console.error('Video preview error:', e);
+              setVideoError(true);
+            }}
+            onLoadStart={() => {
+              console.log('Video loading started');
+            }}
+          >
+            <source src={url} type={type} />
+            Your browser does not support the video tag.
+          </video>
+        ) : (
+          <div className="bg-yellow-900/50 border border-yellow-500/50 text-yellow-200 px-3 py-2 rounded text-sm">
+            <p className="mb-2">Video preview not available</p>
+            <a 
+              href={url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 underline text-xs"
+            >
+              Download video file
+            </a>
+          </div>
+        )}
       </div>
-      <audio controls className="w-full">
-        <source src={url} type={type} />
-        Your browser does not support the audio tag.
-      </audio>
-    </div>
-  );
+    );
+  };  const AudioPreview = ({ url, type, name }: { url: string; type: string; name: string }) => {
+    const [audioError, setAudioError] = useState(false);
+    
+    return (
+      <div className="w-full max-w-md bg-slate-800/50 rounded-lg p-4">
+        <div className="flex items-center gap-3 mb-3">
+          <span className="text-2xl">🎵</span>
+          <span className="text-sm text-gray-300 truncate">{name}</span>
+        </div>
+        {!audioError ? (
+          <audio 
+            controls 
+            className="w-full"
+            crossOrigin="anonymous"
+            onError={(e) => {
+              console.error('Audio preview error:', e);
+              setAudioError(true);
+            }}
+            onLoadStart={() => {
+              console.log('Audio loading started for:', name);
+            }}
+            onCanPlay={() => {
+              console.log('Audio can play:', name);
+            }}
+          >
+            <source src={url} type={type} />
+            Your browser does not support the audio tag.
+          </audio>
+        ) : (
+          <div className="bg-yellow-900/50 border border-yellow-500/50 text-yellow-200 px-3 py-2 rounded text-sm">
+            <p className="mb-2">Audio preview not available</p>
+            <a 
+              href={url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 underline text-xs"
+            >
+              Download audio file
+            </a>
+          </div>
+        )}
+      </div>
+    );
+  };
 
-  const ImagePreview = ({ url, name }: { url: string; name: string }) => (
-    <img 
-      src={url} 
-      alt={name}
-      className="max-w-md max-h-80 rounded-lg shadow-lg object-contain"
-    />
-  );
+  const ImagePreview = ({ url, name }: { url: string; name: string }) => {
+    const [imageError, setImageError] = useState(false);
+    
+    return (
+      <div className="w-full max-w-md">
+        {!imageError ? (
+          <img 
+            src={url} 
+            alt={name}
+            className="w-full max-h-80 rounded-lg shadow-lg object-contain bg-white/10"
+            crossOrigin="anonymous"
+            onError={(e) => {
+              console.error('Image preview error:', e);
+              setImageError(true);
+            }}
+            onLoad={() => {
+              console.log('Image loaded successfully:', name);
+            }}
+          />
+        ) : (
+          <div className="bg-yellow-900/50 border border-yellow-500/50 text-yellow-200 px-3 py-2 rounded text-sm">
+            <p className="mb-2">Image preview not available</p>
+            <a 
+              href={url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-400 hover:text-blue-300 underline text-xs"
+            >
+              View image in new tab
+            </a>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const TextPreview = ({ url, name }: { url: string; name: string }) => (
     <div className="w-full max-w-md bg-slate-800/50 rounded-lg p-4">
@@ -173,21 +271,38 @@ const FileUpload: React.FC = () => {
         <span className="text-2xl">📄</span>
         <span className="text-sm text-gray-300 truncate">{name}</span>
       </div>
-      <iframe
-        src={url}
-        className="w-full h-40 bg-white rounded border-none"
-        title={name}
-      />
+      {isPDFFile(name) ? (
+        <div className="bg-white/10 rounded p-2 text-center">
+          <a 
+            href={url} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="text-blue-400 hover:text-blue-300 underline"
+          >
+            Open PDF in new tab
+          </a>
+        </div>
+      ) : (
+        <iframe
+          src={url}
+          className="w-full h-40 bg-white rounded border-none"
+          title={name}
+          onError={(e) => {
+            console.error('Text preview error:', e);
+          }}
+        />
+      )}
     </div>
   );
 
   const DefaultFilePreview = ({ type, name }: { type: string; name: string }) => (
-    <div className="w-full max-w-md bg-slate-800/50 rounded-lg p-4">
-      <div className="flex items-center gap-3">
-        <span className="text-2xl">{getFileIcon(type)}</span>
-        <div>
-          <div className="text-sm font-medium text-white truncate">{name}</div>
-          <div className="text-xs text-gray-400">{type}</div>
+    <div className="w-full max-w-md bg-slate-800/50 rounded-lg p-4 min-h-[120px] flex items-center">
+      <div className="flex items-center gap-3 w-full">
+        <span className="text-4xl">{getFileIcon(type)}</span>
+        <div className="flex-1">
+          <div className="text-sm font-medium text-white truncate mb-1" title={name}>{name}</div>
+          <div className="text-xs text-gray-400 mb-2">{type || 'Unknown type'}</div>
+          <div className="text-xs text-blue-400">Click to download</div>
         </div>
       </div>
     </div>
@@ -196,10 +311,12 @@ const FileUpload: React.FC = () => {
   const renderFilePreview = (file: UploadedFile) => {
     const { type, url, name } = file;
 
+    console.log('Rendering preview for file:', { name, type, url: url.substring(0, 50) + '...' });
+
     if (isVideoFile(type)) return <VideoPreview url={url} type={type} />;
     if (isAudioFile(type)) return <AudioPreview url={url} type={type} name={name} />;
     if (isImageFile(type)) return <ImagePreview url={url} name={name} />;
-    if (isTextFile(type)) return <TextPreview url={url} name={name} />;
+    if (isTextFile(type) || isPDFFile(type)) return <TextPreview url={url} name={name} />;
     return <DefaultFilePreview type={type} name={name} />;
   };
 

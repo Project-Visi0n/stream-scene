@@ -36,11 +36,13 @@ const getEnvVars = () => {
 export const isS3Configured = (): boolean => {
   const env = getEnvVars();
   const configured = !!(env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY && env.BUCKET_NAME !== 'your-bucket-name');
-  if (!configured) {
-    console.warn('[S3Service] S3 is NOT configured:', env);
-  } else {
-    console.log('[S3Service] S3 is configured:', env);
-  }
+  console.log('[S3Service] Configuration check:', {
+    hasAccessKey: !!env.AWS_ACCESS_KEY_ID,
+    hasSecretKey: !!env.AWS_SECRET_ACCESS_KEY,
+    bucketName: env.BUCKET_NAME,
+    region: env.AWS_REGION,
+    configured
+  });
   return configured;
 };
 
@@ -72,7 +74,8 @@ export const uploadFileToS3 = async (file: File): Promise<S3UploadResult> => {
   const command = new PutObjectCommand({
     Bucket: env.BUCKET_NAME,
     Key: fileName,
-    ChecksumAlgorithm: undefined,
+    ContentType: file.type,
+    // Removed ACL parameter as it may not be supported
   });
 
   const presignedUrl = await getSignedUrl(s3Client, command, { 
@@ -85,8 +88,12 @@ export const uploadFileToS3 = async (file: File): Promise<S3UploadResult> => {
     const uploadRes = await fetch(presignedUrl, {
       method: 'PUT',
       body: file,
+      headers: {
+        'Content-Type': file.type,
+      },
     });
     if (!uploadRes.ok) {
+      console.error('[S3Service] Upload failed with status:', uploadRes.status, 'Response:', await uploadRes.text());
       throw new Error(`Failed to upload file to S3. Status: ${uploadRes.status}`);
     }
     const url = `https://${env.BUCKET_NAME}.s3.amazonaws.com/${fileName}`;
@@ -144,6 +151,42 @@ export const getPresignedUploadUrl = async (fileName: string, fileType: string):
 export const uploadWithPresignedUrl = async (file: File): Promise<S3UploadResult> => {
   // This is a placeholder for a real presigned URL upload flow
   return uploadFileToS3(file);
+};
+
+/**
+ * Generate a presigned URL for reading a file from S3
+ * This allows access to private files without making them public
+ */
+export const getPresignedReadUrl = async (key: string): Promise<string> => {
+  const env = getEnvVars();
+
+  if (!(env.AWS_ACCESS_KEY_ID && env.AWS_SECRET_ACCESS_KEY && env.BUCKET_NAME !== 'your-bucket-name')) {
+    throw new Error('AWS S3 is not configured. Please check your environment variables.');
+  }
+
+  const s3Client = new S3Client({
+    region: env.AWS_REGION,
+    credentials: {
+      accessKeyId: env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+    },
+  });
+
+  const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+  
+  const command = new GetObjectCommand({
+    Bucket: env.BUCKET_NAME,
+    Key: key,
+  });
+
+  try {
+    const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 }); // 1 hour expiry
+    console.log('[S3Service] Generated presigned read URL for:', key);
+    return signedUrl;
+  } catch (error) {
+    console.error('Error generating presigned read URL:', error);
+    throw new Error('Failed to generate file access URL');
+  }
 };
 
 /**

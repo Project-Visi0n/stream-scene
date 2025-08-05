@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth";
 import routes from "./routes/index";
 import aiRoutes from "./routes/ai";
 import scheduleRoutes from "./routes/schedule";
+import s3ProxyRoutes from "./routes/s3Proxy";
 
 const app = express();
 
@@ -39,6 +40,7 @@ app.use('/auth', authRoutes);
 app.use('/', routes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/schedule', scheduleRoutes);
+app.use('/api/s3', s3ProxyRoutes);
 
 // API test route
 app.get('/test-server', (req, res) => {
