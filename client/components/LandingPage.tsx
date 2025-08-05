@@ -1,8 +1,14 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import GoogleLoginButton from './GoogleLoginButton';
 
-const StreamSceneLandingPage: React.FC = () => {
+// Define the CurrentView type to match App.tsx
+type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers';
+
+interface LandingPageProps {
+  onNavigate?: (destination: CurrentView) => void; 
+}
+
+const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-gray-900 to-black relative overflow-hidden">
       {/* Background Effects */}
@@ -19,10 +25,13 @@ const StreamSceneLandingPage: React.FC = () => {
       {/* Simple Navbar */}
       <nav className="relative z-20 p-4 sm:p-6">
         <div className="flex justify-between items-center">
-          {/* Logo */}
-          <div className="flex items-center space-x-2">
-            <div className="w-6 h-6 sm:w-8 sm:h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-xs sm:text-sm">S</span>
+          {/* Rocket Logo - replacing the stand in logo */}
+          <div className="flex items-center space-x-3">
+            <div className="relative group cursor-pointer hover:scale-110 transition-all duration-300">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center group-hover:rotate-12 transition-transform duration-300 shadow-lg shadow-purple-500/30">
+                <span className="text-xl">🚀</span>
+              </div>
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full animate-pulse"></div>
             </div>
             <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
               StreamScene
@@ -71,17 +80,40 @@ const StreamSceneLandingPage: React.FC = () => {
         {/* Feature Cards */}
         <div className="flex flex-wrap justify-center gap-4 sm:gap-6 w-full max-w-6xl px-4 mb-8 sm:mb-12">
           {[
-            { icon: '📁', title: 'Project Center', desc: 'Organize all your creative projects in one place', link: '/project-center' },
-            { icon: '💰', title: 'Budget Tracker', desc: 'Keep your finances on track with smart tools' },
-            { icon: '▶️', title: 'Demos & Trailers', desc: 'Showcase your best work professionally' },
-            { icon: '🤖', title: 'AI Weekly Planner', desc: 'Smart task scheduling with AI assistance', link: '/ai-planner' }
+            { 
+              icon: '📁', 
+              title: 'Project Center', 
+              desc: 'Organize all your creative projects in one place', 
+              destination: 'project-center' as CurrentView, // ✅ Type assertion to ensure type safety
+              available: true 
+            },
+            { 
+              icon: '💰', 
+              title: 'Budget Tracker', 
+              desc: 'Keep your finances on track with smart tools',
+              destination: 'budget-tracker' as CurrentView,
+              available: true 
+            },
+            { 
+              icon: '▶️', 
+              title: 'Demos & Trailers', 
+              desc: 'Showcase your best work professionally',
+              destination: 'demos-trailers' as CurrentView,
+              available: true 
+            },
+            { 
+              icon: '🤖', 
+              title: 'AI Weekly Planner', 
+              desc: 'Smart task scheduling with AI assistance', 
+              destination: 'planner' as CurrentView,
+              available: true 
+            }
           ].map((feature, index) => (
-            feature.link ? (
-              <Link
+            feature.available ? (
+              <div
                 key={index}
-                to={feature.link}
+                onClick={() => onNavigate?.(feature.destination)}
                 className="flex-1 min-w-[280px] max-w-[320px] sm:min-w-[250px] sm:max-w-[300px] group p-4 sm:p-6 rounded-xl bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/20 cursor-pointer"
-                style={{ textDecoration: 'none' }}
               >
                 <div className="text-2xl sm:text-3xl mb-3">{feature.icon}</div>
                 <h3 className="text-base sm:text-lg font-semibold text-purple-300 mb-2">{feature.title}</h3>
@@ -89,7 +121,7 @@ const StreamSceneLandingPage: React.FC = () => {
                 <div className="mt-3 text-purple-400 text-xs font-medium group-hover:text-purple-300 transition-colors">
                   Click to explore →
                 </div>
-              </Link>
+              </div>
             ) : (
               <div key={index} className="flex-1 min-w-[280px] max-w-[320px] sm:min-w-[250px] sm:max-w-[300px] group p-4 sm:p-6 rounded-xl bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/20 opacity-75">
                 <div className="text-2xl sm:text-3xl mb-3">{feature.icon}</div>
@@ -108,15 +140,15 @@ const StreamSceneLandingPage: React.FC = () => {
           <p className="text-gray-400 text-xs sm:text-sm mb-4 sm:mb-6">
             Ready to streamline your creative workflow?
           </p>
-          <Link 
-            to="/ai-planner"
-            className="group inline-block px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105 transform text-sm sm:text-base"
+          <button 
+            onClick={() => onNavigate?.('planner')}
+            className="group inline-block px-6 py-3 sm:px-8 sm:py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-semibold rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-xl hover:shadow-purple-500/40 transition-all duration-300 hover:scale-105 transform text-sm sm:text-base cursor-pointer"
           >
             <span className="flex items-center justify-center">
               Start with AI Planner
               <span className="ml-2 group-hover:translate-x-1 transition-transform duration-300">🤖</span>
             </span>
-          </Link>
+          </button>
         </div>
       </main>
     </div>
