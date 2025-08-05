@@ -3,6 +3,7 @@ dotenv.config();
 import express from "express";
 import session from 'express-session';
 import passport from 'passport';
+import cors from 'cors';
 import path from 'path';
 import "./config/passport";
 import authRoutes from "./routes/auth";
@@ -14,6 +15,12 @@ import fileRoutes from "./routes/files";
 import { syncDB } from "./db/index";
 
 const app = express();
+
+// CORS configuration
+app.use(cors({
+  origin: 'http://localhost:8000', // Allow requests from frontend
+  credentials: true // Allow cookies to be sent
+}));
 
 // Basic middleware
 app.use(express.json());
