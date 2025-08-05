@@ -37,4 +37,33 @@ router.get(
  }
 );
 
+// Get current authenticated user
+router.get('/user', (req: Request, res: Response) => {
+  console.log('Auth check - Session ID:', req.sessionID);
+  console.log('Auth check - User:', req.user);
+  console.log('Auth check - Session:', req.session);
+  
+  if (req.user) {
+    res.json({
+      authenticated: true,
+      user: req.user
+    });
+  } else {
+    res.json({
+      authenticated: false,
+      user: null
+    });
+  }
+});
+
+// Logout endpoint
+router.post('/logout', (req: Request, res: Response) => {
+  req.logout((err) => {
+    if (err) {
+      return res.status(500).json({ error: 'Logout failed' });
+    }
+    res.json({ message: 'Logged out successfully' });
+  });
+});
+
 export default router;

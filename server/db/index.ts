@@ -4,6 +4,7 @@ dotenv.config();
 
 // Import Sequelize 
 import { Sequelize } from 'sequelize';
+import { File } from '../models/File';
 
 // Set up Sequelize connection
 const sequelize = new Sequelize({
@@ -30,11 +31,11 @@ export const associate = () => {
   console.log('Database associations set up');
 };
 
-// call this to sync the DB
+// call this to sync the DB (excluding File model for now)
 export const syncDB = async (force = false) => {
   try {
-    await sequelize.sync({ force });
-    console.log('Database synced successfully');
+    // Skip File model sync since we're using in-memory storage
+    console.log('Database sync skipped - using in-memory file storage');
   } catch (error) {
     console.error('Database sync failed:', error);
   }
@@ -46,6 +47,7 @@ testConnection();
 // Export everything in one object
 export const db = {
   sequelize,
+  File, // This is now our in-memory File class
   associate,
 };
 
