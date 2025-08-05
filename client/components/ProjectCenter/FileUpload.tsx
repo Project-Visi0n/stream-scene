@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { uploadFileToS3, S3UploadResult, isS3Configured, deleteFileFromS3, getPresignedReadUrl } from '../../services/s3Service';
+import { uploadFileToS3, S3UploadResult, isS3Configured, deleteFileFromS3, getFileUrl } from '../../services/s3Service';
 import { fileService, FileRecord, CreateFileRequest } from '../../services/fileService';
 import useAuth from '../../hooks/useAuth';
 
@@ -580,5 +580,3 @@ const FileUpload: React.FC = () => {
 };
 
 export default FileUpload;
-
-console.log('REACT_APP_AWS_ACCESS_KEY_ID', process.env.REACT_APP_AWS_ACCESS_KEY_ID);
