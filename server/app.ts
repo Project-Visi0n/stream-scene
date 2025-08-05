@@ -10,6 +10,8 @@ import routes from "./routes/index";
 import aiRoutes from "./routes/ai";
 import scheduleRoutes from "./routes/schedule";
 import s3ProxyRoutes from "./routes/s3Proxy";
+import fileRoutes from "./routes/files";
+import { syncDB } from "./db/index";
 
 const app = express();
 
@@ -41,6 +43,7 @@ app.use('/', routes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/s3', s3ProxyRoutes);
+app.use('/api/files', fileRoutes);
 
 // API test route
 app.get('/test-server', (req, res) => {
@@ -59,8 +62,14 @@ app.get('*', (req, res) => {
 
 const PORT = process.env.PORT || 8000;
 
-app.listen(PORT, () => {
-  console.log(`Server is running at http://localhost:8000`);
+// Initialize database
+syncDB().then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server is running at http://localhost:8000`);
+  });
+}).catch((error) => {
+  console.error('Failed to initialize database:', error);
+  process.exit(1);
 });
 
 export default app;

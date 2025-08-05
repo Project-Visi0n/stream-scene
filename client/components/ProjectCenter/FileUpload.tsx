@@ -1,6 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { uploadFileToS3, S3UploadResult, isS3Configured, deleteFileFromS3, getPresignedReadUrl } from '../../services/s3Service';
+import { fileService, FileRecord, CreateFileRequest } from '../../services/fileService';
+import useAuth from '../../hooks/useAuth';
 
 interface UploadedFile {
   id: string;
@@ -10,6 +12,7 @@ interface UploadedFile {
   url: string;
   s3Key?: string;
   uploadedAt: Date;
+  fileRecordId?: number; // Database record ID
 }
 
 const FileUpload: React.FC = () => {
@@ -18,7 +21,46 @@ const FileUpload: React.FC = () => {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAuth();
+
+  // Load user's files when component mounts or user changes
+  useEffect(() => {
+    if (user) {
+      loadUserFiles();
+    } else {
+      setUploadedFiles([]);
+      setLoading(false);
+    }
+  }, [user]);
+
+  const loadUserFiles = async () => {
+    try {
+      setLoading(true);
+      const fileRecords = await fileService.getFiles();
+      
+      // Convert FileRecord to UploadedFile format
+      const files: UploadedFile[] = fileRecords.map(record => ({
+        id: `db-${record.id}`, // Prefix to distinguish from local IDs
+        name: record.name,
+        type: record.type,
+        size: record.size,
+        url: record.url,
+        s3Key: record.s3Key,
+        uploadedAt: new Date(record.uploadedAt),
+        fileRecordId: record.id
+      }));
+      
+      setUploadedFiles(files);
+      console.log('Loaded user files:', files);
+    } catch (error) {
+      console.error('Failed to load user files:', error);
+      setError('Failed to load your files. Please refresh the page.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleFileSelect = (files: FileList | null) => {
     if (!files) return;
@@ -56,6 +98,11 @@ const FileUpload: React.FC = () => {
   };
 
   const uploadFile = async (file: File) => {
+    if (!user) {
+      setError('Please log in to upload files.');
+      return;
+    }
+
     setUploading(true);
     setError(null);
     setUploadProgress(0);
@@ -71,22 +118,37 @@ const FileUpload: React.FC = () => {
       const { url, s3Key } = await handleS3Upload(file);
       
       clearInterval(progressInterval);
-      setUploadProgress(100);
+      setUploadProgress(95);
       
       console.log('Upload completed. URL:', url, 'S3Key:', s3Key);
       
-      const newFile: UploadedFile = {
-        id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+      // Create file record in database
+      const fileData: CreateFileRequest = {
         name: file.name,
+        originalName: file.name,
         type: file.type,
         size: file.size,
         url,
-        s3Key,
-        uploadedAt: new Date()
+        s3Key
+      };
+
+      const fileRecord = await fileService.createFile(fileData);
+      console.log('File record created:', fileRecord);
+      
+      const newFile: UploadedFile = {
+        id: `db-${fileRecord.id}`,
+        name: fileRecord.name,
+        type: fileRecord.type,
+        size: fileRecord.size,
+        url: fileRecord.url,
+        s3Key: fileRecord.s3Key,
+        uploadedAt: new Date(fileRecord.uploadedAt),
+        fileRecordId: fileRecord.id
       };
 
       console.log('Adding file to state:', newFile);
       setUploadedFiles(prev => [...prev, newFile]);
+      setUploadProgress(100);
       
       // Reset progress after a short delay
       setTimeout(() => setUploadProgress(0), 1000);
@@ -339,32 +401,72 @@ const FileUpload: React.FC = () => {
   };
 
   // Remove file handler
-  const removeFile = (fileId: string) => {
-    setUploadedFiles(prev => {
-      const fileToRemove = prev.find(f => f.id === fileId);
-      if (fileToRemove) {
-        cleanupLocalUrl(fileToRemove.url);
-        cleanupS3(fileToRemove.s3Key);
+  const removeFile = async (fileId: string) => {
+    const fileToRemove = uploadedFiles.find(f => f.id === fileId);
+    if (!fileToRemove) return;
+
+    try {
+      // Remove from UI immediately for better UX
+      setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
+
+      // If file has a database record, delete it
+      if (fileToRemove.fileRecordId) {
+        await fileService.deleteFile(fileToRemove.fileRecordId);
       }
-      return prev.filter(f => f.id !== fileId);
-    });
+
+      // Clean up local blob URL
+      cleanupLocalUrl(fileToRemove.url);
+      
+      // Clean up S3 if needed
+      await cleanupS3(fileToRemove.s3Key);
+      
+      console.log('File removed successfully:', fileToRemove.name);
+    } catch (error) {
+      console.error('Failed to remove file:', error);
+      // Re-add the file to the list if deletion failed
+      setUploadedFiles(prev => [...prev, fileToRemove]);
+      setError('Failed to delete file. Please try again.');
+    }
   };
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6 space-y-6">
-      {/* Upload Area */}
-      <motion.div
-        className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
-          isDragging 
-            ? 'border-purple-400 bg-purple-400/10' 
-            : 'border-gray-600 hover:border-purple-500 bg-slate-800/30'
-        }`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-      >
+      {/* Authentication Check */}
+      {!user && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-yellow-900/50 border border-yellow-500/50 text-yellow-200 px-4 py-3 rounded-lg text-center"
+        >
+          <p className="text-sm">Please log in to upload and manage your files.</p>
+        </motion.div>
+      )}
+
+      {/* Loading State */}
+      {loading && user && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center justify-center py-8"
+        >
+          <div className="text-gray-400">Loading your files...</div>
+        </motion.div>
+      )}
+
+      {/* Upload Area - Only show if user is logged in */}
+      {user && !loading && (
+        <motion.div
+          className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
+            isDragging 
+              ? 'border-purple-400 bg-purple-400/10' 
+              : 'border-gray-600 hover:border-purple-500 bg-slate-800/30'
+          }`}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
         <input
           ref={fileInputRef}
           type="file"
@@ -427,9 +529,10 @@ const FileUpload: React.FC = () => {
           )}
         </div>
       </motion.div>
+      )}
 
       {/* Uploaded Files Display */}
-      {uploadedFiles.length > 0 && (
+      {user && !loading && uploadedFiles.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
