@@ -36,6 +36,8 @@ interface AISuggestion {
   task_type?: 'creative' | 'admin';
 }
 
+type CalendarView = 'monthly' | 'weekly' | 'daily';
+
 const AIWeeklyPlanner: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
@@ -49,12 +51,35 @@ const AIWeeklyPlanner: React.FC = () => {
   // Calendar and AI suggestions state
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [aiSuggestions, setAiSuggestions] = useState<AISuggestion[]>([]);
-  const [currentWeekStart, setCurrentWeekStart] = useState(() => {
-    const today = new Date();
-    const monday = new Date(today);
-    monday.setDate(today.getDate() - today.getDay() + 1);
-    return monday;
-  });
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [calendarView, setCalendarView] = useState<CalendarView>('monthly');
+  
+  // Task filtering state
+  const [taskFilter, setTaskFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed' | 'creative' | 'admin'>('all');
+  
+  // Confirmation dialogs
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Filter tasks based on current filter
+  const getFilteredTasks = () => {
+    switch (taskFilter) {
+      case 'pending':
+        return tasks.filter(t => t.status === 'pending');
+      case 'in_progress':
+        return tasks.filter(t => t.status === 'in_progress');
+      case 'completed':
+        return tasks.filter(t => t.status === 'completed');
+      case 'creative':
+        return tasks.filter(t => t.task_type === 'creative');
+      case 'admin':
+        return tasks.filter(t => t.task_type === 'admin');
+      default:
+        return tasks;
+    }
+  };
+
+  const filteredTasks = getFilteredTasks();
 
   // Load tasks on component mount
   useEffect(() => {
@@ -64,7 +89,7 @@ const AIWeeklyPlanner: React.FC = () => {
   // Update calendar when tasks change
   useEffect(() => {
     generateCalendarEvents();
-  }, [tasks, currentWeekStart]);
+  }, [tasks, currentDate]);
 
   const loadTasks = async () => {
     setIsLoadingTasks(true);
@@ -124,16 +149,62 @@ const AIWeeklyPlanner: React.FC = () => {
     }
   };
 
+  // NEW: Delete task functionality
+  const handleDeleteTask = async (task: Task) => {
+    setTaskToDelete(task);
+  };
+
+  const confirmDeleteTask = async () => {
+    if (!taskToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/tasks/${taskToDelete.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        setTasks(prev => prev.filter(t => t.id !== taskToDelete.id));
+        setTaskToDelete(null);
+        alert('Task deleted successfully! 🗑️');
+      } else {
+        const error = await response.json();
+        alert(`Failed to delete task: ${error.message || error.error}`);
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      alert('Failed to delete task. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   const generateCalendarEvents = () => {
     const events: CalendarEvent[] = [];
-    const weekEnd = new Date(currentWeekStart);
-    weekEnd.setDate(weekEnd.getDate() + 7);
+    
+    // Get date range based on current view
+    let startDate: Date, endDate: Date;
+    
+    if (calendarView === 'monthly') {
+      startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
+    } else if (calendarView === 'weekly') {
+      const weekStart = new Date(currentDate);
+      weekStart.setDate(currentDate.getDate() - currentDate.getDay() + 1);
+      startDate = weekStart;
+      endDate = new Date(weekStart);
+      endDate.setDate(endDate.getDate() + 6);
+    } else { // daily
+      startDate = new Date(currentDate);
+      endDate = new Date(currentDate);
+    }
 
     // Convert tasks to calendar events
     tasks.forEach(task => {
       if (task.deadline) {
         const deadlineDate = new Date(task.deadline);
-        if (deadlineDate >= currentWeekStart && deadlineDate <= weekEnd) {
+        if (deadlineDate >= startDate && deadlineDate <= endDate) {
           events.push({
             id: `deadline-${task.id}`,
             title: `📅 ${task.title} (Due)`,
@@ -148,9 +219,9 @@ const AIWeeklyPlanner: React.FC = () => {
 
       // Add suggested work blocks for incomplete tasks
       if (task.estimated_hours && task.status !== 'completed') {
-        const workDate = new Date(currentWeekStart);
-        workDate.setDate(workDate.getDate() + Math.floor(Math.random() * 5)); // Random weekday
-        workDate.setHours(9 + Math.floor(Math.random() * 6)); // 9 AM to 3 PM slots
+        const workDate = new Date(startDate);
+        workDate.setDate(workDate.getDate() + Math.floor(Math.random() * 5));
+        workDate.setHours(9 + Math.floor(Math.random() * 6));
         
         const endTime = new Date(workDate);
         endTime.setHours(endTime.getHours() + Math.min(task.estimated_hours, 3));
@@ -213,7 +284,7 @@ const AIWeeklyPlanner: React.FC = () => {
     setIsGeneratingSuggestions(true);
     
     try {
-      // Call your existing AI route or create a new one
+      // Always try the AI API first
       const response = await fetch('/api/ai/suggestions', {
         method: 'POST',
         headers: {
@@ -233,9 +304,10 @@ const AIWeeklyPlanner: React.FC = () => {
 
       if (response.ok) {
         const suggestions = await response.json();
-        setAiSuggestions(suggestions);
+        console.log('AI suggestions received:', suggestions);
+        setAiSuggestions(suggestions || []);
       } else {
-        // Fallback to local suggestions if API doesn't exist yet
+        console.log('AI API failed, using local suggestions');
         generateLocalSuggestions();
       }
     } catch (error) {
@@ -247,10 +319,8 @@ const AIWeeklyPlanner: React.FC = () => {
   };
 
   const generateLocalSuggestions = () => {
-    // Local AI-like analysis as fallback
     const suggestions: AISuggestion[] = [];
     
-    // Analyze existing tasks for intelligent suggestions
     const creativeTasks = tasks.filter(t => t.task_type === 'creative' && t.status !== 'completed');
     const adminTasks = tasks.filter(t => t.task_type === 'admin' && t.status !== 'completed');
     const upcomingDeadlines = tasks.filter(t => {
@@ -261,7 +331,6 @@ const AIWeeklyPlanner: React.FC = () => {
       return deadline <= inThreeDays && t.status !== 'completed';
     });
 
-    // Suggest preparation tasks for upcoming deadlines
     upcomingDeadlines.forEach(task => {
       suggestions.push({
         id: `prep-${task.id}`,
@@ -276,7 +345,6 @@ const AIWeeklyPlanner: React.FC = () => {
       });
     });
 
-    // Suggest balance if too many of one type
     if (creativeTasks.length > adminTasks.length * 2) {
       suggestions.push({
         id: 'balance-admin',
@@ -286,51 +354,6 @@ const AIWeeklyPlanner: React.FC = () => {
         reason: 'You have many creative tasks but few admin tasks. Balance helps productivity.',
         estimatedHours: 1,
         priority: 'low',
-        task_type: 'admin'
-      });
-    } else if (adminTasks.length > creativeTasks.length * 2) {
-      suggestions.push({
-        id: 'balance-creative',
-        type: 'task',
-        title: 'Brainstorm new project ideas',
-        description: 'Spend time on creative thinking and ideation',
-        reason: 'You have many admin tasks but few creative ones. Creative work boosts innovation.',
-        estimatedHours: 2,
-        priority: 'medium',
-        task_type: 'creative'
-      });
-    }
-
-    // Suggest focus blocks for high-priority tasks
-    const highPriorityTasks = tasks.filter(t => t.priority === 'high' && t.status !== 'completed');
-    if (highPriorityTasks.length > 0) {
-      suggestions.push({
-        id: 'focus-block',
-        type: 'calendar_block',
-        title: 'Deep Focus Block - High Priority Tasks',
-        description: 'Protected time for your most important work',
-        reason: `You have ${highPriorityTasks.length} high-priority tasks. Block focused time to tackle them.`,
-        suggestedTime: '09:00',
-        estimatedHours: 3
-      });
-    }
-
-    // Suggest weekly planning if no recent planning tasks
-    const hasPlanning = tasks.some(t => 
-      t.title.toLowerCase().includes('plan') || 
-      t.title.toLowerCase().includes('review') ||
-      t.title.toLowerCase().includes('strategy')
-    );
-    
-    if (!hasPlanning) {
-      suggestions.push({
-        id: 'weekly-planning',
-        type: 'task',
-        title: 'Weekly planning and review session',
-        description: 'Review progress and plan upcoming priorities',
-        reason: 'Regular planning sessions improve productivity and goal alignment.',
-        estimatedHours: 1,
-        priority: 'medium',
         task_type: 'admin'
       });
     }
@@ -349,31 +372,105 @@ const AIWeeklyPlanner: React.FC = () => {
     };
 
     try {
-      await handleTaskSubmit(taskData);
-      setAiSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
+      // Create the task directly without going through handleTaskSubmit to avoid form issues
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: taskData.title,
+          description: taskData.description,
+          priority: taskData.priority,
+          task_type: taskData.task_type,
+          deadline: taskData.deadline,
+          estimated_hours: taskData.estimated_hours || undefined
+        })
+      });
+
+      if (response.ok) {
+        const newTask = await response.json();
+        // Update tasks list
+        setTasks(prev => [...prev, newTask]);
+        // Remove the suggestion from the list
+        setAiSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
+        // Show success message
+        alert(`✅ Task "${suggestion.title}" added successfully!`);
+      } else if (response.status === 401) {
+        alert('Please log in to create tasks. You need to be authenticated to use this feature.');
+      } else {
+        const error = await response.json();
+        alert(`Failed to create task: ${error.message || error.error}`);
+        console.error('Task creation failed:', error);
+      }
     } catch (error) {
       console.error('Failed to add task from suggestion:', error);
-      // Don't remove the suggestion if it failed to create
+      alert('Failed to create task. Please check your connection and try again.');
+      // Don't remove the suggestion if creation failed
     }
   };
 
-  const navigateWeek = (direction: 'prev' | 'next') => {
-    const newDate = new Date(currentWeekStart);
-    newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
-    setCurrentWeekStart(newDate);
+  // Calendar navigation functions
+  const navigateDate = (direction: 'prev' | 'next') => {
+    const newDate = new Date(currentDate);
+    
+    if (calendarView === 'monthly') {
+      newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
+    } else if (calendarView === 'weekly') {
+      newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
+    } else { // daily
+      newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
+    }
+    
+    setCurrentDate(newDate);
+  };
+
+  const goToToday = () => {
+    setCurrentDate(new Date());
+  };
+
+  // Calendar rendering functions
+  const getMonthDays = () => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    const startingDayOfWeek = firstDay.getDay();
+    
+    const days = [];
+    
+    // Add empty cells for days before the first day of the month
+    for (let i = 0; i < startingDayOfWeek; i++) {
+      days.push(null);
+    }
+    
+    // Add all days of the month
+    for (let day = 1; day <= daysInMonth; day++) {
+      days.push(new Date(year, month, day));
+    }
+    
+    return days;
   };
 
   const getWeekDays = () => {
     const days = [];
+    const startOfWeek = new Date(currentDate);
+    startOfWeek.setDate(currentDate.getDate() - currentDate.getDay() + 1);
+    
     for (let i = 0; i < 7; i++) {
-      const day = new Date(currentWeekStart);
+      const day = new Date(startOfWeek);
       day.setDate(day.getDate() + i);
       days.push(day);
     }
+    
     return days;
   };
 
-  const getEventsForDay = (date: Date) => {
+  const getEventsForDay = (date: Date | null) => {
+    if (!date) return [];
     const dayStr = date.toISOString().split('T')[0];
     return calendarEvents.filter(event => {
       const eventDate = new Date(event.start).toISOString().split('T')[0];
@@ -391,44 +488,103 @@ const AIWeeklyPlanner: React.FC = () => {
     return { pending, inProgress, completed, creative, admin, total: tasks.length };
   };
 
-  const stats = getTaskStats();
-
-  const renderCalendarView = () => {
-    const weekDays = getWeekDays();
+  const renderMonthlyView = () => {
+    const monthDays = getMonthDays();
+    const today = new Date();
     
     return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            📅 Calendar View
-          </h2>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => navigateWeek('prev')}
-              className="p-2 bg-white/20 hover:bg-white/30 rounded-lg text-white transition-colors"
-            >
-              ←
-            </button>
-            <span className="text-white font-medium px-4">
-              Week of {currentWeekStart.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-            </span>
-            <button 
-              onClick={() => navigateWeek('next')}
-              className="p-2 bg-white/20 hover:bg-white/30 rounded-lg text-white transition-colors"
-            >
-              →
-            </button>
-          </div>
+      <div className="space-y-4">
+        <div className="text-center mb-6">
+          <h3 className="text-2xl font-bold text-white">
+            {currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+          </h3>
         </div>
+        
+        {/* Days of week header */}
+        <div className="grid grid-cols-7 gap-2 mb-2">
+          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+            <div key={day} className="text-center text-sm font-medium text-gray-300 py-2">
+              {day}
+            </div>
+          ))}
+        </div>
+        
+        {/* Calendar grid */}
+        <div className="grid grid-cols-7 gap-2">
+          {monthDays.map((day, index) => {
+            if (!day) {
+              return <div key={index} className="aspect-square"></div>;
+            }
+            
+            const events = getEventsForDay(day);
+            const isToday = day.toDateString() === today.toDateString();
+            const isCurrentMonth = day.getMonth() === currentDate.getMonth();
+            
+            return (
+              <div 
+                key={index} 
+                className={`aspect-square p-2 rounded-lg border cursor-pointer transition-colors ${
+                  isToday ? 'bg-blue-500/30 border-blue-400' : 
+                  isCurrentMonth ? 'bg-white/5 border-white/10 hover:bg-white/10' : 
+                  'bg-gray-800/30 border-gray-700'
+                }`}
+                onClick={() => setCurrentDate(day)}
+              >
+                <div className={`text-sm font-medium mb-1 ${
+                  isToday ? 'text-blue-300' : 
+                  isCurrentMonth ? 'text-white' : 
+                  'text-gray-500'
+                }`}>
+                  {day.getDate()}
+                </div>
+                <div className="space-y-1">
+                  {events.slice(0, 2).map(event => (
+                    <div 
+                      key={event.id}
+                      className={`text-xs p-1 rounded truncate ${
+                        event.type === 'deadline' ? 'bg-red-500/60 text-white' :
+                        event.type === 'task' ? 'bg-blue-500/60 text-white' :
+                        'bg-purple-500/60 text-white'
+                      }`}
+                      title={event.title}
+                    >
+                      {event.title}
+                    </div>
+                  ))}
+                  {events.length > 2 && (
+                    <div className="text-xs text-gray-400">+{events.length - 2} more</div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
+  const renderWeeklyView = () => {
+    const weekDays = getWeekDays();
+    const today = new Date();
+    
+    return (
+      <div className="space-y-4">
+        <div className="text-center mb-6">
+          <h3 className="text-2xl font-bold text-white">
+            Week of {weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          </h3>
+        </div>
+        
         <div className="grid grid-cols-7 gap-2">
           {weekDays.map((day, index) => {
             const events = getEventsForDay(day);
-            const isToday = day.toDateString() === new Date().toDateString();
+            const isToday = day.toDateString() === today.toDateString();
             
             return (
-              <div key={index} className={`p-3 rounded-lg border ${isToday ? 'bg-blue-500/20 border-blue-400' : 'bg-white/5 border-white/10'}`}>
-                <div className="text-center mb-2">
+              <div key={index} className={`p-3 rounded-lg border min-h-[200px] ${
+                isToday ? 'bg-blue-500/20 border-blue-400' : 'bg-white/5 border-white/10'
+              }`}>
+                <div className="text-center mb-3">
                   <div className="text-xs text-gray-300">
                     {day.toLocaleDateString('en-US', { weekday: 'short' })}
                   </div>
@@ -436,14 +592,14 @@ const AIWeeklyPlanner: React.FC = () => {
                     {day.getDate()}
                   </div>
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-2">
                   {events.map(event => (
                     <div 
                       key={event.id}
-                      className={`text-xs p-2 rounded text-white ${
-                        event.type === 'deadline' ? 'bg-red-500/80' :
-                        event.type === 'task' ? 'bg-blue-500/80' :
-                        'bg-purple-500/80'
+                      className={`text-xs p-2 rounded ${
+                        event.type === 'deadline' ? 'bg-red-500/80 text-white' :
+                        event.type === 'task' ? 'bg-blue-500/80 text-white' :
+                        'bg-purple-500/80 text-white'
                       }`}
                     >
                       <div className="font-medium truncate">{event.title}</div>
@@ -467,9 +623,151 @@ const AIWeeklyPlanner: React.FC = () => {
     );
   };
 
-  const renderSuggestionsView = () => {
+  const renderDailyView = () => {
+    const events = getEventsForDay(currentDate);
+    const isToday = currentDate.toDateString() === new Date().toDateString();
+    
     return (
       <div className="space-y-6">
+        <div className="text-center mb-6">
+          <h3 className="text-2xl font-bold text-white">
+            {currentDate.toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              month: 'long', 
+              day: 'numeric', 
+              year: 'numeric' 
+            })}
+          </h3>
+          {isToday && (
+            <p className="text-blue-300 font-medium">Today</p>
+          )}
+        </div>
+        
+        <div className="space-y-4">
+          {events.length > 0 ? (
+            events.map(event => (
+              <div 
+                key={event.id}
+                className={`p-4 rounded-lg ${
+                  event.type === 'deadline' ? 'bg-red-500/20 border border-red-400' :
+                  event.type === 'task' ? 'bg-blue-500/20 border border-blue-400' :
+                  'bg-purple-500/20 border border-purple-400'
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <h4 className="font-medium text-white mb-1">{event.title}</h4>
+                    {event.start && (
+                      <p className="text-sm text-gray-300">
+                        {new Date(event.start).toLocaleTimeString('en-US', { 
+                          hour: 'numeric', 
+                          minute: '2-digit',
+                          hour12: true 
+                        })}
+                        {event.end && event.start !== event.end && (
+                          <span> - {new Date(event.end).toLocaleTimeString('en-US', { 
+                            hour: 'numeric', 
+                            minute: '2-digit',
+                            hour12: true 
+                          })}</span>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    event.type === 'deadline' ? 'bg-red-500/40 text-red-300' :
+                    event.type === 'task' ? 'bg-blue-500/40 text-blue-300' :
+                    'bg-purple-500/40 text-purple-300'
+                  }`}>
+                    {event.type}
+                  </span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-12">
+              <div className="text-4xl mb-4">📅</div>
+              <h3 className="text-lg font-semibold text-white mb-2">No events scheduled</h3>
+              <p className="text-gray-300">This day is free for you to focus on other tasks.</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  const renderCalendarView = () => {
+    return (
+      <div className="space-y-6">
+        {/* Calendar Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+            📅 Calendar View
+          </h2>
+          
+          {/* View Toggle */}
+          <div className="flex items-center gap-2">
+            <div className="bg-white/10 rounded-lg p-1 flex">
+              {[
+                { key: 'monthly', label: 'Month', icon: '📅' },
+                { key: 'weekly', label: 'Week', icon: '📊' },
+                { key: 'daily', label: 'Day', icon: '📋' }
+              ].map(view => (
+                <button
+                  key={view.key}
+                  onClick={() => setCalendarView(view.key as CalendarView)}
+                  className={`px-3 py-1 rounded text-sm font-medium transition-colors ${
+                    calendarView === view.key
+                      ? 'bg-white text-gray-900'
+                      : 'text-white hover:bg-white/10'
+                  }`}
+                >
+                  {view.icon} {view.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Navigation Controls */}
+        <div className="flex items-center justify-between">
+          <button 
+            onClick={() => navigateDate('prev')}
+            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-white transition-colors"
+          >
+            ← Previous
+          </button>
+          
+          <button
+            onClick={goToToday}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+          >
+            Today
+          </button>
+          
+          <button 
+            onClick={() => navigateDate('next')}
+            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg text-white transition-colors"
+          >
+            Next →
+          </button>
+        </div>
+
+        {/* Calendar Content */}
+        {calendarView === 'monthly' && renderMonthlyView()}
+        {calendarView === 'weekly' && renderWeeklyView()}
+        {calendarView === 'daily' && renderDailyView()}
+      </div>
+    );
+  };
+
+  const renderSuggestionsView = () => {
+    // Separate actionable vs non-actionable suggestions
+    const actionableSuggestions = aiSuggestions.filter(s => s.type === 'task');
+    const insights = aiSuggestions.filter(s => s.type === 'optimization' || s.type === 'calendar_block');
+
+    return (
+      <div className="space-y-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
             🤖 AI Task Suggestions
@@ -493,52 +791,136 @@ const AIWeeklyPlanner: React.FC = () => {
           </button>
         </div>
 
-        {aiSuggestions.length > 0 ? (
-          <div className="space-y-4">
-            {aiSuggestions.map(suggestion => (
-              <div key={suggestion.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="text-yellow-400">💡</span>
-                      <span className={`text-xs px-2 py-1 rounded ${
-                        suggestion.type === 'task' ? 'bg-blue-500/20 text-blue-300' :
-                        suggestion.type === 'calendar_block' ? 'bg-green-500/20 text-green-300' :
-                        'bg-purple-500/20 text-purple-300'
-                      }`}>
-                        {suggestion.type.replace('_', ' ')}
-                      </span>
-                      {suggestion.estimatedHours && (
-                        <span className="text-xs text-gray-400">~{suggestion.estimatedHours}h</span>
-                      )}
-                      {suggestion.priority && (
-                        <span className={`text-xs px-2 py-1 rounded ${
-                          suggestion.priority === 'high' ? 'bg-red-500/20 text-red-300' :
-                          suggestion.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
-                          'bg-green-500/20 text-green-300'
-                        }`}>
-                          {suggestion.priority}
-                        </span>
-                      )}
+        {(actionableSuggestions.length > 0 || insights.length > 0) ? (
+          <div className="space-y-8">
+            {/* Actionable Tasks Section */}
+            {actionableSuggestions.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <h3 className="text-xl font-bold text-white">✅ Suggested Tasks</h3>
+                  <span className="text-sm text-gray-400">({actionableSuggestions.length} actionable items)</span>
+                </div>
+                <div className="space-y-4">
+                  {actionableSuggestions.map((suggestion, index) => (
+                    <div key={`task-${suggestion.id}-${index}`} className="bg-blue-500/10 border border-blue-400/30 rounded-lg p-4">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-blue-400">📋</span>
+                            <span className="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-300">
+                              task
+                            </span>
+                            {suggestion.estimatedHours && (
+                              <span className="text-xs text-gray-400">~{suggestion.estimatedHours}h</span>
+                            )}
+                            {suggestion.priority && (
+                              <span className={`text-xs px-2 py-1 rounded ${
+                                suggestion.priority === 'high' ? 'bg-red-500/20 text-red-300' :
+                                suggestion.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                                'bg-green-500/20 text-green-300'
+                              }`}>
+                                {suggestion.priority}
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="font-medium text-white mb-1">{suggestion.title}</h4>
+                          <p className="text-sm text-gray-300 mb-2">{suggestion.description}</p>
+                          <p className="text-xs text-gray-400">{suggestion.reason}</p>
+                          {suggestion.suggestedDate && (
+                            <p className="text-xs text-blue-300 mt-1">Suggested for: {suggestion.suggestedDate}</p>
+                          )}
+                        </div>
+                        <button
+                          onClick={() => {
+                            console.log('Adding task suggestion:', suggestion);
+                            addTaskFromSuggestion(suggestion);
+                          }}
+                          className="ml-4 px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50"
+                          disabled={isCreatingTask}
+                        >
+                          {isCreatingTask ? '⏳ Adding...' : '➕ Add Task'}
+                        </button>
+                      </div>
                     </div>
-                    <h3 className="font-medium text-white mb-1">{suggestion.title}</h3>
-                    <p className="text-sm text-gray-300 mb-2">{suggestion.description}</p>
-                    <p className="text-xs text-gray-400">{suggestion.reason}</p>
-                    {suggestion.suggestedDate && (
-                      <p className="text-xs text-blue-300 mt-1">Suggested for: {suggestion.suggestedDate}</p>
-                    )}
-                  </div>
-                  {suggestion.type === 'task' && (
-                    <button
-                      onClick={() => addTaskFromSuggestion(suggestion)}
-                      className="ml-4 px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-                    >
-                      ➕ Add Task
-                    </button>
-                  )}
+                  ))}
                 </div>
               </div>
-            ))}
+            )}
+
+            {/* Insights & Recommendations Section */}
+            {insights.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <h3 className="text-xl font-bold text-white">💡 AI Insights</h3>
+                  <span className="text-sm text-gray-400">({insights.length} recommendations)</span>
+                </div>
+                <div className="space-y-4">
+                  {insights.map((insight, index) => (
+                    <div key={`insight-${insight.id}-${index}`} className={`rounded-lg p-4 border ${
+                      insight.type === 'optimization' 
+                        ? 'bg-purple-500/10 border-purple-400/30' 
+                        : 'bg-green-500/10 border-green-400/30'
+                    }`}>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className={insight.type === 'optimization' ? 'text-purple-400' : 'text-green-400'}>
+                              {insight.type === 'optimization' ? '⚡' : '📅'}
+                            </span>
+                            <span className={`text-xs px-2 py-1 rounded ${
+                              insight.type === 'optimization' 
+                                ? 'bg-purple-500/20 text-purple-300' 
+                                : 'bg-green-500/20 text-green-300'
+                            }`}>
+                              {insight.type === 'optimization' ? 'workflow optimization' : 'schedule recommendation'}
+                            </span>
+                            {insight.estimatedHours && (
+                              <span className="text-xs text-gray-400">~{insight.estimatedHours}h</span>
+                            )}
+                            {insight.priority && (
+                              <span className={`text-xs px-2 py-1 rounded ${
+                                insight.priority === 'high' ? 'bg-red-500/20 text-red-300' :
+                                insight.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                                'bg-green-500/20 text-green-300'
+                              }`}>
+                                {insight.priority}
+                              </span>
+                            )}
+                          </div>
+                          <h4 className="font-medium text-white mb-1">{insight.title}</h4>
+                          <p className="text-sm text-gray-300 mb-2">{insight.description}</p>
+                          <p className="text-xs text-gray-400">{insight.reason}</p>
+                          {insight.suggestedDate && (
+                            <p className="text-xs text-blue-300 mt-1">Suggested for: {insight.suggestedDate}</p>
+                          )}
+                          {insight.suggestedTime && (
+                            <p className="text-xs text-green-300 mt-1">Suggested time: {insight.suggestedTime}</p>
+                          )}
+                        </div>
+                        <div className={`ml-4 px-3 py-1 text-sm rounded ${
+                          insight.type === 'optimization'
+                            ? 'bg-purple-600/20 text-purple-300'
+                            : 'bg-green-600/20 text-green-300'
+                        }`}>
+                          {insight.type === 'optimization' ? '💭 Consider This' : '📅 Manual Schedule'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Regenerate button */}
+            <div className="text-center pt-4">
+              <button
+                onClick={generateAISuggestions}
+                disabled={isGeneratingSuggestions}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50"
+              >
+                {isGeneratingSuggestions ? '🔄 Generating...' : '🔄 Generate New Suggestions'}
+              </button>
+            </div>
           </div>
         ) : (
           <div className="text-center py-8 text-gray-400">
@@ -556,6 +938,67 @@ const AIWeeklyPlanner: React.FC = () => {
       </div>
     );
   };
+
+  // Enhanced TaskList with delete functionality
+  const renderEnhancedTaskList = () => {
+    return (
+      <div className="space-y-4">
+        {filteredTasks.map(task => (
+          <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    task.priority === 'high' ? 'bg-red-500/20 text-red-300' :
+                    task.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                    'bg-green-500/20 text-green-300'
+                  }`}>
+                    {task.priority}
+                  </span>
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    task.task_type === 'creative' ? 'bg-purple-500/20 text-purple-300' :
+                    'bg-blue-500/20 text-blue-300'
+                  }`}>
+                    {task.task_type}
+                  </span>
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    task.status === 'completed' ? 'bg-green-500/20 text-green-300' :
+                    task.status === 'in_progress' ? 'bg-blue-500/20 text-blue-300' :
+                    'bg-gray-500/20 text-gray-300'
+                  }`}>
+                    {task.status.replace('_', ' ')}
+                  </span>
+                </div>
+                <h3 className="font-medium text-white mb-1">{task.title}</h3>
+                {task.description && (
+                  <p className="text-sm text-gray-300 mb-2">{task.description}</p>
+                )}
+                <div className="flex items-center gap-4 text-xs text-gray-400">
+                  {task.deadline && (
+                    <span>📅 Due: {new Date(task.deadline).toLocaleDateString()}</span>
+                  )}
+                  {task.estimated_hours && (
+                    <span>⏱️ {task.estimated_hours}h estimated</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 ml-4">
+                <button
+                  onClick={() => handleDeleteTask(task)}
+                  className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                  title="Delete task"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const stats = getTaskStats();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-6">
@@ -594,23 +1037,48 @@ const AIWeeklyPlanner: React.FC = () => {
           
           {/* Quick Stats */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-4">
+            <div 
+              onClick={() => setTaskFilter('all')}
+              className={`backdrop-blur-sm rounded-lg p-4 cursor-pointer transition-all hover:scale-105 hover:bg-white/20 ${
+                taskFilter === 'all' ? 'bg-white/20 ring-2 ring-white/50' : 'bg-white/10'
+              }`}
+            >
               <div className="text-2xl font-bold text-white">{stats.total}</div>
               <div className="text-sm text-gray-300">Total Tasks</div>
             </div>
-            <div className="bg-yellow-500/20 backdrop-blur-sm rounded-lg p-4">
+            <div 
+              onClick={() => setTaskFilter('pending')}
+              className={`backdrop-blur-sm rounded-lg p-4 cursor-pointer transition-all hover:scale-105 hover:bg-yellow-500/30 ${
+                taskFilter === 'pending' ? 'bg-yellow-500/30 ring-2 ring-yellow-400/50' : 'bg-yellow-500/20'
+              }`}
+            >
               <div className="text-2xl font-bold text-yellow-300">{stats.pending}</div>
               <div className="text-sm text-gray-300">Pending</div>
             </div>
-            <div className="bg-blue-500/20 backdrop-blur-sm rounded-lg p-4">
+            <div 
+              onClick={() => setTaskFilter('in_progress')}
+              className={`backdrop-blur-sm rounded-lg p-4 cursor-pointer transition-all hover:scale-105 hover:bg-blue-500/30 ${
+                taskFilter === 'in_progress' ? 'bg-blue-500/30 ring-2 ring-blue-400/50' : 'bg-blue-500/20'
+              }`}
+            >
               <div className="text-2xl font-bold text-blue-300">{stats.inProgress}</div>
               <div className="text-sm text-gray-300">In Progress</div>
             </div>
-            <div className="bg-purple-500/20 backdrop-blur-sm rounded-lg p-4">
+            <div 
+              onClick={() => setTaskFilter('creative')}
+              className={`backdrop-blur-sm rounded-lg p-4 cursor-pointer transition-all hover:scale-105 hover:bg-purple-500/30 ${
+                taskFilter === 'creative' ? 'bg-purple-500/30 ring-2 ring-purple-400/50' : 'bg-purple-500/20'
+              }`}
+            >
               <div className="text-2xl font-bold text-purple-300">{stats.creative}</div>
               <div className="text-sm text-gray-300">Creative</div>
             </div>
-            <div className="bg-green-500/20 backdrop-blur-sm rounded-lg p-4">
+            <div 
+              onClick={() => setTaskFilter('admin')}
+              className={`backdrop-blur-sm rounded-lg p-4 cursor-pointer transition-all hover:scale-105 hover:bg-green-500/30 ${
+                taskFilter === 'admin' ? 'bg-green-500/30 ring-2 ring-green-400/50' : 'bg-green-500/20'
+              }`}
+            >
               <div className="text-2xl font-bold text-green-300">{stats.admin}</div>
               <div className="text-sm text-gray-300">Admin</div>
             </div>
@@ -662,16 +1130,78 @@ const AIWeeklyPlanner: React.FC = () => {
                 </div>
               )}
 
+              {/* Delete Confirmation Modal */}
+              {taskToDelete && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                  <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+                    <h3 className="text-lg font-bold text-white mb-4">Delete Task</h3>
+                    <p className="text-gray-300 mb-6">
+                      Are you sure you want to delete "{taskToDelete.title}"? This action cannot be undone.
+                    </p>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setTaskToDelete(null)}
+                        className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={confirmDeleteTask}
+                        disabled={isDeleting}
+                        className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors disabled:opacity-50"
+                      >
+                        {isDeleting ? 'Deleting...' : 'Delete'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Task List */}
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-                <h2 className="text-2xl font-bold text-white mb-4">📋 Your Tasks</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-2xl font-bold text-white">📋 Your Tasks</h2>
+                  <div className="flex items-center gap-2">
+                    {taskFilter !== 'all' && (
+                      <div className="flex items-center gap-2">
+                        <span className={`text-sm px-3 py-1 rounded-full ${
+                          taskFilter === 'pending' ? 'bg-yellow-500/20 text-yellow-300' :
+                          taskFilter === 'in_progress' ? 'bg-blue-500/20 text-blue-300' :
+                          taskFilter === 'completed' ? 'bg-green-500/20 text-green-300' :
+                          taskFilter === 'creative' ? 'bg-purple-500/20 text-purple-300' :
+                          'bg-green-500/20 text-green-300'
+                        }`}>
+                          Showing: {taskFilter.replace('_', ' ')} ({filteredTasks.length})
+                        </span>
+                        <button
+                          onClick={() => setTaskFilter('all')}
+                          className="text-xs px-2 py-1 bg-gray-600 hover:bg-gray-700 text-white rounded transition-colors"
+                        >
+                          Clear Filter
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
                 {isLoadingTasks ? (
                   <div className="text-center py-8">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto"></div>
                     <p className="text-gray-300 mt-4">Loading tasks...</p>
                   </div>
-                ) : tasks.length > 0 ? (
-                  <TaskList tasks={tasks} onTaskUpdate={loadTasks} />
+                ) : filteredTasks.length > 0 ? (
+                  renderEnhancedTaskList()
+                ) : taskFilter !== 'all' ? (
+                  <div className="text-center py-12">
+                    <div className="text-6xl mb-4">🔍</div>
+                    <h3 className="text-xl font-semibold text-white mb-2">No {taskFilter.replace('_', ' ')} tasks</h3>
+                    <p className="text-gray-300 mb-6">You don't have any tasks in this category yet.</p>
+                    <button
+                      onClick={() => setTaskFilter('all')}
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                    >
+                      View All Tasks
+                    </button>
+                  </div>
                 ) : (
                   <div className="text-center py-12">
                     <div className="text-6xl mb-4">📝</div>
@@ -743,6 +1273,7 @@ const AIWeeklyPlanner: React.FC = () => {
                   <li>• High priority tasks get scheduled first</li>
                   <li>• Check the Calendar tab to see your week layout</li>
                   <li>• Use AI Suggestions to optimize your workflow</li>
+                  <li>• Click 🗑️ to delete tasks you no longer need</li>
                 </ul>
               </div>
             </div>

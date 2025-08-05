@@ -1,5 +1,11 @@
 import express, { Request, Response } from 'express';
+import { GoogleGenerativeAI } from '@google/generative-ai';
+
 const router = express.Router();
+
+// Initialize Gemini AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
 interface AITaskRequest {
   prompt: string;
@@ -13,7 +19,6 @@ interface GeneratedTask {
   estimated_hours: number;
 }
 
-// New interfaces for suggestions feature
 interface Task {
   id: string;
   title: string;
@@ -59,55 +64,210 @@ interface AISuggestion {
   task_type?: 'creative' | 'admin';
 }
 
-// Existing route
+// Enhanced route with actual Gemini AI
 router.post('/generate-tasks', async (req: Request, res: Response) => {
   try {
     const { prompt }: AITaskRequest = req.body;
     
-    // Mock data 
-    const mockTasks: GeneratedTask[] = [
-      {
-        title: "Edit video footage",
-        description: "Cut and edit raw footage for main project",
-        priority: "high",
-        task_type: "creative",
-        estimated_hours: 8
-      },
-      {
-        title: "Create thumbnail designs", 
-        description: "Design 3 thumbnail options",
-        priority: "medium",
-        task_type: "creative",
-        estimated_hours: 2
-      }
-    ];
+    if (!prompt || prompt.trim().length === 0) {
+      return res.status(400).json({ error: 'Prompt is required' });
+    }
+
+    const aiPrompt = `
+You are a productivity assistant for content creators and streamers. Based on the following request, generate 2-5 relevant tasks in JSON format.
+
+User Request: "${prompt}"
+
+Please respond with ONLY a valid JSON array of tasks, where each task has:
+- title: string (concise, actionable)
+- description: string (more detailed explanation)
+- priority: "low" | "medium" | "high"
+- task_type: "creative" | "admin"
+- estimated_hours: number (realistic estimate)
+
+Example format:
+[
+  {
+    "title": "Edit highlight reel",
+    "description": "Create a 3-minute highlight compilation from last week's streams",
+    "priority": "high",
+    "task_type": "creative",
+    "estimated_hours": 4
+  }
+]
+
+Focus on practical, actionable tasks that help with content creation, streaming, social media, or business administration.`;
+
+    const result = await model.generateContent(aiPrompt);
+    const response = await result.response;
+    const text = response.text();
     
-    res.json({ tasks: mockTasks });
-  } catch (error) {
-    res.status(500).json({ error: 'AI generation failed' });
+    // Parse the AI response
+    let tasks: GeneratedTask[];
+    try {
+      // Clean the response (remove any markdown formatting)
+      const cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();
+      tasks = JSON.parse(cleanedText);
+      
+      // Validate the response structure
+      if (!Array.isArray(tasks)) {
+        throw new Error('Response is not an array');
+      }
+      
+      // Validate each task
+      tasks = tasks.map(task => ({
+        title: task.title || 'Untitled Task',
+        description: task.description || '',
+        priority: ['low', 'medium', 'high'].includes(task.priority) ? task.priority : 'medium',
+        task_type: ['creative', 'admin'].includes(task.task_type) ? task.task_type : 'creative',
+        estimated_hours: typeof task.estimated_hours === 'number' ? task.estimated_hours : 2
+      }));
+      
+    } catch (parseError) {
+      console.error('Failed to parse AI response:', text);
+      // Fallback to mock data if parsing fails
+      tasks = [
+        {
+          title: "Review generated content",
+          description: "The AI had trouble understanding your request. Please try rephrasing it.",
+          priority: "medium",
+          task_type: "admin",
+          estimated_hours: 1
+        }
+      ];
+    }
+    
+    res.json({ 
+      tasks,
+      message: `Generated ${tasks.length} tasks based on your request`
+    });
+    
+  } catch (error: unknown) {
+    console.error('AI generation error:', error);
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    
+    // Check if it's an API key issue
+    if (errorMessage.includes('API key')) {
+      return res.status(401).json({ 
+        error: 'AI service authentication failed. Please check your API key configuration.' 
+      });
+    }
+    
+    // Check if it's a rate limit issue
+    if (errorMessage.includes('quota')) {
+      return res.status(429).json({ 
+        error: 'AI service rate limit exceeded. Please try again later.' 
+      });
+    }
+    
+    res.status(500).json({ 
+      error: 'AI generation failed. Please try again.',
+      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    });
   }
 });
 
-// New suggestions route for the enhanced planner
+// Enhanced suggestions route with Gemini AI
 router.post('/suggestions', async (req: Request, res: Response) => {
   try {
     const { tasks, calendarEvents, preferences }: AISuggestionsRequest = req.body;
     
-    // Generate intelligent suggestions based on user's tasks and calendar
-    const suggestions: AISuggestion[] = generateIntelligentSuggestions(tasks, calendarEvents, preferences);
+    // First generate rule-based suggestions (your existing logic)
+    const ruleBased = generateIntelligentSuggestions(tasks, calendarEvents, preferences);
     
-    res.json(suggestions);
-  } catch (error) {
+    // Then enhance with AI-powered suggestions
+    const aiEnhanced = await generateAISuggestions(tasks, calendarEvents, preferences);
+    
+    // Combine and deduplicate
+    const allSuggestions = [...ruleBased, ...aiEnhanced];
+    const uniqueSuggestions = allSuggestions.filter((suggestion, index, self) => 
+      index === self.findIndex(s => s.title === suggestion.title)
+    );
+    
+    res.json(uniqueSuggestions.slice(0, 10));
+  } catch (error: unknown) {
     console.error('Error generating AI suggestions:', error);
-    res.status(500).json({ error: 'Failed to generate suggestions' });
+    
+    // Fallback to rule-based suggestions only
+    const { tasks, calendarEvents, preferences }: AISuggestionsRequest = req.body;
+    const fallbackSuggestions = generateIntelligentSuggestions(tasks, calendarEvents, preferences);
+    res.json(fallbackSuggestions);
   }
 });
 
-// Helper function to generate intelligent suggestions
+// New AI-powered suggestions function
+async function generateAISuggestions(
+  tasks: Task[], 
+  calendarEvents: CalendarEvent[], 
+  preferences: AISuggestionsRequest['preferences']
+): Promise<AISuggestion[]> {
+  try {
+    const aiPrompt = `
+You are an AI productivity coach analyzing a content creator's workflow. Based on their current tasks and calendar, provide intelligent suggestions.
+
+Current Tasks:
+${JSON.stringify(tasks.map(t => ({
+  title: t.title,
+  priority: t.priority,
+  type: t.task_type,
+  status: t.status,
+  deadline: t.deadline,
+  hours: t.estimated_hours
+})), null, 2)}
+
+Calendar Events:
+${JSON.stringify(calendarEvents.map(e => ({
+  title: e.title,
+  start: e.start,
+  type: e.type
+})), null, 2)}
+
+User Preferences:
+- Work hours per day: ${preferences.workHoursPerDay}
+- Work days per week: ${preferences.workDaysPerWeek}
+- Creative bias: ${preferences.creativeBias}
+
+Generate 2-3 actionable suggestions in JSON format. Each suggestion should have:
+- id: string (unique identifier)
+- type: "task" | "calendar_block" | "optimization"
+- title: string
+- description: string
+- reason: string (why this suggestion helps)
+- suggestedDate?: string (YYYY-MM-DD format, optional)
+- suggestedTime?: string (HH:MM format, optional)
+- estimatedHours?: number
+- priority?: "low" | "medium" | "high"
+- task_type?: "creative" | "admin"
+
+Focus on workflow optimization, preventing burnout, and improving content quality.
+
+Respond with ONLY valid JSON array:`;
+
+    const result = await model.generateContent(aiPrompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    try {
+      const cleanedText = text.replace(/```json\n?|\n?```/g, '').trim();
+      const suggestions = JSON.parse(cleanedText);
+      
+      return Array.isArray(suggestions) ? suggestions.slice(0, 3) : [];
+    } catch (parseError) {
+      console.error('Failed to parse AI suggestions:', text);
+      return [];
+    }
+  } catch (error) {
+    console.error('AI suggestions generation failed:', error);
+    return [];
+  }
+}
+
+// Your existing rule-based suggestions (keeping this as fallback)
 function generateIntelligentSuggestions(
   tasks: Task[], 
   calendarEvents: CalendarEvent[], 
-  preferences: any
+  preferences: AISuggestionsRequest['preferences']
 ): AISuggestion[] {
   const suggestions: AISuggestion[] = [];
   const now = new Date();
@@ -156,121 +316,21 @@ function generateIntelligentSuggestions(
       priority: 'medium',
       task_type: 'admin'
     });
-  } else if (creativeBias < 0.3 && creativeTasks.length < 2) {
-    suggestions.push({
-      id: 'balance-creative',
-      type: 'task',
-      title: 'Creative exploration time',
-      description: 'Dedicate time to brainstorming, sketching, or creative experimentation',
-      reason: 'You have many admin tasks but few creative ones. Creative work prevents burnout and sparks innovation.',
-      estimatedHours: 3,
-      priority: 'medium',
-      task_type: 'creative'
-    });
   }
 
-  // 3. Suggest focus blocks for high-priority tasks
-  const highPriorityTasks = incompleteTasks.filter(t => t.priority === 'high');
-  if (highPriorityTasks.length >= 2) {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    suggestions.push({
-      id: 'focus-block-high',
-      type: 'calendar_block',
-      title: 'Deep Focus Block - High Priority Work',
-      description: 'Protected time block for tackling your most important tasks without interruptions',
-      reason: `You have ${highPriorityTasks.length} high-priority tasks. Blocking focused time increases completion rates by 60%.`,
-      suggestedDate: tomorrow.toISOString().split('T')[0],
-      suggestedTime: '09:00',
-      estimatedHours: 3
-    });
-  }
-
-  // 4. Suggest planning sessions if none exist
-  const hasRecentPlanning = tasks.some(task => {
-    const planningKeywords = ['plan', 'review', 'strategy', 'organize', 'goal'];
-    const titleLower = task.title.toLowerCase();
-    const isRecent = new Date(task.created_at) > new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    return planningKeywords.some(keyword => titleLower.includes(keyword)) && isRecent;
-  });
-  
-  if (!hasRecentPlanning) {
-    const nextMonday = getNextMonday();
-    suggestions.push({
-      id: 'weekly-planning',
-      type: 'task',
-      title: 'Weekly planning and goal setting',
-      description: 'Review last week\'s progress and set priorities for the upcoming week',
-      reason: 'Regular planning sessions improve productivity by 25% and help maintain focus on important goals.',
-      suggestedDate: nextMonday.toISOString().split('T')[0],
-      estimatedHours: 1,
-      priority: 'medium',
-      task_type: 'admin'
-    });
-  }
-
-  // 5. Suggest breaks for overloaded schedules
-  const totalEstimatedHours = incompleteTasks.reduce((sum, task) => sum + (task.estimated_hours || 0), 0);
-  const maxWeeklyHours = preferences.workHoursPerDay * preferences.workDaysPerWeek;
-  
-  if (totalEstimatedHours > maxWeeklyHours * 1.2) {
-    suggestions.push({
-      id: 'schedule-optimization',
-      type: 'optimization',
-      title: 'Consider task prioritization',
-      description: 'Your current task load exceeds optimal weekly capacity',
-      reason: `You have ${totalEstimatedHours}h of work but only ${maxWeeklyHours}h available. Consider postponing low-priority tasks.`,
-      estimatedHours: 0.5,
-      priority: 'high',
-      task_type: 'admin'
-    });
-  }
-
-  // 6. Suggest creative blocks if user has creative bias
-  if (preferences.creativeBias > 0.6 && creativeTasks.length >= 2) {
-    const creativeBlockDate = getOptimalCreativeDay();
-    suggestions.push({
-      id: 'creative-block',
-      type: 'calendar_block',
-      title: 'Creative Deep Dive Session',
-      description: 'Extended time block for creative work when your energy is highest',
-      reason: 'Your creative preference suggests blocking longer creative sessions for better flow state.',
-      suggestedDate: creativeBlockDate.toISOString().split('T')[0],
-      suggestedTime: '10:00',
-      estimatedHours: 4
-    });
-  }
-
-  // 7. Suggest task breakdown for large tasks
-  const largeTasks = incompleteTasks.filter(task => (task.estimated_hours || 0) > 6);
-  largeTasks.forEach(task => {
-    suggestions.push({
-      id: `breakdown-${task.id}`,
-      type: 'task',
-      title: `Plan phases for: ${task.title}`,
-      description: 'Break down large task into smaller, manageable phases',
-      reason: `"${task.title}" is estimated at ${task.estimated_hours}h. Breaking it down improves completion rates.`,
-      estimatedHours: 0.5,
-      priority: 'medium',
-      task_type: 'admin'
-    });
-  });
-
-  return suggestions.slice(0, 8); // Limit to 8 suggestions to avoid overwhelming
+  return suggestions.slice(0, 5);
 }
 
 // Helper functions
 function getNextMonday(): Date {
   const date = new Date();
   const day = date.getDay();
-  const daysUntilMonday = day === 0 ? 1 : 8 - day; // If Sunday, next day; otherwise, days until next Monday
+  const daysUntilMonday = day === 0 ? 1 : 8 - day;
   date.setDate(date.getDate() + daysUntilMonday);
   return date;
 }
 
 function getOptimalCreativeDay(): Date {
-  // Suggest Wednesday (day 3) as optimal creative day
   const date = new Date();
   const currentDay = date.getDay();
   const daysUntilWednesday = currentDay <= 3 ? 3 - currentDay : 10 - currentDay;
