@@ -54,8 +54,9 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
 
     const share = await Share.create(shareData);
 
-    // Generate the shareable URL
-    const baseUrl = `${req.protocol}://${req.get('host')}/api`;
+    // Generate the shareable URL (points to frontend client route)
+    const host = req.get('host') || 'localhost:8000';
+    const baseUrl = `${req.protocol}://${host.replace(':8000', ':3000')}`;
     const shareUrl = share.getShareUrl(baseUrl);
 
     res.status(201).json({ 
@@ -88,7 +89,8 @@ router.get('/file/:fileId', requireAuth, async (req: Request, res: Response) => 
     }
 
     const shares = await Share.findAllByFileId(fileId, userId);
-    const baseUrl = `${req.protocol}://${req.get('host')}/api`;
+    const host = req.get('host') || 'localhost:8000';
+    const baseUrl = `${req.protocol}://${host.replace(':8000', ':3000')}`;
 
     // Add share URLs to each share
     const sharesWithUrls = shares.map((share: any) => ({
@@ -109,7 +111,8 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any).id;
     const shares = await Share.findAllByUserId(userId);
-    const baseUrl = `${req.protocol}://${req.get('host')}/api`;
+    const host = req.get('host') || 'localhost:8000';
+    const baseUrl = `${req.protocol}://${host.replace(':8000', ':3000')}`;
 
     // Add share URLs to each share
     const sharesWithUrls = shares.map((share: any) => ({
