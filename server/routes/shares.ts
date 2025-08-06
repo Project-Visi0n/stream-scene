@@ -4,6 +4,15 @@ import { db } from '../db/index';
 const router = Router();
 const { File, Share } = db;
 
+// Helper function to get the correct base URL for share links
+const getBaseUrl = (req: Request): string => {
+  const protocol = req.protocol;
+  const host = req.get('host');
+  
+  // Use the same host and port for share links
+  return `${protocol}://${host}`;
+};
+
 // Middleware to ensure user is authenticated
 const requireAuth = (req: Request, res: Response, next: any) => {
   if (!req.user) {
@@ -55,8 +64,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     const share = await Share.create(shareData);
 
     // Generate the shareable URL (points to frontend client route)
-    const host = req.get('host') || 'localhost:8000';
-    const baseUrl = `${req.protocol}://${host.replace(':8000', ':3000')}`;
+    const baseUrl = getBaseUrl(req);
     const shareUrl = share.getShareUrl(baseUrl);
 
     res.status(201).json({ 
@@ -89,8 +97,7 @@ router.get('/file/:fileId', requireAuth, async (req: Request, res: Response) => 
     }
 
     const shares = await Share.findAllByFileId(fileId, userId);
-    const host = req.get('host') || 'localhost:8000';
-    const baseUrl = `${req.protocol}://${host.replace(':8000', ':3000')}`;
+    const baseUrl = getBaseUrl(req);
 
     // Add share URLs to each share
     const sharesWithUrls = shares.map((share: any) => ({
@@ -111,8 +118,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any).id;
     const shares = await Share.findAllByUserId(userId);
-    const host = req.get('host') || 'localhost:8000';
-    const baseUrl = `${req.protocol}://${host.replace(':8000', ':3000')}`;
+    const baseUrl = getBaseUrl(req);
 
     // Add share URLs to each share
     const sharesWithUrls = shares.map((share: any) => ({

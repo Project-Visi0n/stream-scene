@@ -38,7 +38,18 @@ export interface SharedFileAccess {
   };
 }
 
-const API_BASE = 'http://localhost:8000/api/shares';
+// Get the API base URL - works for both localhost and deployed environments
+const getApiBaseUrl = (): string => {
+  // If we're on localhost, use localhost backend
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    return 'http://localhost:8000/api/shares';
+  }
+  
+  // For deployed environments, use same domain with /api/shares
+  return `${window.location.protocol}//${window.location.host}/api/shares`;
+};
+
+const API_BASE = getApiBaseUrl();
 
 export const shareService = {
   // Create a new share for a file
