@@ -1,0 +1,184 @@
+// Service for managing file sharing operations with the backend
+
+export interface ShareRecord {
+  id: number;
+  fileId: number;
+  shareType: 'one-time' | 'indefinite';
+  accessCount: number;
+  maxAccess: number | null;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  isActive: boolean;
+  canAccess: boolean;
+  shareUrl: string;
+  shareToken: string;
+}
+
+export interface CreateShareRequest {
+  fileId: number;
+  shareType: 'one-time' | 'indefinite';
+  expiresAt?: string; // ISO date string
+}
+
+export interface SharedFileAccess {
+  file: {
+    id: number;
+    name: string;
+    type: string;
+    size: number;
+    url: string;
+    uploadedAt: string;
+  };
+  share: {
+    shareType: 'one-time' | 'indefinite';
+    accessCount: number;
+    maxAccess: number | null;
+    remainingAccess: number | null;
+  };
+}
+
+const API_BASE = 'http://localhost:8000/api/shares';
+
+export const shareService = {
+  // Create a new share for a file
+  async createShare(shareData: CreateShareRequest): Promise<ShareRecord> {
+    try {
+      const response = await fetch(API_BASE, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify(shareData)
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to create share: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.share;
+    } catch (error) {
+      console.error('Error creating share:', error);
+      throw error;
+    }
+  },
+
+  // Get all shares for a specific file
+  async getFileShares(fileId: number): Promise<ShareRecord[]> {
+    try {
+      const response = await fetch(`${API_BASE}/file/${fileId}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to fetch file shares: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.shares || [];
+    } catch (error) {
+      console.error('Error fetching file shares:', error);
+      throw error;
+    }
+  },
+
+  // Get all shares for the authenticated user
+  async getUserShares(): Promise<ShareRecord[]> {
+    try {
+      const response = await fetch(API_BASE, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to fetch user shares: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.shares || [];
+    } catch (error) {
+      console.error('Error fetching user shares:', error);
+      throw error;
+    }
+  },
+
+  // Access a shared file (public endpoint)
+  async accessSharedFile(token: string): Promise<SharedFileAccess> {
+    try {
+      const response = await fetch(`${API_BASE}/shared/${token}`);
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to access shared file: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Error accessing shared file:', error);
+      throw error;
+    }
+  },
+
+  // Deactivate a share
+  async deactivateShare(shareId: number): Promise<ShareRecord> {
+    try {
+      const response = await fetch(`${API_BASE}/${shareId}/deactivate`, {
+        method: 'PATCH',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to deactivate share: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.share;
+    } catch (error) {
+      console.error('Error deactivating share:', error);
+      throw error;
+    }
+  },
+
+  // Delete a share
+  async deleteShare(shareId: number): Promise<void> {
+    try {
+      const response = await fetch(`${API_BASE}/${shareId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to delete share: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error deleting share:', error);
+      throw error;
+    }
+  },
+
+  // Utility function to copy share URL to clipboard
+  async copyShareUrl(shareUrl: string): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+    } catch (error) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea');
+      textArea.value = shareUrl;
+      textArea.style.position = 'fixed';
+      textArea.style.left = '-999999px';
+      textArea.style.top = '-999999px';
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      document.execCommand('copy');
+      textArea.remove();
+    }
+  }
+};

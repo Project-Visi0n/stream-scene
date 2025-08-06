@@ -12,6 +12,7 @@ server/node_modules/
 dist/
 build/
 server/dist/
+public/bundle.js
 
 
 # Environment files (all variations)
