@@ -2,7 +2,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { uploadFileToS3, S3UploadResult, isS3Configured, deleteFileFromS3, getFileUrl } from '../../services/s3Service';
 import { fileService, FileRecord, CreateFileRequest } from '../../services/fileService';
+import { ShareRecord } from '../../services/shareService';
 import useAuth from '../../hooks/useAuth';
+import ShareModal from '../ShareModal';
 
 interface UploadedFile {
   id: string;
@@ -24,6 +26,10 @@ const FileUpload: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
+
+  // Share modal state
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+  const [selectedFileForShare, setSelectedFileForShare] = useState<UploadedFile | null>(null);
 
   // Load user's files when component mounts or user changes
   useEffect(() => {
@@ -429,6 +435,26 @@ const FileUpload: React.FC = () => {
     }
   };
 
+  // Share handlers
+  const handleShareFile = (file: UploadedFile) => {
+    if (!file.fileRecordId) {
+      setError('Cannot share file: File not properly saved to database');
+      return;
+    }
+    setSelectedFileForShare(file);
+    setShareModalOpen(true);
+  };
+
+  const handleShareCreated = (share: ShareRecord) => {
+    console.log('Share created:', share);
+    // Could show a success message or update UI state here
+  };
+
+  const handleCloseShareModal = () => {
+    setShareModalOpen(false);
+    setSelectedFileForShare(null);
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto p-6 space-y-6">
       {/* Authentication Check */}
@@ -548,13 +574,28 @@ const FileUpload: React.FC = () => {
                 animate={{ opacity: 1, scale: 1 }}
                 className="relative bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-4 shadow-xl"
               >
-                {/* Remove button */}
-                <button
-                  onClick={() => removeFile(file.id)}
-                  className="absolute top-2 right-2 w-6 h-6 bg-red-600/80 hover:bg-red-600 text-white text-xs rounded-full flex items-center justify-center transition-colors duration-200 z-10"
-                >
-                  ×
-                </button>
+                {/* Action buttons */}
+                <div className="absolute top-2 right-2 flex space-x-1 z-10">
+                  {/* Share button */}
+                  {file.fileRecordId && (
+                    <button
+                      onClick={() => handleShareFile(file)}
+                      className="w-6 h-6 bg-blue-600/80 hover:bg-blue-600 text-white text-xs rounded-full flex items-center justify-center transition-colors duration-200"
+                      title="Share file"
+                    >
+                      🔗
+                    </button>
+                  )}
+                  
+                  {/* Remove button */}
+                  <button
+                    onClick={() => removeFile(file.id)}
+                    className="w-6 h-6 bg-red-600/80 hover:bg-red-600 text-white text-xs rounded-full flex items-center justify-center transition-colors duration-200"
+                    title="Delete file"
+                  >
+                    ×
+                  </button>
+                </div>
 
                 {/* File preview */}
                 <div className="mb-3">
@@ -574,6 +615,17 @@ const FileUpload: React.FC = () => {
             ))}
           </div>
         </motion.div>
+      )}
+
+      {/* Share Modal */}
+      {selectedFileForShare && (
+        <ShareModal
+          isOpen={shareModalOpen}
+          onClose={handleCloseShareModal}
+          fileId={selectedFileForShare.fileRecordId!}
+          fileName={selectedFileForShare.name}
+          onShareCreated={handleShareCreated}
+        />
       )}
     </div>
   );

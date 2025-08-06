@@ -11,13 +11,32 @@ import routes from "./routes/index";
 import aiRoutes from "./routes/ai";
 import scheduleRoutes from "./routes/schedule";
 import s3ProxyRoutes from "./routes/s3Proxy";
+import filesRoutes from "./routes/files";
+import sharesRoutes from "./routes/shares";
 import { syncDB } from "./db/index";
 
 const app = express();
 
 // CORS configuration
 app.use(cors({
-  origin: 'http://localhost:8000', // Allow requests from frontend
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    // Allow localhost on any port for development
+    if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+      return callback(null, true);
+    }
+    
+    // Allow same domain for deployed environments
+    const currentHost = process.env.HOST || 'localhost';
+    if (origin.includes(currentHost)) {
+      return callback(null, true);
+    }
+    
+    // Reject all others
+    callback(new Error('Not allowed by CORS'));
+  },
   credentials: true // Allow cookies to be sent
 }));
 
@@ -49,6 +68,8 @@ app.use('/', routes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/s3', s3ProxyRoutes);
+app.use('/api/files', filesRoutes);
+app.use('/api/shares', sharesRoutes);
 
 // API test route
 app.get('/test-server', (req, res) => {
@@ -64,12 +85,14 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-const PORT = process.env.PORT || 8000;
+const PORT = Number(process.env.PORT) || 8000;
+const HOST = '0.0.0.0'; // Allow external connections
 
 // Initialize database
 syncDB().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server is running at http://localhost:8000`);
+  app.listen(PORT, HOST, () => {
+    console.log(`Server is running at http://localhost:${PORT}`);
+    console.log(`External access: http://${HOST}:${PORT}`);
   });
 }).catch((error) => {
   console.error('Failed to initialize database:', error);

@@ -44,9 +44,11 @@ export default {
   },
   devServer: {
     port: 8000,
+    host: '0.0.0.0', // Allow external access
     hot: true,
     open: true,
     historyApiFallback: true, 
+    allowedHosts: 'all', // Allow access from any host
   },
   plugins: [
     new HtmlWebpackPlugin({
