@@ -1,15 +1,24 @@
 import express from 'express';
+import multer from 'multer';
 import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const router = express.Router();
+
+// Configure multer for file uploads (store in memory)
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit
+  },
+});
 
 // Get environment variables
 const getEnvVars = () => ({
   AWS_REGION: process.env.AWS_REGION || 'us-east-2',
   AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID || '',
   AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY || '',
-  BUCKET_NAME: process.env.S3_BUCKET_NAME || 'stream-scene-bucket'
+  BUCKET_NAME: process.env.AWS_S3_BUCKET || 'stream-scene-bucket'
 });
 
 // Check if S3 is configured
@@ -164,6 +173,42 @@ router.get('/proxy/:key(*)', async (req, res) => {
   } catch (error) {
     console.error('S3 proxy error:', error);
     res.status(500).json({ error: 'Failed to fetch file' });
+  }
+});
+
+// Direct file upload to S3
+router.post('/upload', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    const env = getEnvVars();
+    if (!isS3Configured()) {
+      return res.status(500).json({ error: 'S3 not configured', details: env });
+    }
+    const s3Client = getS3Client();
+    const file = req.file;
+    const fileExtension = file.originalname.split('.').pop();
+    const key = `uploads/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
+    const putCommand = new PutObjectCommand({
+      Bucket: env.BUCKET_NAME,
+      Key: key,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+      // ACL removed: not supported on this bucket
+    });
+    await s3Client.send(putCommand);
+    const fileUrl = `https://${env.BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`;
+    res.json({ url: fileUrl, key });
+  } catch (error: any) {
+    // Detailed error logging
+    console.error('[S3Proxy] Upload error:', error);
+    if (error?.name) console.error('Error name:', error.name);
+    if (error?.message) console.error('Error message:', error.message);
+    if (error?.stack) console.error('Error stack:', error.stack);
+    if (error?.$metadata) console.error('AWS metadata:', error.$metadata);
+    if (error?.Code) console.error('AWS error code:', error.Code);
+    res.status(500).json({ error: 'Failed to upload file to S3', details: error?.message || error });
   }
 });
 

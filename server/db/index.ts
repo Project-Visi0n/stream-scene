@@ -5,6 +5,7 @@ dotenv.config();
 // Import Sequelize 
 import { Sequelize } from 'sequelize';
 import { File } from '../models/File';
+import { Share } from '../models/Share';
 
 // Set up Sequelize connection
 const sequelize = new Sequelize({
@@ -48,6 +49,7 @@ testConnection();
 export const db = {
   sequelize,
   File, // This is now our in-memory File class
+  Share, // This is now our in-memory Share class
   associate,
 };
 
