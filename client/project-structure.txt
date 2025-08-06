@@ -1,0 +1,35 @@
+.
+├── ContentScheduler
+├── components
+│   ├── AIWeeklyPlanner.tsx
+│   ├── App.tsx
+│   ├── GoogleLoginButton.tsx
+│   ├── LandingPage.tsx
+│   ├── NavBar.tsx
+│   ├── ProjectCenter
+│   │   ├── FileUpload.tsx
+│   │   ├── ProjectCenter.tsx
+│   │   ├── ProjectCenterCanvas.tsx
+│   │   └── ProjectCenterTabs.tsx
+│   ├── TaskForm.tsx
+│   ├── TaskList.tsx
+│   └── Taskbar.tsx
+├── hooks
+│   └── useAuth.ts
+├── index.html
+├── index.tsx
+├── project-structure.txt
+├── services
+│   ├── fileService.ts
+│   └── s3Service.ts
+├── shared
+│   ├── services
+│   └── types
+├── styles
+│   └── tailwind.css
+└── types
+    ├── auth.ts
+    ├── react-sketch-canvas.d.ts
+    └── task.ts
+
+11 directories, 22 files
