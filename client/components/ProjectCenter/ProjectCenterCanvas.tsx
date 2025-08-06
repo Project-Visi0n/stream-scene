@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { ReactSketchCanvas, ReactSketchCanvasRef } from "react-sketch-canvas";
 import { motion } from "framer-motion";
 
@@ -12,10 +12,22 @@ const canvasStyles = {
 
 
 const ProjectCenterCanvas: React.FC = () => {
-  const [strokeColor, setStrokeColor] = useState<string>("#000000");
-  const [strokeWidth, setStrokeWidth] = useState<number>(2);
+  const [strokeColor, setStrokeColor] = useState<string>("#8b5cf6"); // Default to purple
+  const [strokeWidth, setStrokeWidth] = useState<number>(4);
   const [eraserMode, setEraserMode] = useState<boolean>(false);
   const canvasRef = useRef<ReactSketchCanvasRef>(null);
+
+  // Initialize canvas settings
+  useEffect(() => {
+    if (canvasRef.current) {
+      // Ensure the canvas is properly initialized
+      try {
+        canvasRef.current.eraseMode(false);
+      } catch (error) {
+        console.warn('Canvas initialization warning:', error);
+      }
+    }
+  }, []);
 
   const clearCanvas = () => {
     if (canvasRef.current) {
@@ -144,7 +156,10 @@ const ProjectCenterCanvas: React.FC = () => {
               }}
               strokeWidth={strokeWidth}
               strokeColor={strokeColor}
-              canvasColor="#1e293b"
+              canvasColor="transparent"
+              backgroundImage=""
+              preserveBackgroundImageAspectRatio="none"
+              allowOnlyPointerType="all"
             />
           </div>
         </div>

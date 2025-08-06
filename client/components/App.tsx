@@ -1,60 +1,63 @@
 import React, { useState } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import LandingPage from './LandingPage';
 import AIWeeklyPlanner from './AIWeeklyPlanner';
 import ProjectCenter from './ProjectCenter/ProjectCenter';
+import SharedFileViewer from './SharedFileViewer';
 import Navbar from './NavBar';
 
 type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<CurrentView>('landing');
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleNavigation = (view: CurrentView) => {
     setCurrentView(view);
+    // Map view to route paths
+    const routeMap: Record<CurrentView, string> = {
+      'landing': '/',
+      'planner': '/planner',
+      'project-center': '/project-center',
+      'budget-tracker': '/budget-tracker',
+      'demos-trailers': '/demos-trailers'
+    };
+    navigate(routeMap[view]);
   };
 
-  const renderCurrentView = () => {
-  switch (currentView) {
-    case 'landing':
-      return <LandingPage onNavigate={handleNavigation} />;
-    case 'planner':
-      return <AIWeeklyPlanner />;
-    case 'project-center':
-      return <ProjectCenter />;
-    case 'budget-tracker':
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-6">
-          <div className="max-w-4xl mx-auto pt-20">
-            <div className="text-center">
-              <h1 className="text-4xl font-bold text-white mb-4">💰 Budget Tracker</h1>
-              <p className="text-xl text-gray-300 mb-8">Coming Soon!</p>
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-8">
-                <p className="text-gray-300">Track your project expenses and revenue streams.</p>
-              </div>
-            </div>
+  // Budget Tracker Component
+  const BudgetTracker = () => (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-6">
+      <div className="max-w-4xl mx-auto pt-20">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-white mb-4">💰 Budget Tracker</h1>
+          <p className="text-xl text-gray-300 mb-8">Coming Soon!</p>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-8">
+            <p className="text-gray-300">Track your project expenses and revenue streams.</p>
           </div>
         </div>
-      );
-    case 'demos-trailers':
-      return (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-6">
-          <div className="max-w-4xl mx-auto pt-20">
-            <div className="text-center">
-              <h1 className="text-4xl font-bold text-white mb-4">🎬 Demos & Trailers</h1>
-              <p className="text-xl text-gray-300 mb-8">Coming Soon!</p>
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-8">
-                <p className="text-gray-300">Create and showcase your project demos and trailers.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      );
-    default:
-      return <LandingPage onNavigate={handleNavigation} />
-  }
-};
+      </div>
+    </div>
+  );
 
-  const showNavbar = currentView !== 'landing';
+  // Demos & Trailers Component
+  const DemosTrailers = () => (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-6">
+      <div className="max-w-4xl mx-auto pt-20">
+        <div className="text-center">
+          <h1 className="text-4xl font-bold text-white mb-4">🎬 Demos & Trailers</h1>
+          <p className="text-xl text-gray-300 mb-8">Coming Soon!</p>
+          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-8">
+            <p className="text-gray-300">Create and showcase your project demos and trailers.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Check if we should show navbar
+  const showNavbar = !location.pathname.startsWith('/shared/') && location.pathname !== '/';
 
   return (
     <div className="min-h-screen">
@@ -65,7 +68,14 @@ const App: React.FC = () => {
         />
       )}
       <div className={showNavbar ? '' : 'min-h-screen'}>
-        {renderCurrentView()}
+        <Routes>
+          <Route path="/" element={<LandingPage onNavigate={handleNavigation} />} />
+          <Route path="/planner" element={<AIWeeklyPlanner />} />
+          <Route path="/project-center" element={<ProjectCenter />} />
+          <Route path="/budget-tracker" element={<BudgetTracker />} />
+          <Route path="/demos-trailers" element={<DemosTrailers />} />
+          <Route path="/shared/:token" element={<SharedFileViewer />} />
+        </Routes>
       </div>
     </div>
   );
