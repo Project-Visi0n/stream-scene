@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import TaskForm from './TaskForm';
-import TaskList from './TaskList';
 import { Task, TaskFormData } from '../types/task';
 
 interface WeeklySchedule {
@@ -149,7 +148,7 @@ const AIWeeklyPlanner: React.FC = () => {
     }
   };
 
-  // NEW: Delete task functionality
+  // Delete task functionality
   const handleDeleteTask = async (task: Task) => {
     setTaskToDelete(task);
   };
@@ -284,7 +283,6 @@ const AIWeeklyPlanner: React.FC = () => {
     setIsGeneratingSuggestions(true);
     
     try {
-      // Always try the AI API first
       const response = await fetch('/api/ai/suggestions', {
         method: 'POST',
         headers: {
@@ -320,45 +318,54 @@ const AIWeeklyPlanner: React.FC = () => {
 
   const generateLocalSuggestions = () => {
     const suggestions: AISuggestion[] = [];
+    const timestamp = Date.now();
     
+    // Generate fresh suggestions every time
     const creativeTasks = tasks.filter(t => t.task_type === 'creative' && t.status !== 'completed');
     const adminTasks = tasks.filter(t => t.task_type === 'admin' && t.status !== 'completed');
-    const upcomingDeadlines = tasks.filter(t => {
-      if (!t.deadline) return false;
-      const deadline = new Date(t.deadline);
-      const inThreeDays = new Date();
-      inThreeDays.setDate(inThreeDays.getDate() + 3);
-      return deadline <= inThreeDays && t.status !== 'completed';
+    
+    // 1. Planning and organization suggestions
+    suggestions.push({
+      id: `weekly-planning-${timestamp}`,
+      type: 'task',
+      title: 'Weekly planning and goal review',
+      description: 'Review progress from last week and set priorities for the upcoming week',
+      reason: 'Regular planning sessions improve productivity by 25% and help maintain focus on important goals.',
+      estimatedHours: 1,
+      priority: 'medium',
+      task_type: 'admin'
     });
 
-    upcomingDeadlines.forEach(task => {
+    // 2. Content creation suggestions
+    if (creativeTasks.length < 3) {
       suggestions.push({
-        id: `prep-${task.id}`,
+        id: `content-brainstorm-${timestamp}`,
         type: 'task',
-        title: `Review and finalize: ${task.title}`,
-        description: 'Add a buffer task to review and polish before deadline',
-        reason: `You have "${task.title}" due soon. Adding a review step helps ensure quality.`,
-        suggestedDate: new Date(new Date(task.deadline).getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        estimatedHours: Math.max(1, Math.floor((task.estimated_hours || 2) * 0.3)),
-        priority: task.priority,
-        task_type: task.task_type
+        title: 'Content brainstorming session',
+        description: 'Generate new content ideas and plan upcoming creative projects',
+        reason: 'Regular creative brainstorming prevents content burnout and maintains fresh ideas.',
+        estimatedHours: 2,
+        priority: 'medium',
+        task_type: 'creative'
       });
-    });
+    }
 
+    // 3. Balance suggestions
     if (creativeTasks.length > adminTasks.length * 2) {
       suggestions.push({
-        id: 'balance-admin',
-        type: 'task',
-        title: 'Email inbox cleanup',
-        description: 'Organize and respond to pending emails',
-        reason: 'You have many creative tasks but few admin tasks. Balance helps productivity.',
-        estimatedHours: 1,
-        priority: 'low',
+        id: `balance-admin-${timestamp}`,
+        type: 'optimization',
+        title: 'Business administration session',
+        description: 'Handle invoicing, contracts, and other business-related tasks',
+        reason: 'You have many creative tasks but few admin tasks. Balance helps prevent admin overflow.',
+        estimatedHours: 2,
+        priority: 'medium',
         task_type: 'admin'
       });
     }
 
-    setAiSuggestions(suggestions);
+    console.log('Generated local suggestions:', suggestions);
+    setAiSuggestions(suggestions.slice(0, 6));
   };
 
   const addTaskFromSuggestion = async (suggestion: AISuggestion) => {
@@ -372,7 +379,6 @@ const AIWeeklyPlanner: React.FC = () => {
     };
 
     try {
-      // Create the task directly without going through handleTaskSubmit to avoid form issues
       const response = await fetch('/api/tasks', {
         method: 'POST',
         headers: {
@@ -391,11 +397,8 @@ const AIWeeklyPlanner: React.FC = () => {
 
       if (response.ok) {
         const newTask = await response.json();
-        // Update tasks list
         setTasks(prev => [...prev, newTask]);
-        // Remove the suggestion from the list
         setAiSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
-        // Show success message
         alert(`✅ Task "${suggestion.title}" added successfully!`);
       } else if (response.status === 401) {
         alert('Please log in to create tasks. You need to be authenticated to use this feature.');
@@ -407,7 +410,6 @@ const AIWeeklyPlanner: React.FC = () => {
     } catch (error) {
       console.error('Failed to add task from suggestion:', error);
       alert('Failed to create task. Please check your connection and try again.');
-      // Don't remove the suggestion if creation failed
     }
   };
 
@@ -442,12 +444,10 @@ const AIWeeklyPlanner: React.FC = () => {
     
     const days = [];
     
-    // Add empty cells for days before the first day of the month
     for (let i = 0; i < startingDayOfWeek; i++) {
       days.push(null);
     }
     
-    // Add all days of the month
     for (let day = 1; day <= daysInMonth; day++) {
       days.push(new Date(year, month, day));
     }
@@ -500,7 +500,6 @@ const AIWeeklyPlanner: React.FC = () => {
           </h3>
         </div>
         
-        {/* Days of week header */}
         <div className="grid grid-cols-7 gap-2 mb-2">
           {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
             <div key={day} className="text-center text-sm font-medium text-gray-300 py-2">
@@ -509,7 +508,6 @@ const AIWeeklyPlanner: React.FC = () => {
           ))}
         </div>
         
-        {/* Calendar grid */}
         <div className="grid grid-cols-7 gap-2">
           {monthDays.map((day, index) => {
             if (!day) {
@@ -563,149 +561,14 @@ const AIWeeklyPlanner: React.FC = () => {
     );
   };
 
-  const renderWeeklyView = () => {
-    const weekDays = getWeekDays();
-    const today = new Date();
-    
-    return (
-      <div className="space-y-4">
-        <div className="text-center mb-6">
-          <h3 className="text-2xl font-bold text-white">
-            Week of {weekDays[0].toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-          </h3>
-        </div>
-        
-        <div className="grid grid-cols-7 gap-2">
-          {weekDays.map((day, index) => {
-            const events = getEventsForDay(day);
-            const isToday = day.toDateString() === today.toDateString();
-            
-            return (
-              <div key={index} className={`p-3 rounded-lg border min-h-[200px] ${
-                isToday ? 'bg-blue-500/20 border-blue-400' : 'bg-white/5 border-white/10'
-              }`}>
-                <div className="text-center mb-3">
-                  <div className="text-xs text-gray-300">
-                    {day.toLocaleDateString('en-US', { weekday: 'short' })}
-                  </div>
-                  <div className={`text-lg font-bold ${isToday ? 'text-blue-300' : 'text-white'}`}>
-                    {day.getDate()}
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  {events.map(event => (
-                    <div 
-                      key={event.id}
-                      className={`text-xs p-2 rounded ${
-                        event.type === 'deadline' ? 'bg-red-500/80 text-white' :
-                        event.type === 'task' ? 'bg-blue-500/80 text-white' :
-                        'bg-purple-500/80 text-white'
-                      }`}
-                    >
-                      <div className="font-medium truncate">{event.title}</div>
-                      {event.start && (
-                        <div className="text-xs opacity-75">
-                          {new Date(event.start).toLocaleTimeString('en-US', { 
-                            hour: 'numeric', 
-                            minute: '2-digit',
-                            hour12: true 
-                          })}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  const renderDailyView = () => {
-    const events = getEventsForDay(currentDate);
-    const isToday = currentDate.toDateString() === new Date().toDateString();
-    
-    return (
-      <div className="space-y-6">
-        <div className="text-center mb-6">
-          <h3 className="text-2xl font-bold text-white">
-            {currentDate.toLocaleDateString('en-US', { 
-              weekday: 'long', 
-              month: 'long', 
-              day: 'numeric', 
-              year: 'numeric' 
-            })}
-          </h3>
-          {isToday && (
-            <p className="text-blue-300 font-medium">Today</p>
-          )}
-        </div>
-        
-        <div className="space-y-4">
-          {events.length > 0 ? (
-            events.map(event => (
-              <div 
-                key={event.id}
-                className={`p-4 rounded-lg ${
-                  event.type === 'deadline' ? 'bg-red-500/20 border border-red-400' :
-                  event.type === 'task' ? 'bg-blue-500/20 border border-blue-400' :
-                  'bg-purple-500/20 border border-purple-400'
-                }`}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <h4 className="font-medium text-white mb-1">{event.title}</h4>
-                    {event.start && (
-                      <p className="text-sm text-gray-300">
-                        {new Date(event.start).toLocaleTimeString('en-US', { 
-                          hour: 'numeric', 
-                          minute: '2-digit',
-                          hour12: true 
-                        })}
-                        {event.end && event.start !== event.end && (
-                          <span> - {new Date(event.end).toLocaleTimeString('en-US', { 
-                            hour: 'numeric', 
-                            minute: '2-digit',
-                            hour12: true 
-                          })}</span>
-                        )}
-                      </p>
-                    )}
-                  </div>
-                  <span className={`text-xs px-2 py-1 rounded ${
-                    event.type === 'deadline' ? 'bg-red-500/40 text-red-300' :
-                    event.type === 'task' ? 'bg-blue-500/40 text-blue-300' :
-                    'bg-purple-500/40 text-purple-300'
-                  }`}>
-                    {event.type}
-                  </span>
-                </div>
-              </div>
-            ))
-          ) : (
-            <div className="text-center py-12">
-              <div className="text-4xl mb-4">📅</div>
-              <h3 className="text-lg font-semibold text-white mb-2">No events scheduled</h3>
-              <p className="text-gray-300">This day is free for you to focus on other tasks.</p>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   const renderCalendarView = () => {
     return (
       <div className="space-y-6">
-        {/* Calendar Header */}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
             📅 Calendar View
           </h2>
           
-          {/* View Toggle */}
           <div className="flex items-center gap-2">
             <div className="bg-white/10 rounded-lg p-1 flex">
               {[
@@ -729,7 +592,6 @@ const AIWeeklyPlanner: React.FC = () => {
           </div>
         </div>
 
-        {/* Navigation Controls */}
         <div className="flex items-center justify-between">
           <button 
             onClick={() => navigateDate('prev')}
@@ -753,16 +615,12 @@ const AIWeeklyPlanner: React.FC = () => {
           </button>
         </div>
 
-        {/* Calendar Content */}
         {calendarView === 'monthly' && renderMonthlyView()}
-        {calendarView === 'weekly' && renderWeeklyView()}
-        {calendarView === 'daily' && renderDailyView()}
       </div>
     );
   };
 
   const renderSuggestionsView = () => {
-    // Separate actionable vs non-actionable suggestions
     const actionableSuggestions = aiSuggestions.filter(s => s.type === 'task');
     const insights = aiSuggestions.filter(s => s.type === 'optimization' || s.type === 'calendar_block');
 
@@ -793,7 +651,6 @@ const AIWeeklyPlanner: React.FC = () => {
 
         {(actionableSuggestions.length > 0 || insights.length > 0) ? (
           <div className="space-y-8">
-            {/* Actionable Tasks Section */}
             {actionableSuggestions.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-4">
@@ -847,7 +704,6 @@ const AIWeeklyPlanner: React.FC = () => {
               </div>
             )}
 
-            {/* Insights & Recommendations Section */}
             {insights.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-4">
@@ -874,28 +730,10 @@ const AIWeeklyPlanner: React.FC = () => {
                             }`}>
                               {insight.type === 'optimization' ? 'workflow optimization' : 'schedule recommendation'}
                             </span>
-                            {insight.estimatedHours && (
-                              <span className="text-xs text-gray-400">~{insight.estimatedHours}h</span>
-                            )}
-                            {insight.priority && (
-                              <span className={`text-xs px-2 py-1 rounded ${
-                                insight.priority === 'high' ? 'bg-red-500/20 text-red-300' :
-                                insight.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
-                                'bg-green-500/20 text-green-300'
-                              }`}>
-                                {insight.priority}
-                              </span>
-                            )}
                           </div>
                           <h4 className="font-medium text-white mb-1">{insight.title}</h4>
                           <p className="text-sm text-gray-300 mb-2">{insight.description}</p>
                           <p className="text-xs text-gray-400">{insight.reason}</p>
-                          {insight.suggestedDate && (
-                            <p className="text-xs text-blue-300 mt-1">Suggested for: {insight.suggestedDate}</p>
-                          )}
-                          {insight.suggestedTime && (
-                            <p className="text-xs text-green-300 mt-1">Suggested time: {insight.suggestedTime}</p>
-                          )}
                         </div>
                         <div className={`ml-4 px-3 py-1 text-sm rounded ${
                           insight.type === 'optimization'
@@ -911,7 +749,6 @@ const AIWeeklyPlanner: React.FC = () => {
               </div>
             )}
 
-            {/* Regenerate button */}
             <div className="text-center pt-4">
               <button
                 onClick={generateAISuggestions}
@@ -1088,9 +925,7 @@ const AIWeeklyPlanner: React.FC = () => {
         {/* Tab Content */}
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Left Column - Task Management */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Action Buttons */}
               <div className="flex flex-wrap gap-4">
                 <button
                   onClick={() => setShowTaskForm(true)}
@@ -1117,7 +952,6 @@ const AIWeeklyPlanner: React.FC = () => {
                 </button>
               </div>
 
-              {/* Task Form Modal */}
               {showTaskForm && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                   <div className="max-w-2xl w-full max-h-[90vh] overflow-y-auto">
@@ -1130,7 +964,6 @@ const AIWeeklyPlanner: React.FC = () => {
                 </div>
               )}
 
-              {/* Delete Confirmation Modal */}
               {taskToDelete && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                   <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
@@ -1157,7 +990,6 @@ const AIWeeklyPlanner: React.FC = () => {
                 </div>
               )}
 
-              {/* Task List */}
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
                 <div className="flex items-center justify-between mb-4">
                   <h2 className="text-2xl font-bold text-white">📋 Your Tasks</h2>
@@ -1218,7 +1050,6 @@ const AIWeeklyPlanner: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Column - AI Schedule */}
             <div className="space-y-6">
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
                 <h2 className="text-2xl font-bold text-white mb-4">🤖 AI Weekly Schedule</h2>
@@ -1263,7 +1094,6 @@ const AIWeeklyPlanner: React.FC = () => {
                 )}
               </div>
 
-              {/* Quick Tips */}
               <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
                 <h3 className="text-lg font-bold text-white mb-3">💡 Pro Tips</h3>
                 <ul className="space-y-2 text-sm text-gray-300">
@@ -1280,14 +1110,12 @@ const AIWeeklyPlanner: React.FC = () => {
           </div>
         )}
 
-        {/* Calendar Tab */}
         {activeTab === 'calendar' && (
           <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
             {renderCalendarView()}
           </div>
         )}
 
-        {/* Suggestions Tab */}
         {activeTab === 'suggestions' && (
           <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
             {renderSuggestionsView()}
