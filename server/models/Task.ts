@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional, Op } from 'sequelize';
-import db from '../db/index';
+import db from '../db/index.js';
 
 // Define the Task attributes interface
 export interface TaskAttributes {

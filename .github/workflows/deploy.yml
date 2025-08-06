@@ -2,7 +2,7 @@ name: Deploy to EC2 (Development)
 
 on:
   push:
-    branches: [ main, intial-setup-branch ]
+    branches: [ main, deployment-branch ]  # Deploy when pushing to main or deployment-branch
   pull_request:
     branches: [ main ]
 
@@ -13,6 +13,18 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24.4.1'
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Build application
+      run: npm run build
 
     - name: Deploy to EC2 (Development Mode)
       uses: appleboy/ssh-action@v1.0.3
@@ -22,9 +34,47 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         port: 22
         script: |
-          cd /home/ubuntu/stream-scene
-          git pull origin ${{ github.ref_name }}
-          npm install
-          npm install ts-node typescript
-          pm2 restart stream-scene-dev || pm2 start server/src/server.ts --name stream-scene-dev --interpreter ./node_modules/.bin/ts-node
+          # Navigate to app directory
+          cd /home/ubuntu
+          
+          # Clone or update repository
+          if [ ! -d "stream-scene" ]; then
+            git clone https://github.com/Project-Visi0n/stream-scene.git
+            cd stream-scene
+            git checkout deployment-branch
+          else
+            cd stream-scene
+            git fetch origin
+            git checkout deployment-branch
+            git pull origin deployment-branch
+          fi
+          
+          # Install dependencies
+          npm ci
+          
+          # Build the application
+          npm run build
+          
+          # Create environment file if it doesn't exist
+          if [ ! -f ".env" ]; then
+            cat > .env << EOF
+          PORT=8000
+          SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_CALLBACK_URL=http://${{ secrets.EC2_HOST }}:8000/auth/google/callback
+          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION=${{ secrets.AWS_REGION }}
+          AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+          EOF
+          fi
+          
+          # Install PM2 globally if not installed
+          sudo npm install -g pm2 || true
+          
+          # Stop and restart the application
+          pm2 stop stream-scene || true
+          pm2 delete stream-scene || true
+          pm2 start dist/server/app.js --name "stream-scene"
           pm2 save

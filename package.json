@@ -1,6 +1,7 @@
 {
   "name": "stream-scene",
   "version": "1.0.0",
+  "type": "module",
   "main": "server/app.ts",
   "scripts": {
     "dev": "npm run build:client && npm run dev:server",

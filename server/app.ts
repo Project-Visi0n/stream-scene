@@ -5,15 +5,15 @@ import session from 'express-session';
 import passport from 'passport';
 import cors from 'cors';
 import path from 'path';
-import "./config/passport";
-import authRoutes from "./routes/auth";
-import routes from "./routes/index";
-import aiRoutes from "./routes/ai";
-import scheduleRoutes from "./routes/schedule";
-import s3ProxyRoutes from "./routes/s3Proxy";
-import filesRoutes from "./routes/files";
-import sharesRoutes from "./routes/shares";
-import { syncDB } from "./db/index";
+import "./config/passport.js";
+import authRoutes from "./routes/auth.js";
+import routes from "./routes/index.js";
+import aiRoutes from "./routes/ai.js";
+import scheduleRoutes from "./routes/schedule.js";
+import s3ProxyRoutes from "./routes/s3Proxy.js";
+import filesRoutes from "./routes/files.js";
+import sharesRoutes from "./routes/shares.js";
+import { syncDB } from "./db/index.js";
 
 const app = express();
 
