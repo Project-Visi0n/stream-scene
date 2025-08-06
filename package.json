@@ -8,7 +8,7 @@
     "dev:server": "nodemon --watch server --ext ts --exec ts-node server/app.ts",
     "build": "webpack --config webpack.config.mjs --mode production && tsc",
     "build:client": "webpack --config webpack.config.mjs --mode development",
-    "start": "node dist/server.js",
+    "start": "node dist/server/app.js",
     "db:migrate": "sequelize-cli db:migrate",
     "db:seed": "sequelize-cli db:seed:all"
   },
