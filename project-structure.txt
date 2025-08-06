@@ -1,0 +1,85 @@
+.
+├── .env
+├── .github
+│   └── workflows
+│       └── deploy.yml
+├── .gitignore
+├── README.md
+├── client
+│   ├── ContentScheduler
+│   ├── components
+│   │   ├── AIWeeklyPlanner.tsx
+│   │   ├── App.tsx
+│   │   ├── GoogleLoginButton.tsx
+│   │   ├── LandingPage.tsx
+│   │   ├── NavBar.tsx
+│   │   ├── ProjectCenter
+│   │   │   ├── FileUpload.tsx
+│   │   │   ├── ProjectCenter.tsx
+│   │   │   ├── ProjectCenterCanvas.tsx
+│   │   │   └── ProjectCenterTabs.tsx
+│   │   ├── TaskForm.tsx
+│   │   ├── TaskList.tsx
+│   │   └── Taskbar.tsx
+│   ├── hooks
+│   │   └── useAuth.ts
+│   ├── index.html
+│   ├── index.tsx
+│   ├── project-structure.txt
+│   ├── services
+│   │   ├── fileService.ts
+│   │   └── s3Service.ts
+│   ├── shared
+│   │   ├── services
+│   │   └── types
+│   ├── styles
+│   │   └── tailwind.css
+│   └── types
+│       ├── auth.ts
+│       ├── react-sketch-canvas.d.ts
+│       └── task.ts
+├── config-tailwind
+│   └── tailwindcss.d.ts
+├── cookies.txt
+├── eslint.config.mjs
+├── package-lock.json
+├── package.json
+├── postcss.config.js
+├── project-structure.txt
+├── public
+│   ├── bundle.js
+│   └── index.html
+├── server
+│   ├── .env.example
+│   ├── app.ts
+│   ├── config
+│   │   ├── env.ts
+│   │   └── passport.ts
+│   ├── db
+│   │   └── index.ts
+│   ├── middleware
+│   │   └── authMiddleWare.ts
+│   ├── models
+│   │   ├── File.ts
+│   │   ├── Task.ts
+│   │   └── User.ts
+│   ├── routes
+│   │   ├── ai.ts
+│   │   ├── auth.ts
+│   │   ├── files.ts
+│   │   ├── index.ts
+│   │   ├── s3Proxy.ts
+│   │   ├── schedule.ts
+│   │   └── tasks.ts
+│   ├── tsconfig.json
+│   └── types
+│       ├── auth.ts
+│       └── environment.d.ts
+├── tailwind.config.js
+├── tailwindcss.d.ts
+├── test-minimal.js
+├── test-minimal.ts
+├── tsconfig.json
+└── webpack.config.mjs
+
+23 directories, 60 files
