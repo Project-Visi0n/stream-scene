@@ -1,8 +1,8 @@
 import React from 'react';
 
 interface NavbarProps {
-  currentComponent: 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers';
-  onNavigate: (component: 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers') => void;
+  currentComponent: 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers' | 'content-scheduler';
+  onNavigate: (component: 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers' | 'content-scheduler') => void;
   user?: {
     name: string;
     avatar?: string;
@@ -22,6 +22,16 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
       description: 'Creative workspace'
     },
     {
+      id: 'content-scheduler',
+      label: '📅 Content Scheduler',
+      description: 'Plan your content'
+    },
+    {
+      id: 'planner',
+      label: '🤖 AI Weekly Planner',
+      description: 'Smart task scheduling'
+    },
+    {
       id: 'budget-tracker',
       label: '💰 Budget Tracker',
       description: 'Track expenses'
@@ -30,11 +40,6 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
       id: 'demos-trailers',
       label: '🎬 Demos & Trailers',
       description: 'Showcase content'
-    },
-    {
-      id: 'planner',
-      label: '🤖 AI Weekly Planner',
-      description: 'Smart task scheduling'
     }
   ];
 
@@ -77,6 +82,12 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
               >
                 <div className="flex items-center gap-1">
                   <span className="font-medium">{item.label}</span>
+                  {/* Add a subtle indicator for the new Content Scheduler */}
+                  {item.id === 'content-scheduler' && (
+                    <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-blue-100 bg-blue-600 rounded-full animate-pulse">
+                      New
+                    </span>
+                  )}
                 </div>
                 
                 {/* Active indicator */}
@@ -88,6 +99,9 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
                 <div className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
                   <div className="bg-gray-800 text-white text-xs px-3 py-1 rounded-lg whitespace-nowrap shadow-lg">
                     {item.description}
+                    {item.id === 'content-scheduler' && (
+                      <span className="block text-blue-300 font-medium">Project-based content planning</span>
+                    )}
                     <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-b-gray-800"></div>
                   </div>
                 </div>
@@ -131,13 +145,21 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
               <button
                 key={item.id}
                 onClick={() => onNavigate(item.id as any)}
-                className={`flex flex-col items-center p-3 rounded-lg transition-all duration-300 ${
+                className={`flex flex-col items-center p-3 rounded-lg transition-all duration-300 relative ${
                   currentComponent === item.id || (item.id === 'landing' && currentComponent === 'landing')
                     ? 'bg-white/20 text-white'
                     : 'text-gray-300 hover:text-white hover:bg-white/10'
                 }`}
               >
-                <span className="font-medium text-sm">{item.label}</span>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-sm">{item.label}</span>
+                  {/* Mobile "New" indicator */}
+                  {item.id === 'content-scheduler' && (
+                    <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-blue-100 bg-blue-600 rounded-full">
+                      New
+                    </span>
+                  )}
+                </div>
                 <span className="text-xs text-gray-400 mt-1">{item.description}</span>
               </button>
             ))}
