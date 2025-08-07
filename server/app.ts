@@ -1,10 +1,18 @@
 import dotenv from 'dotenv';
-dotenv.config();
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get __dirname equivalent for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables from the root .env file
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
 import express from "express";
 import session from 'express-session';
 import passport from 'passport';
 import cors from 'cors';
-import path from 'path';
 import "./config/passport.js";
 import authRoutes from "./routes/auth.js";
 import routes from "./routes/index.js";
