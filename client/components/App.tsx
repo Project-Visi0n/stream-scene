@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import LandingPage from './LandingPage';
 import AIWeeklyPlanner from './AIWeeklyPlanner';
@@ -42,8 +42,43 @@ const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Update currentView based on the current route
+  useEffect(() => {
+    const routeToViewMap: Record<string, CurrentView> = {
+      '/': 'landing',
+      '/planner': 'planner',
+      '/project-center': 'project-center',
+      '/budget-tracker': 'budget-tracker',
+      '/demos-trailers': 'demos-trailers',
+      '/content-scheduler': 'content-scheduler'
+    };
+
+    const currentRoute = location.pathname;
+    const matchedView = routeToViewMap[currentRoute];
+    if (matchedView) {
+      setCurrentView(matchedView);
+    }
+  }, [location.pathname]);
+
   const handleNavigation = (view: CurrentView) => {
-    setCurrentView(view);
+    console.log('🚀 App handleNavigation called with:', view);
+    
+    // Map views to routes
+    const viewToRouteMap: Record<CurrentView, string> = {
+      'landing': '/',
+      'planner': '/planner',
+      'project-center': '/project-center',
+      'budget-tracker': '/budget-tracker',
+      'demos-trailers': '/demos-trailers',
+      'content-scheduler': '/content-scheduler'
+    };
+
+    const route = viewToRouteMap[view];
+    if (route) {
+      console.log('🎯 Navigating to route:', route);
+      navigate(route);
+      setCurrentView(view);
+    }
   };
 
   const showNavbar = !location.pathname.startsWith('/shared/') && location.pathname !== '/';
@@ -63,6 +98,7 @@ const App: React.FC = () => {
           <Route path="/project-center" element={<ProjectCenter />} />
           <Route path="/budget-tracker" element={<BudgetTracker />} />
           <Route path="/demos-trailers" element={<DemosTrailers />} />
+          <Route path="/content-scheduler" element={<ContentScheduler />} />
           <Route path="/shared/:token" element={<SharedFileViewer />} />
         </Routes>
       </div>
