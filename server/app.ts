@@ -68,7 +68,11 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Serve static files from public directory
-app.use(express.static(path.join(__dirname, '../../public')));
+// Dynamically determine the correct path based on whether we're running from dist/ or server/
+const publicPath = __dirname.includes('dist/server') 
+  ? path.join(__dirname, '../../public')  // For deployment (dist/server -> public)
+  : path.join(__dirname, '../public');    // For local dev (server -> public)
+app.use(express.static(publicPath));
 
 // Auth routes 
 app.use('/auth', authRoutes);
@@ -90,7 +94,11 @@ app.get('*', (req, res) => {
     return res.status(404).json({ error: 'Route not found' });
   }
 
-  res.sendFile(path.join(__dirname, '../../public/index.html'));
+  // Dynamically determine the correct path for index.html
+  const indexPath = __dirname.includes('dist/server') 
+    ? path.join(__dirname, '../../public/index.html')  // For deployment
+    : path.join(__dirname, '../public/index.html');    // For local dev
+  res.sendFile(indexPath);
 });
 
 const PORT = Number(process.env.PORT) || 8000;
