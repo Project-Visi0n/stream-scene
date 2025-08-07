@@ -13,6 +13,8 @@ dist/
 build/
 server/dist/
 public/bundle.js
+public/bundle.js.LICENSE.txt
+public/index.html
 
 
 # Environment files (all variations)
