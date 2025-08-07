@@ -9,11 +9,17 @@ const __dirname = path.dirname(__filename);
 
 export default {
   entry: './client/index.tsx',
+  mode: 'development',
+  target: 'web',
   output: {
     path: path.resolve('./public'),
     filename: 'bundle.js',
     publicPath: '/',
     clean: true,
+    module: true,
+  },
+  experiments: {
+    outputModule: true,
   },
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.jsx'],

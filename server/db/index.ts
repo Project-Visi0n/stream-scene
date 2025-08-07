@@ -4,8 +4,8 @@ dotenv.config();
 
 // Import Sequelize 
 import { Sequelize } from 'sequelize';
-import { File } from '../models/File';
-import { Share } from '../models/Share';
+import { File } from '../models/File.js';
+import { Share } from '../models/Share.js';
 
 // Set up Sequelize connection
 const sequelize = new Sequelize({
