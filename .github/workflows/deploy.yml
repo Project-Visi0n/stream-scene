@@ -2,7 +2,7 @@ name: Deploy to EC2 (Development)
 
 on:
   push:
-    branches: [ main, deployment-branch ]  # Deploy when pushing to main or deployment-branch
+    branches: [ main, typescript-deployment-branch ]  # Deploy when pushing to main or typescript-deployment-branch
   pull_request:
     branches: [ main ]
 
@@ -17,14 +17,17 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '24.4.1'
+        node-version: '24.5.0'
         cache: 'npm'
         
     - name: Install dependencies
       run: npm ci
       
     - name: Build application
-      run: npm run build
+      run: |
+        npm run build
+      env:
+        NODE_OPTIONS: '--max-old-space-size=2048'
 
     - name: Deploy to EC2 (Development Mode)
       uses: appleboy/ssh-action@v1.0.3
@@ -37,23 +40,23 @@ jobs:
           # Navigate to app directory
           cd /home/ubuntu
           
-          # Clone or update repository
+          # Clone or update repository from upstream Project Vision
           if [ ! -d "stream-scene" ]; then
             git clone https://github.com/Project-Visi0n/stream-scene.git
             cd stream-scene
-            git checkout deployment-branch
+            git checkout main
           else
             cd stream-scene
-            git fetch origin
-            git checkout deployment-branch
-            git pull origin deployment-branch
+            git fetch upstream
+            git checkout main
+            git pull upstream main
           fi
           
           # Install dependencies
           npm ci
           
-          # Build the application
-          npm run build
+          # Build with increased memory
+          NODE_OPTIONS="--max-old-space-size=2048" npm run build
           
           # Create environment file if it doesn't exist
           if [ ! -f ".env" ]; then
@@ -73,8 +76,8 @@ jobs:
           # Install PM2 globally if not installed
           sudo npm install -g pm2 || true
           
-          # Stop and restart the application
+          # Deploy with PM2 - use direct start instead of ecosystem file
           pm2 stop stream-scene || true
           pm2 delete stream-scene || true
-          pm2 start dist/server/app.js --name "stream-scene"
+          pm2 start dist/server/app.js --name stream-scene --env production
           pm2 save

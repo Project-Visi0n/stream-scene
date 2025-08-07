@@ -16,15 +16,21 @@ fi
 # Navigate to project directory
 cd /home/ubuntu/stream-scene
 
-echo "Pulling latest changes from repository..."
-git fetch origin
-git pull origin deployment-branch
+echo "Pulling latest changes from upstream Project Vision repository..."
+git fetch upstream
+git pull upstream main
 
 echo "Installing/updating dependencies..."
 npm install
 
-echo "Building the project..."
-npm run build
+echo "Building the project with increased memory..."
+NODE_OPTIONS="--max-old-space-size=2048" npm run build
+
+# Check if build succeeded
+if [ $? -ne 0 ]; then
+    echo "ERROR: Build failed. Deployment aborted."
+    exit 1
+fi
 
 echo "Stopping existing PM2 processes..."
 pm2 stop stream-scene 2>/dev/null || echo "No existing process to stop"
@@ -32,6 +38,9 @@ pm2 delete stream-scene 2>/dev/null || echo "No existing process to delete"
 
 echo "Starting the application with PM2..."
 pm2 start dist/server/app.js --name stream-scene --env production
+
+# Save PM2 configuration for auto-restart on reboot
+pm2 save
 
 echo "Checking PM2 status..."
 pm2 status
