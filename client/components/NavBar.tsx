@@ -82,12 +82,6 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
               >
                 <div className="flex items-center gap-1">
                   <span className="font-medium">{item.label}</span>
-                  {/* Add a subtle indicator for the new Content Scheduler */}
-                  {item.id === 'content-scheduler' && (
-                    <span className="inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-blue-100 bg-blue-600 rounded-full animate-pulse">
-                      New
-                    </span>
-                  )}
                 </div>
                 
                 {/* Active indicator */}
@@ -153,12 +147,6 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
               >
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-sm">{item.label}</span>
-                  {/* Mobile "New" indicator */}
-                  {item.id === 'content-scheduler' && (
-                    <span className="inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-blue-100 bg-blue-600 rounded-full">
-                      New
-                    </span>
-                  )}
                 </div>
                 <span className="text-xs text-gray-400 mt-1">{item.description}</span>
               </button>
