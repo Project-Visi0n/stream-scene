@@ -2,7 +2,7 @@ name: Deploy to EC2 (Development)
 
 on:
   push:
-    branches: [ main, typescript-deployment-branch ]  # Deploy when pushing to main or typescript-deployment-branch
+    branches: [ main ]  # Deploy when pushing to main or typescript-deployment-branch
   pull_request:
     branches: [ main ]
 
@@ -26,8 +26,19 @@ jobs:
     - name: Build application
       run: |
         npm run build
-      env:
-        NODE_OPTIONS: '--max-old-space-size=2048'
+
+    - name: Test SSH Connection
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USERNAME }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          echo "SSH connection successful!"
+          whoami
+          pwd
+          ls -la
 
     - name: Deploy to EC2 (Development Mode)
       uses: appleboy/ssh-action@v1.0.3
