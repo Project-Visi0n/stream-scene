@@ -8,6 +8,7 @@ export interface FileRecord {
   size: number;
   s3Key?: string;
   url: string;
+  tags?: string[];
   uploadedAt: string;
   updatedAt: string;
 }
@@ -19,15 +20,21 @@ export interface CreateFileRequest {
   size: number;
   s3Key?: string;
   url: string;
+  tags?: string[];
 }
 
 const API_BASE = 'http://localhost:8000/api/files';
 
 export const fileService = {
   // Get all files for the authenticated user
-  async getFiles(): Promise<FileRecord[]> {
+  async getFiles(tags?: string[]): Promise<FileRecord[]> {
     try {
-      const response = await fetch(API_BASE, {
+      let url = API_BASE;
+      if (tags && tags.length > 0) {
+        url += `?tags=${tags.join(',')}`;
+      }
+      
+      const response = await fetch(url, {
         credentials: 'include'
       });
       
@@ -104,7 +111,7 @@ export const fileService = {
   },
 
   // Update file metadata
-  async updateFile(id: number, updates: Partial<Pick<FileRecord, 'name'>>): Promise<FileRecord> {
+  async updateFile(id: number, updates: Partial<Pick<FileRecord, 'name' | 'tags'>>): Promise<FileRecord> {
     try {
       const response = await fetch(`${API_BASE}/${id}`, {
         method: 'PUT',
@@ -123,6 +130,25 @@ export const fileService = {
       return data.file;
     } catch (error) {
       console.error('Error updating file:', error);
+      throw error;
+    }
+  },
+
+  // Get all unique tags for the authenticated user
+  async getUserTags(): Promise<string[]> {
+    try {
+      const response = await fetch(`${API_BASE}/tags/list`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch tags: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.tags || [];
+    } catch (error) {
+      console.error('Error fetching tags:', error);
       throw error;
     }
   }
