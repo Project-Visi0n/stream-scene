@@ -69,7 +69,12 @@ export default (env, argv) => {
         process: 'process/browser.js',
         Buffer: ['buffer', 'Buffer'],
       }),
-      new Dotenv(),
+      new Dotenv({
+        systemvars: true, // Load system environment variables
+        safe: false, // Don't require a .env.example file
+        allowEmptyValues: true,
+        defaults: false,
+      }),
     ],
     devtool: isProduction ? false : 'eval-cheap-module-source-map',
   };

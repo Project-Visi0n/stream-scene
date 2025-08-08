@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import fs from 'fs';
 
 // Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -72,6 +73,7 @@ app.use(passport.session());
 const publicPath = __dirname.includes('dist/server') 
   ? path.join(__dirname, '../../public')  // For deployment (dist/server -> public)
   : path.join(__dirname, '../public');    // For local dev (server -> public)
+
 app.use(express.static(publicPath));
 
 // Auth routes 
@@ -98,6 +100,12 @@ app.get('*', (req, res) => {
   const indexPath = __dirname.includes('dist/server') 
     ? path.join(__dirname, '../../public/index.html')  // For deployment
     : path.join(__dirname, '../public/index.html');    // For local dev
+  
+  if (!fs.existsSync(indexPath)) {
+    console.error('index.html file not found at:', indexPath);
+    return res.status(404).send('index.html file not found');
+  }
+  
   res.sendFile(indexPath);
 });
 

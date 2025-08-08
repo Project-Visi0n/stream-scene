@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   ScheduledPost, 
@@ -26,6 +27,7 @@ const ContentScheduler: React.FC = () => {
   const [templates, setTemplates] = useState<ContentTemplate[]>([]);
   const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
   const [notifications, setNotifications] = useState<Array<{id: string, type: 'success' | 'error' | 'info', message: string}>>([]);
+
 
   // Pagination
   const [hasMore, setHasMore] = useState(true);
