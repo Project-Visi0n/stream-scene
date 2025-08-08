@@ -1,12 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-
-// Mock GoogleLoginButton component
-const GoogleLoginButton = () => (
-  <button className="px-4 py-2 bg-white text-gray-800 rounded-lg hover:bg-gray-100 transition-colors duration-200 text-sm font-medium">
-    Sign in with Google
-  </button>
-);
+import GoogleLoginButton from './GoogleLoginButton';
 
 // Define the CurrentView type to match App.tsx
 type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers' | 'content-scheduler';

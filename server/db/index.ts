@@ -7,23 +7,32 @@ import { Sequelize } from 'sequelize';
 import { File } from '../models/File.js';
 import { Share } from '../models/Share.js';
 
-// Set up Sequelize connection
-const sequelize = new Sequelize({
-  dialect: 'mysql', 
-  host: process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'streamscene_db',
-  username: process.env.DB_USER || 'root',
-  password: process.env.DB_PASSWORD || '',
-  logging: false,
-});
+// Set up Sequelize connection (but don't connect yet)
+let sequelize: Sequelize | null = null;
 
-// Test the connection
+const getSequelize = () => {
+  if (!sequelize) {
+    sequelize = new Sequelize({
+      dialect: 'mysql', 
+      host: process.env.DB_HOST || 'localhost',
+      database: process.env.DB_NAME || 'streamscene_db',
+      username: process.env.DB_USER || 'root',
+      password: process.env.DB_PASS || '',  // Fixed: was DB_PASSWORD, should be DB_PASS
+      logging: false,
+    });
+  }
+  return sequelize;
+};
+
+// Test the connection (non-blocking)
 const testConnection = async () => {
   try {
-    await sequelize.authenticate();
+    const db = getSequelize();
+    await db.authenticate();
     console.log('Database connection established successfully.');
   } catch (error) {
     console.error('Unable to connect to the database:', error);
+    console.log('Continuing with in-memory storage fallback...');
   }
 };
 
@@ -42,12 +51,9 @@ export const syncDB = async (force = false) => {
   }
 };
 
-// Test connection on startup
-testConnection();
-
 // Export everything in one object
 export const db = {
-  sequelize,
+  sequelize: getSequelize(),  // Use getter function
   File, // This is now our in-memory File class
   Share, // This is now our in-memory Share class
   associate,
@@ -55,3 +61,6 @@ export const db = {
 
 export type DB = typeof db;
 export default db;
+
+// Don't test connection on startup - let it be tested when needed
+// testConnection();
