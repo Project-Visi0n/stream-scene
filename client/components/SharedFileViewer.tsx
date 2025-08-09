@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Navbar from './NavBar';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { shareService, SharedFileAccess } from '../services/shareService';
@@ -271,6 +272,11 @@ const SharedFileViewer: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      {/* Add NavBar for shared links */}
+      <Navbar
+        currentComponent={"landing"}
+        onNavigate={() => window.location.href = "/"}
+      />
       {/* Header */}
       <div className="bg-black/20 border-b border-purple-500/20 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto px-4 py-6">
@@ -317,7 +323,6 @@ const SharedFileViewer: React.FC = () => {
                 </p>
               </div>
             </div>
-            
             {/* Access Info */}
             <div className="bg-purple-900/20 border border-purple-500/30 rounded-lg p-3">
               <div className="text-xs text-purple-200">
