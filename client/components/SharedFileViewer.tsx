@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './NavBar';
+import { useNavigate } from 'react-router-dom';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { shareService, SharedFileAccess } from '../services/shareService';
 
 const SharedFileViewer: React.FC = () => {
   const { token } = useParams<{ token: string }>();
+  const navigate = useNavigate();
   const [fileData, setFileData] = useState<SharedFileAccess | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -275,7 +277,18 @@ const SharedFileViewer: React.FC = () => {
       {/* Add NavBar for shared links */}
       <Navbar
         currentComponent={"landing"}
-        onNavigate={() => window.location.href = "/"}
+        onNavigate={(component) => {
+          const viewToRouteMap = {
+            'landing': '/',
+            'planner': '/planner',
+            'project-center': '/project-center',
+            'budget-tracker': '/budget-tracker',
+            'demos-trailers': '/demos-trailers',
+            'content-scheduler': '/content-scheduler'
+          };
+          const route = viewToRouteMap[component];
+          if (route) navigate(route);
+        }}
       />
       {/* Header */}
       <div className="bg-black/20 border-b border-purple-500/20 backdrop-blur-sm">
