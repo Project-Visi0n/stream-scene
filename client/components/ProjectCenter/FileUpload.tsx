@@ -13,6 +13,7 @@ interface UploadedFile {
   size: number;
   url: string;
   s3Key?: string;
+  tags?: string[];
   uploadedAt: Date;
   fileRecordId?: number; // Database record ID
 }
@@ -27,6 +28,12 @@ const FileUpload: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
 
+  // Tags state
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState('');
+  const [currentFileTags, setCurrentFileTags] = useState<{ [fileId: string]: string[] }>({});
+
   // Share modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedFileForShare, setSelectedFileForShare] = useState<UploadedFile | null>(null);
@@ -35,16 +42,19 @@ const FileUpload: React.FC = () => {
   useEffect(() => {
     if (user) {
       loadUserFiles();
+      loadUserTags();
     } else {
       setUploadedFiles([]);
+      setAvailableTags([]);
+      setSelectedTags([]);
       setLoading(false);
     }
   }, [user]);
 
-  const loadUserFiles = async () => {
+  const loadUserFiles = async (filterTags?: string[]) => {
     try {
       setLoading(true);
-      const fileRecords = await fileService.getFiles();
+      const fileRecords = await fileService.getFiles(filterTags);
       
       // Convert FileRecord to UploadedFile format
       const files: UploadedFile[] = fileRecords.map(record => ({
@@ -54,6 +64,7 @@ const FileUpload: React.FC = () => {
         size: record.size,
         url: record.url,
         s3Key: record.s3Key,
+        tags: record.tags,
         uploadedAt: new Date(record.uploadedAt),
         fileRecordId: record.id
       }));
@@ -65,6 +76,79 @@ const FileUpload: React.FC = () => {
       setError('Failed to load your files. Please refresh the page.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadUserTags = async () => {
+    try {
+      const tags = await fileService.getUserTags();
+      setAvailableTags(tags);
+      console.log('Loaded user tags:', tags);
+    } catch (error) {
+      console.error('Failed to load user tags:', error);
+    }
+  };
+
+  // Tag management functions
+  const handleTagFilter = (tags: string[]) => {
+    setSelectedTags(tags);
+    loadUserFiles(tags.length > 0 ? tags : undefined);
+  };
+
+  const addTag = (tag: string) => {
+    const trimmedTag = tag.trim().toLowerCase();
+    if (trimmedTag && !availableTags.includes(trimmedTag)) {
+      setAvailableTags(prev => [...prev, trimmedTag].sort());
+    }
+  };
+
+  const handleAddFileTag = (fileId: string, tag: string) => {
+    const trimmedTag = tag.trim().toLowerCase();
+    if (!trimmedTag) return;
+
+    setCurrentFileTags(prev => {
+      const current = prev[fileId] || [];
+      if (!current.includes(trimmedTag)) {
+        return { ...prev, [fileId]: [...current, trimmedTag] };
+      }
+      return prev;
+    });
+
+    addTag(trimmedTag);
+  };
+
+  const handleRemoveFileTag = (fileId: string, tag: string) => {
+    setCurrentFileTags(prev => {
+      const current = prev[fileId] || [];
+      return { ...prev, [fileId]: current.filter(t => t !== tag) };
+    });
+  };
+
+  const saveFileTags = async (file: UploadedFile) => {
+    if (!file.fileRecordId) return;
+
+    try {
+      const tags = currentFileTags[file.id] || file.tags || [];
+      await fileService.updateFile(file.fileRecordId, { tags });
+      
+      // Update local state
+      setUploadedFiles(prev => prev.map(f => 
+        f.id === file.id ? { ...f, tags } : f
+      ));
+      
+      // Clear temporary tags
+      setCurrentFileTags(prev => {
+        const { [file.id]: removed, ...rest } = prev;
+        return rest;
+      });
+
+      // Refresh available tags
+      loadUserTags();
+      
+      console.log('Tags saved for file:', file.name, tags);
+    } catch (error) {
+      console.error('Failed to save tags:', error);
+      setError('Failed to save tags. Please try again.');
     }
   };
 
@@ -135,7 +219,8 @@ const FileUpload: React.FC = () => {
         type: file.type,
         size: file.size,
         url,
-        s3Key
+        s3Key,
+        tags: selectedTags.length > 0 ? [...selectedTags] : undefined
       };
 
       const fileRecord = await fileService.createFile(fileData);
@@ -148,6 +233,7 @@ const FileUpload: React.FC = () => {
         size: fileRecord.size,
         url: fileRecord.url,
         s3Key: fileRecord.s3Key,
+        tags: fileRecord.tags,
         uploadedAt: new Date(fileRecord.uploadedAt),
         fileRecordId: fileRecord.id
       };
@@ -155,6 +241,12 @@ const FileUpload: React.FC = () => {
       console.log('Adding file to state:', newFile);
       setUploadedFiles(prev => [...prev, newFile]);
       setUploadProgress(100);
+      
+      // Refresh available tags if new tags were added
+      if (selectedTags.length > 0) {
+        loadUserTags();
+        setSelectedTags([]); // Clear selected tags after upload
+      }
       
       // Reset progress after a short delay
       setTimeout(() => setUploadProgress(0), 1000);
@@ -522,6 +614,48 @@ const FileUpload: React.FC = () => {
           >
             {uploading ? `Uploading... ${uploadProgress}%` : 'Select Files'}
           </motion.button>
+
+          {/* Upload Tags Input */}
+          <div className="max-w-md mx-auto space-y-2">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                placeholder="Add tags for uploads (press Enter)"
+                className="flex-1 px-3 py-2 bg-slate-700 text-white rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none text-sm"
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && tagInput.trim()) {
+                    const newTag = tagInput.trim().toLowerCase();
+                    if (!selectedTags.includes(newTag)) {
+                      setSelectedTags(prev => [...prev, newTag]);
+                      addTag(newTag);
+                    }
+                    setTagInput('');
+                  }
+                }}
+              />
+            </div>
+            {selectedTags.length > 0 && (
+              <div className="flex flex-wrap gap-1 justify-center">
+                <span className="text-xs text-gray-400">Upload tags:</span>
+                {selectedTags.map(tag => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center px-2 py-1 text-xs bg-purple-600/30 text-purple-200 rounded-full"
+                  >
+                    {tag}
+                    <button
+                      onClick={() => setSelectedTags(prev => prev.filter(t => t !== tag))}
+                      className="ml-1 text-purple-300 hover:text-white"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
           
           {/* Upload Progress Bar */}
           {uploading && (
@@ -564,7 +698,42 @@ const FileUpload: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
-          <h3 className="text-xl font-semibold text-white">Uploaded Files ({uploadedFiles.length})</h3>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h3 className="text-xl font-semibold text-white">Uploaded Files ({uploadedFiles.length})</h3>
+            
+            {/* Tag Filter */}
+            {availableTags.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <span className="text-sm text-gray-400">Filter by tags:</span>
+                {availableTags.map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => {
+                      const newTags = selectedTags.includes(tag) 
+                        ? selectedTags.filter(t => t !== tag)
+                        : [...selectedTags, tag];
+                      handleTagFilter(newTags);
+                    }}
+                    className={`px-2 py-1 text-xs rounded-full transition-colors duration-200 ${
+                      selectedTags.includes(tag)
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+                {selectedTags.length > 0 && (
+                  <button
+                    onClick={() => handleTagFilter([])}
+                    className="px-2 py-1 text-xs rounded-full bg-red-600/20 text-red-400 hover:bg-red-600/30"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {uploadedFiles.map((file) => (
@@ -603,12 +772,64 @@ const FileUpload: React.FC = () => {
                 </div>
 
                 {/* File info */}
-                <div className="space-y-1">
+                <div className="space-y-3">
                   <div className="text-sm font-medium text-white truncate" title={file.name}>
                     {file.name}
                   </div>
                   <div className="text-xs text-gray-400">
                     {formatFileSize(file.size)} • {file.uploadedAt.toLocaleDateString()}
+                  </div>
+                  
+                  {/* Tags Section */}
+                  <div className="space-y-2">
+                    {/* Display existing tags */}
+                    {(file.tags || currentFileTags[file.id])?.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {(currentFileTags[file.id] || file.tags || []).map(tag => (
+                          <span
+                            key={tag}
+                            className="inline-flex items-center px-2 py-1 text-xs bg-purple-600/30 text-purple-200 rounded-full"
+                          >
+                            {tag}
+                            <button
+                              onClick={() => handleRemoveFileTag(file.id, tag)}
+                              className="ml-1 text-purple-300 hover:text-white"
+                              title="Remove tag"
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Add tag input */}
+                    <div className="flex gap-1">
+                      <input
+                        type="text"
+                        placeholder="Add tag..."
+                        className="flex-1 px-2 py-1 text-xs bg-gray-700 text-white rounded border border-gray-600 focus:border-purple-500 focus:outline-none"
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            const input = e.target as HTMLInputElement;
+                            if (input.value.trim()) {
+                              handleAddFileTag(file.id, input.value);
+                              input.value = '';
+                            }
+                          }
+                        }}
+                      />
+                      {(currentFileTags[file.id]?.length > 0 || 
+                        (currentFileTags[file.id] || []).some(tag => !(file.tags || []).includes(tag))) && (
+                        <button
+                          onClick={() => saveFileTags(file)}
+                          className="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors duration-200"
+                          title="Save tags"
+                        >
+                          ✓
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </motion.div>

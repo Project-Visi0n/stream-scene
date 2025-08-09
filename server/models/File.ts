@@ -10,6 +10,7 @@ interface FileRecord {
   size: number;
   s3Key?: string;
   url: string;
+  tags?: string[]; // Array of tag strings
   uploadedAt: Date;
   updatedAt: Date;
 }
@@ -27,6 +28,7 @@ export class File {
   public size!: number;
   public s3Key?: string;
   public url!: string;
+  public tags?: string[];
   public uploadedAt!: Date;
   public updatedAt!: Date;
 
@@ -99,6 +101,7 @@ export class File {
         size: this.size,
         s3Key: this.s3Key,
         url: this.url,
+        tags: this.tags,
         updatedAt: this.updatedAt
       });
       fileStorage.set(this.id, record);
@@ -113,5 +116,46 @@ export class File {
       totalFiles: fileStorage.size,
       files: Array.from(fileStorage.values())
     };
+  }
+
+  // Static method to find files by user ID with optional tag filtering
+  static async findByUserIdWithTags(userId: number, tags?: string[]): Promise<File[]> {
+    console.log('File.findByUserIdWithTags called with userId:', userId, 'tags:', tags);
+    
+    let userFiles = Array.from(fileStorage.values())
+      .filter(file => file.userId === userId);
+    
+    // If tags are provided, filter by them
+    if (tags && tags.length > 0) {
+      userFiles = userFiles.filter(file => {
+        if (!file.tags || file.tags.length === 0) return false;
+        return tags.some(tag => file.tags!.includes(tag.toLowerCase()));
+      });
+    }
+    
+    // Sort by upload date (newest first) and convert to File instances
+    const result = userFiles
+      .sort((a, b) => b.uploadedAt.getTime() - a.uploadedAt.getTime())
+      .map(record => new File(record));
+    
+    console.log('Found files with tags:', result.length);
+    return result;
+  }
+
+  // Static method to get all unique tags for a user
+  static async getUserTags(userId: number): Promise<string[]> {
+    console.log('File.getUserTags called with userId:', userId);
+    
+    const userFiles = Array.from(fileStorage.values())
+      .filter(file => file.userId === userId);
+    
+    const allTags = userFiles
+      .flatMap(file => file.tags || [])
+      .map(tag => tag.toLowerCase())
+      .filter((tag, index, array) => array.indexOf(tag) === index) // Remove duplicates
+      .sort();
+    
+    console.log('Found unique tags for user:', allTags);
+    return allTags;
   }
 }
