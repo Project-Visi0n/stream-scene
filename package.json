@@ -43,7 +43,8 @@
     "react-router-dom": "^7.7.1",
     "react-sketch-canvas": "^6.2.0",
     "sequelize": "^6.37.7",
-    "sequelize-typescript": "^2.1.6"
+    "sequelize-typescript": "^2.1.6",
+    "wavesurfer.js": "^7.10.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.11",
@@ -58,6 +59,7 @@
     "@types/react-dom": "^19.1.6",
     "@types/react-router-dom": "^5.3.3",
     "@types/sequelize": "^4.28.20",
+    "@types/wavesurfer.js": "^6.0.12",
     "autoprefixer": "^10.4.21",
     "buffer": "^6.0.3",
     "concurrently": "^9.2.0",
