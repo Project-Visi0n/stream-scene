@@ -22,8 +22,9 @@ const DemosTrailers: React.FC = () => {
       setLoading(true);
       setError(null);
       try {
-        const demoTrailerFiles = await fileService.getFiles(['demo', 'trailer']);
-        setFiles(demoTrailerFiles);
+  const demoTrailerFiles = await fileService.getFiles(['demo', 'trailer']);
+  console.log('[DemosTrailers] Fetched files:', demoTrailerFiles);
+  setFiles(demoTrailerFiles);
       } catch (err) {
         setError('Failed to load demo/trailer files');
       } finally {
@@ -81,6 +82,11 @@ const DemosTrailers: React.FC = () => {
       <div className="max-w-5xl mx-auto pt-10">
         <h1 className="text-4xl font-bold text-white mb-8 text-center">🎬 Demos & Trailers</h1>
         <div className="grid gap-10">
+          {/* Debug info for troubleshooting */}
+          <div className="bg-black/30 text-white p-4 rounded mb-6">
+            <h3 className="font-bold mb-2">Debug: Fetched Files</h3>
+            <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(files, null, 2)}</pre>
+          </div>
           {files.length === 0 && (
             <div className="text-center text-gray-400">No demo or trailer files found.</div>
           )}
@@ -101,7 +107,9 @@ const DemosTrailers: React.FC = () => {
                 />
               ) : file.type.startsWith('audio/') ? (
                 <div className="w-full max-w-2xl">
-                  <div id={`waveform-${file.id}`} className="w-full mb-4"></div>
+                  {/* Waveform container for wavesurfer.js */}
+                  <div id={`waveform-${file.id}`} className="w-full mb-4" style={{ minHeight: '80px' }}></div>
+                  {/* Fallback audio player if waveform fails */}
                   <audio controls src={file.url} className="w-full" />
                 </div>
               ) : (

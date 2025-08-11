@@ -4,8 +4,7 @@ dotenv.config();
 
 // Import Sequelize 
 import { Sequelize } from 'sequelize';
-import { File } from '../models/File.js';
-import { Share } from '../models/Share.js';
+// Do not import models yet
 
 // Set up Sequelize connection (but don't connect yet)
 let sequelize: Sequelize | null = null;
@@ -17,7 +16,7 @@ const getSequelize = () => {
       host: process.env.DB_HOST || 'localhost',
       database: process.env.DB_NAME || 'streamscene_db',
       username: process.env.DB_USER || 'root',
-      password: process.env.DB_PASS || '',  // Fixed: was DB_PASSWORD, should be DB_PASS
+      password: process.env.DB_PASS || '',
       logging: false,
     });
   }
@@ -36,26 +35,35 @@ const testConnection = async () => {
   }
 };
 
-// Simplified associations 
+// Simplified associations
 export const associate = () => {
   console.log('Database associations set up');
 };
 
-// call this to sync the DB (excluding File model for now)
+// call this to sync the DB (including File model)
 export const syncDB = async (force = false) => {
   try {
-    // Skip File model sync since we're using in-memory storage
-    console.log('Database sync skipped - using in-memory file storage');
+    await File.sync({ force });
+    console.log('Database sync complete (File model)');
   } catch (error) {
     console.error('Database sync failed:', error);
   }
 };
 
-// Export everything in one object
+// After Sequelize is initialized, import models and register them
+const sequelizeInstance = getSequelize();
+
+// Import model initializer
+import { initFileModel } from '../models/initFileModel.js';
+import { Share } from '../models/Share.js';
+
+// Initialize File model after Sequelize is ready
+const File = initFileModel(sequelizeInstance);
+
 export const db = {
-  sequelize: getSequelize(),  // Use getter function
-  File, // This is now our in-memory File class
-  Share, // This is now our in-memory Share class
+  sequelize: sequelizeInstance,
+  File,
+  Share,
   associate,
 };
 
