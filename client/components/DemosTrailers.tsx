@@ -82,11 +82,6 @@ const DemosTrailers: React.FC = () => {
       <div className="max-w-5xl mx-auto pt-10">
         <h1 className="text-4xl font-bold text-white mb-8 text-center">🎬 Demos & Trailers</h1>
         <div className="grid gap-10">
-          {/* Debug info for troubleshooting */}
-          <div className="bg-black/30 text-white p-4 rounded mb-6">
-            <h3 className="font-bold mb-2">Debug: Fetched Files</h3>
-            <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(files, null, 2)}</pre>
-          </div>
           {files.length === 0 && (
             <div className="text-center text-gray-400">No demo or trailer files found.</div>
           )}
