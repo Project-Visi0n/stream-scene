@@ -206,26 +206,29 @@ const FileUpload: React.FC = () => {
       }, 200);
       
       const { url, s3Key } = await handleS3Upload(file);
-      
+
       clearInterval(progressInterval);
       setUploadProgress(95);
-      
-      console.log('Upload completed. URL:', url, 'S3Key:', s3Key);
-      
+
+      // Always use the server proxy URL for previews if S3 key is available
+      const previewUrl = s3Key ? getFileUrl(s3Key) : url;
+
+      console.log('Upload completed. Preview URL:', previewUrl, 'S3Key:', s3Key);
+
       // Create file record in database
       const fileData: CreateFileRequest = {
         name: file.name,
         originalName: file.name,
         type: file.type,
         size: file.size,
-        url,
+        url: previewUrl,
         s3Key,
         tags: selectedTags.length > 0 ? [...selectedTags] : undefined
       };
 
       const fileRecord = await fileService.createFile(fileData);
       console.log('File record created:', fileRecord);
-      
+
       const newFile: UploadedFile = {
         id: `db-${fileRecord.id}`,
         name: fileRecord.name,
@@ -469,12 +472,17 @@ const FileUpload: React.FC = () => {
   );
 
   const renderFilePreview = (file: UploadedFile) => {
-    const { type, url, name } = file;
+  const { type, url, name, s3Key } = file;
 
     console.log('Rendering preview for file:', { name, type, url: url.substring(0, 50) + '...' });
 
-    if (isVideoFile(type)) return <VideoPreview url={url} type={type} />;
-    if (isAudioFile(type)) return <AudioPreview url={url} type={type} name={name} />;
+    // For uploaded files, ensure we use the server proxy URL for preview
+    let previewUrl = url;
+    if (s3Key && url.startsWith('blob:')) {
+      previewUrl = getFileUrl(s3Key);
+    }
+    if (isVideoFile(type)) return <VideoPreview url={previewUrl} type={type} />;
+    if (isAudioFile(type)) return <AudioPreview url={previewUrl} type={type} name={name} />;
     if (isImageFile(type)) return <ImagePreview url={url} name={name} />;
     if (isTextFile(type) || isPDFFile(type)) return <TextPreview url={url} name={name} />;
     return <DefaultFilePreview type={type} name={name} />;
