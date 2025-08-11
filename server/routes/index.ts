@@ -1,5 +1,6 @@
 import { Router } from "express";
 import taskRouter from './tasks.js';
+import contentSchedulerRouter from './contentScheduler'; 
 
 const router = Router();
 
@@ -8,4 +9,5 @@ router.get("/healthz", (_req, res) => {
 });
 
 router.use('/api/tasks', taskRouter);
-export default router; 
+router.use('/api/content-scheduler', contentSchedulerRouter); 
+export default router;
