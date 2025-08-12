@@ -1,4 +1,7 @@
 // budget-routes.js - Express.js routes for budget tracker
+import { Request, Response, NextFunction } from 'express';
+// Use Express.Multer.File for multer file type
+type MulterFile = Express.Multer.File;
 const express = require('express');
 const multer = require('multer');
 const mysql = require('mysql2/promise');
@@ -16,12 +19,12 @@ const dbConfig = {
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
-  destination: async (req, file, cb) => {
+  destination: async (req: Request, file: MulterFile, cb: (error: Error | null, destination?: string) => void) => {
     const uploadDir = path.join(__dirname, '../uploads/receipts');
     await fs.mkdir(uploadDir, { recursive: true });
     cb(null, uploadDir);
   },
-  filename: (req, file, cb) => {
+  filename: (req: Request, file: MulterFile, cb: (error: Error | null, filename?: string) => void) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
     cb(null, `receipt-${uniqueSuffix}${path.extname(file.originalname)}`);
   }
@@ -32,7 +35,7 @@ const upload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024 // 10MB limit
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (req: Request, file: MulterFile, cb: (error: Error | null, acceptFile?: boolean) => void) => {
     const allowedTypes = /jpeg|jpg|png|pdf/;
     const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
     const mimetype = allowedTypes.test(file.mimetype);
@@ -51,7 +54,7 @@ async function getDbConnection() {
 }
 
 // GET - Fetch income types
-router.get('/income-types', async (req, res) => {
+router.get('/income-types', async (req: Request, res: Response) => {
   let connection;
   try {
     connection = await getDbConnection();
@@ -66,7 +69,7 @@ router.get('/income-types', async (req, res) => {
 });
 
 // GET - Fetch expense categories
-router.get('/expense-categories', async (req, res) => {
+router.get('/expense-categories', async (req: Request, res: Response) => {
   let connection;
   try {
     connection = await getDbConnection();
@@ -81,7 +84,7 @@ router.get('/expense-categories', async (req, res) => {
 });
 
 // POST - Create new income entry
-router.post('/income', async (req, res) => {
+router.post('/income', async (req: Request, res: Response) => {
   let connection;
   try {
     const {
@@ -144,7 +147,7 @@ router.post('/income', async (req, res) => {
 });
 
 // POST - Create new expense entry (with file upload)
-router.post('/expense', upload.single('receipt'), async (req, res) => {
+router.post('/expense', upload.single('receipt'), async (req: Request, res: Response) => {
   let connection;
   try {
     const {
@@ -223,7 +226,7 @@ router.post('/expense', upload.single('receipt'), async (req, res) => {
 });
 
 // GET - Fetch user's income entries
-router.get('/income', async (req, res) => {
+router.get('/income', async (req: Request, res: Response) => {
   let connection;
   try {
     const userId = req.user ? req.user.id : 1;
@@ -237,25 +240,25 @@ router.get('/income', async (req, res) => {
       JOIN income_types it ON i.income_type_id = it.id
       WHERE i.user_id = ?
     `;
-    let params = [userId];
+    // Fix: params can be string or number
+    let params: (string | number)[] = [userId];
 
     // Add filters
     if (startDate) {
       query += ' AND i.date_received >= ?';
-      params.push(startDate);
+      params.push(String(startDate));
     }
     if (endDate) {
       query += ' AND i.date_received <= ?';
-      params.push(endDate);
+      params.push(String(endDate));
     }
     if (incomeType) {
       query += ' AND it.name = ?';
-      params.push(incomeType);
+      params.push(String(incomeType));
     }
-
     query += ' ORDER BY i.date_received DESC, i.created_at DESC';
     query += ' LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    params.push(Number(limit), Number(offset));
 
     const [rows] = await connection.execute(query, params);
     res.json(rows);
@@ -269,7 +272,7 @@ router.get('/income', async (req, res) => {
 });
 
 // GET - Fetch user's expense entries
-router.get('/expense', async (req, res) => {
+router.get('/expense', async (req: Request, res: Response) => {
   let connection;
   try {
     const userId = req.user ? req.user.id : 1;
@@ -283,25 +286,25 @@ router.get('/expense', async (req, res) => {
       JOIN expense_categories ec ON e.expense_category_id = ec.id
       WHERE e.user_id = ?
     `;
-    let params = [userId];
+    // Fix: params can be string or number
+    let params: (string | number)[] = [userId];
 
     // Add filters
     if (startDate) {
       query += ' AND e.date_incurred >= ?';
-      params.push(startDate);
+      params.push(String(startDate));
     }
     if (endDate) {
       query += ' AND e.date_incurred <= ?';
-      params.push(endDate);
+      params.push(String(endDate));
     }
     if (category) {
       query += ' AND ec.name = ?';
-      params.push(category);
+      params.push(String(category));
     }
-
     query += ' ORDER BY e.date_incurred DESC, e.created_at DESC';
     query += ' LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), parseInt(offset));
+    params.push(Number(limit), Number(offset));
 
     const [rows] = await connection.execute(query, params);
     res.json(rows);
@@ -315,7 +318,7 @@ router.get('/expense', async (req, res) => {
 });
 
 // GET - Financial summary/dashboard data
-router.get('/summary', async (req, res) => {
+router.get('/summary', async (req: Request, res: Response) => {
   let connection;
   try {
     const userId = req.user ? req.user.id : 1;
@@ -411,7 +414,7 @@ router.get('/summary', async (req, res) => {
 });
 
 // DELETE - Delete income entry
-router.delete('/income/:id', async (req, res) => {
+router.delete('/income/:id', async (req: Request, res: Response) => {
   let connection;
   try {
     const userId = req.user ? req.user.id : 1;
@@ -439,7 +442,7 @@ router.delete('/income/:id', async (req, res) => {
 });
 
 // DELETE - Delete expense entry
-router.delete('/expense/:id', async (req, res) => {
+router.delete('/expense/:id', async (req: Request, res: Response) => {
   let connection;
   try {
     const userId = req.user ? req.user.id : 1;
@@ -485,7 +488,7 @@ router.delete('/expense/:id', async (req, res) => {
 });
 
 // Error handling middleware
-router.use((error, req, res, next) => {
+router.use((error: any, req: Request, res: Response, next: NextFunction) => {
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({ error: 'File too large. Maximum size is 10MB.' });
