@@ -179,6 +179,44 @@ export const uploadWithPresignedUrl = async (file: File): Promise<S3UploadResult
   }
 };
 
+/**
+ * Upload receipt file with expense metadata
+ */
+export const uploadReceipt = async (file: File, expenseId?: string): Promise<S3UploadResult> => {
+  console.log('[S3Service] Uploading receipt:', file.name);
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('type', 'receipt'); // FIXED: was 'file', should be 'type'
+    if (expenseId) {
+      formData.append('expenseId', expenseId); // FIXED: was 'expenseID', should be 'expenseId'
+    }
+
+    const response = await fetch('/api/s3/upload/receipt', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include'
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Receipt upload failed: ${response.status} ${errorText}`);
+    }
+
+    const result = await response.json();
+    console.log('[S3Service] Receipt uploaded successfully:', result);
+    
+    return {
+      url: result.url,
+      key: result.key
+    };
+  } catch (error) {
+    console.error('[S3Service] Receipt upload error:', error);
+    throw new Error('Failed to upload receipt');
+  }
+};
+
 // Default export using the secure server upload
 export default {
   uploadFileToS3,
@@ -186,5 +224,6 @@ export default {
   getFileUrl,
   isS3Configured,
   getPresignedUploadUrl,
-  uploadWithPresignedUrl
+  uploadWithPresignedUrl,
+  uploadReceipt 
 };

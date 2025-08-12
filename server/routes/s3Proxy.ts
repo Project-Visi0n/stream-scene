@@ -212,4 +212,90 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   }
 });
 
+// NEW: Receipt upload route
+router.post('/upload/receipt', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const file = req.file;
+    const expenseId = req.body.expenseId;
+    const type = req.body.type; // Should be 'receipt'
+    
+    // Validate file type for receipts
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    if (!allowedTypes.includes(file.mimetype)) {
+      return res.status(400).json({ 
+        error: 'Invalid file type. Only JPG, PNG, and PDF files are allowed for receipts.' 
+      });
+    }
+
+    // Validate file size (5MB max for receipts)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      return res.status(400).json({ 
+        error: 'File too large. Maximum size for receipts is 5MB.' 
+      });
+    }
+
+    const env = getEnvVars();
+    if (!isS3Configured()) {
+      return res.status(500).json({ error: 'S3 not configured' });
+    }
+
+    const s3Client = getS3Client();
+    
+    // Create a specific key structure for receipts
+    const timestamp = Date.now();
+    const sanitizedFileName = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const key = `receipts/${timestamp}-${sanitizedFileName}`;
+    
+    console.log(`[S3Proxy] Uploading receipt: ${file.originalname} as ${key}`);
+    
+    const putCommand = new PutObjectCommand({
+      Bucket: env.BUCKET_NAME,
+      Key: key,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+      Metadata: {
+        'original-name': file.originalname,
+        'expense-id': expenseId || 'unknown',
+        'upload-type': 'receipt',
+        'upload-date': new Date().toISOString()
+      }
+    });
+
+    await s3Client.send(putCommand);
+    
+    // Return the proxy URL (consistent with your existing pattern)
+    const proxyUrl = `/api/s3/proxy/${key}`;
+    
+    console.log(`[S3Proxy] Receipt uploaded successfully: ${key}`);
+    
+    res.json({
+      url: proxyUrl,
+      key: key,
+      originalName: file.originalname,
+      size: file.size,
+      type: file.mimetype,
+      expenseId: expenseId,
+      message: 'Receipt uploaded successfully'
+    });
+    
+  } catch (error: any) {
+    console.error('[S3Proxy] Receipt upload error:', error);
+    if (error?.name) console.error('Error name:', error.name);
+    if (error?.message) console.error('Error message:', error.message);
+    if (error?.stack) console.error('Error stack:', error.stack);
+    if (error?.$metadata) console.error('AWS metadata:', error.$metadata);
+    if (error?.Code) console.error('AWS error code:', error.Code);
+    
+    res.status(500).json({ 
+      error: 'Failed to upload receipt to S3', 
+      details: error?.message || error 
+    });
+  }
+});
+
 export default router;

@@ -10,25 +10,35 @@ import DemosTrailers from './DemosTrailers';
 
 type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers' | 'content-scheduler';
 
+type Entry = {
+  id: number;
+  type: 'income' | 'expense';
+  amount: number;
+  description: string;
+  date: string;
+  category: string;
+  receiptTitle?: string;
+  receiptUrl?: string;
+};
+
 const BudgetTracker: React.FC = () => {
   const [activeTab, setActiveTab] = useState('add');
-  const [entries, setEntries] = useState([
-    // Sample data to verify it's working
-    { id: 1, type: 'income', amount: 2500, description: 'Freelance project', date: '2025-01-15', category: 'Freelance Payment' },
-    { id: 2, type: 'expense', amount: 300, description: 'New camera lens', date: '2025-01-14', category: 'Equipment' },
-    { id: 3, type: 'income', amount: 850, description: 'Stock footage sales', date: '2025-01-12', category: 'Residuals' }
-  ]);
+  const [entries, setEntries] = useState<Entry[]>([]);
 
   const [formData, setFormData] = useState({
-    type: 'income',
+    type: 'income' as 'income' | 'expense',
     amount: '',
     description: '',
     date: new Date().toISOString().split('T')[0],
-    category: ''
+    category: '',
+    receiptTitle: ''
   });
 
-  const incomeCategories = ['Freelance Payment', 'Residuals', 'Grant', 'Salary', 'Bonus', 'Other'];
-  const expenseCategories = ['Equipment', 'Transportation', 'Software', 'Marketing', 'Office Supplies', 'Personal', 'Other'];
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const incomeCategories = ['Freelance Payment', 'Residuals', 'Grant', 'Salary', 'Bonus', 'Donation', 'Other'];
+  const expenseCategories = ['Equipment', 'Transportation', 'Software', 'Marketing', 'Office Supplies', 'Personal', 'Food', 'Other'];
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -38,16 +48,33 @@ const BudgetTracker: React.FC = () => {
     }));
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setReceiptFile(file);
+    }
+  };
+
   const handleSubmit = () => {
     if (!formData.amount || !formData.description || !formData.category) {
       alert('Please fill in all required fields');
       return;
     }
 
-    const newEntry = {
-      id: entries.length + 1,
-      ...formData,
-      amount: parseFloat(formData.amount)
+    let receiptUrl = '';
+    if (receiptFile) {
+      receiptUrl = URL.createObjectURL(receiptFile);
+    }
+
+    const newEntry: Entry = {
+      id: Math.max(...entries.map(e => e.id), 0) + 1,
+      type: formData.type,
+      amount: parseFloat(formData.amount),
+      description: formData.description,
+      date: formData.date,
+      category: formData.category,
+      receiptTitle: formData.receiptTitle || undefined,
+      receiptUrl: receiptUrl || undefined
     };
 
     setEntries(prev => [newEntry, ...prev]);
@@ -58,10 +85,18 @@ const BudgetTracker: React.FC = () => {
       amount: '',
       description: '',
       date: new Date().toISOString().split('T')[0],
-      category: ''
+      category: '',
+      receiptTitle: ''
     });
+    setReceiptFile(null);
 
     alert('Entry saved successfully!');
+  };
+
+  const handleDelete = (id: number) => {
+    if (confirm('Are you sure you want to delete this entry?')) {
+      setEntries(prev => prev.filter(entry => entry.id !== id));
+    }
   };
 
   const calculateTotals = () => {
@@ -79,6 +114,13 @@ const BudgetTracker: React.FC = () => {
       net: totalIncome - totalExpenses
     };
   };
+
+  const filteredEntries = entries.filter(entry => 
+    searchQuery === '' || 
+    entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    entry.receiptTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    entry.category.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const totals = calculateTotals();
 
@@ -262,6 +304,65 @@ const BudgetTracker: React.FC = () => {
                 />
               </div>
 
+              {/* Receipt Upload (only for expenses) */}
+              {formData.type === 'expense' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Receipt Title</label>
+                    <input
+                      type="text"
+                      name="receiptTitle"
+                      value={formData.receiptTitle}
+                      onChange={handleInputChange}
+                      placeholder="example:, Camera Store Receipt"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <span className="inline-block w-4 h-4 mr-1 text-center font-bold">📎</span>
+                      Upload Receipt
+                    </label>
+                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md hover:border-gray-400">
+                      <div className="space-y-1 text-center">
+                        {receiptFile ? (
+                          <div className="text-sm text-gray-600">
+                            <span className="font-medium text-green-600">✓ {receiptFile.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => setReceiptFile(null)}
+                              className="ml-2 text-red-600 hover:text-red-800"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            <div className="text-4xl">📄</div>
+                            <div className="flex text-sm text-gray-600">
+                              <label htmlFor="receipt-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
+                                <span>Upload a file</span>
+                                <input
+                                  id="receipt-upload"
+                                  name="receipt-upload"
+                                  type="file"
+                                  className="sr-only"
+                                  accept="image/*,.pdf"
+                                  onChange={handleFileChange}
+                                />
+                              </label>
+                              <p className="pl-1">or drag and drop</p>
+                            </div>
+                            <p className="text-xs text-gray-500">PNG, JPG, PDF up to 10MB</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Submit Button */}
               <div className="flex justify-end">
                 <button
@@ -276,13 +377,30 @@ const BudgetTracker: React.FC = () => {
           ) : (
             /* Transaction History */
             <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900">Recent Transactions</h2>
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-gray-900">Recent Transactions</h2>
+                
+                {/* Search Box */}
+                <div className="w-64">
+                  <input
+                    type="text"
+                    placeholder="Search by description, receipt title, or category..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
               
-              {entries.length === 0 ? (
+              {filteredEntries.length === 0 ? (
                 <div className="text-center py-12">
                   <div className="mx-auto h-12 w-12 bg-gray-400 rounded-full flex items-center justify-center text-white font-bold text-xl mb-4">$</div>
-                  <h3 className="mt-2 text-sm font-medium text-gray-900">No transactions yet</h3>
-                  <p className="mt-1 text-sm text-gray-500">Get started by adding your first income or expense entry.</p>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">
+                    {searchQuery ? 'No transactions match your search' : 'No transactions yet'}
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {searchQuery ? 'Try a different search term' : 'Get started by adding your first income or expense entry.'}
+                  </p>
                 </div>
               ) : (
                 <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
@@ -293,11 +411,13 @@ const BudgetTracker: React.FC = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipt</th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {entries.map((entry) => (
+                      {filteredEntries.map((entry) => (
                         <tr key={entry.id} className="hover:bg-gray-50">
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             {new Date(entry.date).toLocaleDateString()}
@@ -317,10 +437,30 @@ const BudgetTracker: React.FC = () => {
                           <td className="px-6 py-4 text-sm text-gray-900">
                             {entry.description}
                           </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {entry.receiptTitle ? (
+                              <button
+                                onClick={() => entry.receiptUrl && window.open(entry.receiptUrl, '_blank')}
+                                className="text-blue-600 hover:text-blue-800 underline"
+                              >
+                                {entry.receiptTitle}
+                              </button>
+                            ) : (
+                              <span className="text-gray-400">No receipt</span>
+                            )}
+                          </td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <span className={entry.type === 'income' ? 'text-green-600' : 'text-red-600'}>
                               {entry.type === 'income' ? '+' : '-'}{formatCurrency(entry.amount)}
                             </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <button
+                              onClick={() => handleDelete(entry.id)}
+                              className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition-colors"
+                            >
+                              Delete
+                            </button>
                           </td>
                         </tr>
                       ))}
