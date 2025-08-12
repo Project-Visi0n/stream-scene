@@ -24,6 +24,7 @@ import filesRoutes from "./routes/files.js";
 import sharesRoutes from "./routes/shares.js";
 import { syncDB } from "./db/index.js";
 import budgetRoutes from './routes/budget';
+import captionRouter from './routes/caption';
 
 const app = express();
 
@@ -86,6 +87,7 @@ app.use('/api/s3', s3ProxyRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/shares', sharesRoutes);
 app.use('/api/budget', budgetRoutes);
+app.use('/api/caption', captionRouter);
 
 // API test route
 app.get('/test-server', (req, res) => {
