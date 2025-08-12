@@ -37,7 +37,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     }
 
     // Verify file exists and belongs to user
-    const file = await File.findByIdAndUserId(fileId, userId);
+  const file = await File.findOne({ where: { id: fileId, userId } });
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
@@ -67,7 +67,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     const baseUrl = getBaseUrl(req);
     const shareUrl = share.getShareUrl(baseUrl);
 
-    res.status(201).json({ 
+    res.status(201).json({
       share: {
         ...share.toJSON(),
         shareUrl,
@@ -91,7 +91,7 @@ router.get('/file/:fileId', requireAuth, async (req: Request, res: Response) => 
     }
 
     // Verify file exists and belongs to user
-    const file = await File.findByIdAndUserId(fileId, userId);
+  const file = await File.findOne({ where: { id: fileId, userId } });
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
@@ -160,7 +160,7 @@ router.get('/shared/:token', async (req: Request, res: Response) => {
     }
 
     // Get the associated file
-    const file = await File.findByIdAndUserId(share.fileId, share.userId);
+  const file = await File.findOne({ where: { id: share.fileId, userId: share.userId } });
     if (!file) {
       return res.status(404).json({ error: 'Associated file not found' });
     }

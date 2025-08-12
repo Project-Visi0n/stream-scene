@@ -107,27 +107,41 @@ git clone https://github.com/theblkguy/stream-scene.git
 cd stream-scene
 ```
 
-2. **Install dependencies**
-```bash
+
+2. **Create your .env file**
 ```env
 # Server Configuration
 PORT=8000
-NODE_ENV=development
-SESSION_SECRET=your-session-secret-key
 
-# Google OAuth (Required)
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-DB_PASS=your-database-password
+# Database Configuration
+DB_HOST=localhost
+DB_NAME=example_db
+DB_USER=example_user
+DB_PASS=example_password
 
-# AWS S3 (Optional - defaults to local storage)
-AWS_ACCESS_KEY_ID=your-aws-access-key
-AWS_SECRET_ACCESS_KEY=your-aws-secret-key
-AWS_REGION=us-east-1
-AWS_BUCKET_NAME=your-s3-bucket-name
+# Production Database Configuration (for EC2)
+# DB_HOST=example-ec2-host
+# DB_NAME=example_db
+# DB_USER=example_user
+# DB_PASS=example_password
 
-# AI Features (Optional)
-GEMINI_API_KEY=your-google-gemini-api-key
+# Google OAuth
+GOOGLE_CLIENT_ID=fake-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=fake-google-client-secret
+GOOGLE_CALLBACK_URL=http://localhost:8000/auth/google/callback
+SESSION_SECRET=example-session-secret
+
+# AWS S3
+AWS_ACCESS_KEY_ID=FAKEAWSACCESSKEYID
+AWS_SECRET_ACCESS_KEY=FAKEAWSSECRETACCESSKEY
+AWS_REGION=us-east-2
+AWS_S3_BUCKET=example-s3-bucket
+
+# AI Features
+GEMINI_API_KEY=fake-gemini-api-key
+
+# Feature Flags
+USE_MOCK_X_API=true
 ```
 
 
