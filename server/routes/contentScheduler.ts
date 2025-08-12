@@ -18,7 +18,7 @@ const mockPosts = [
     id: 'post_1',
     userId: MOCK_USER_ID,
     content: 'Just launched our new X content scheduler! 🚀 Building the future of social media management. #XScheduler #ProductLaunch #TechInnovation',
-    scheduledAt: null,
+  scheduledAt: null as Date | null,
     createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
     updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
     status: 'published',
@@ -34,7 +34,7 @@ const mockPosts = [
     id: 'post_2',
     userId: MOCK_USER_ID,
     content: 'Working on some exciting new features for content creators. The future is automated! ✨ What features would you like to see?',
-    scheduledAt: new Date(Date.now() + 3 * 60 * 60 * 1000),
+  scheduledAt: new Date(Date.now() + 3 * 60 * 60 * 1000) as Date | null,
     createdAt: new Date(Date.now() - 30 * 60 * 1000),
     updatedAt: new Date(Date.now() - 30 * 60 * 1000),
     status: 'scheduled',
@@ -49,9 +49,9 @@ const mockPosts = [
 
 const mockConnection = {
   isConnected: false,
-  username: null,
-  profileImage: null,
-  lastConnected: null
+  username: null as string | null,
+  profileImage: null as string | null,
+  lastConnected: null as string | null
 };
 
 // GET /api/content-scheduler/health - Health check
@@ -142,12 +142,12 @@ router.post('/posts', async (req: Request, res: Response) => {
       status: isImmediate ? 'published' : 'scheduled',
       media: mediaIds ? [] : undefined, // Handle media later
       xPostId: isImmediate ? `x_${Date.now()}` : undefined,
-      analytics: isImmediate ? {
+      analytics: {
         retweets: 0,
         likes: 0,
         replies: 0,
         views: 0
-      } : undefined
+      }
     };
 
     // Add to mock storage
@@ -203,10 +203,10 @@ router.post('/callback', async (req: Request, res: Response) => {
     await new Promise(resolve => setTimeout(resolve, 800));
 
     // Update mock connection
-    mockConnection.isConnected = true;
-    mockConnection.username = 'streamscene_dev';
-    mockConnection.profileImage = 'https://api.dicebear.com/7.x/avataaars/svg?seed=streamscene';
-    mockConnection.lastConnected = new Date().toISOString();
+  mockConnection.isConnected = true;
+  mockConnection.username = 'streamscene_dev';
+  mockConnection.profileImage = 'https://api.dicebear.com/7.x/avataaars/svg?seed=streamscene';
+  mockConnection.lastConnected = new Date().toISOString();
 
     res.json(mockConnection);
   } catch (error) {

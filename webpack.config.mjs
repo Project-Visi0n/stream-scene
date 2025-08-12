@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 export default (env, argv) => {
   const isProduction = argv.mode === 'production';
-  
+
   return {
     entry: './client/index.tsx',
     mode: argv.mode || 'development',

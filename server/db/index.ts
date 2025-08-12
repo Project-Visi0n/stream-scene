@@ -2,7 +2,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-// Import Sequelize 
+// Import Sequelize
 import { Sequelize } from 'sequelize';
 // Do not import models yet
 
@@ -12,7 +12,7 @@ let sequelize: Sequelize | null = null;
 const getSequelize = () => {
   if (!sequelize) {
     sequelize = new Sequelize({
-      dialect: 'mysql', 
+      dialect: 'mysql',
       host: process.env.DB_HOST || 'localhost',
       database: process.env.DB_NAME || 'streamscene_db',
       username: process.env.DB_USER || 'root',
