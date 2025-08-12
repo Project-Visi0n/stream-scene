@@ -1,16 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import LandingPage from './LandingPage';
-import AIWeeklyPlanner from './AIWeeklyPlanner';
-import ProjectCenter from './ProjectCenter/ProjectCenter';
-import SharedFileViewer from './SharedFileViewer';
-import Navbar from './NavBar';
-import ContentScheduler from '../ContentScheduler/ContentScheduler';
-import DemosTrailers from './DemosTrailers';
+import React, { useState } from 'react';
 
-type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers' | 'content-scheduler';
-
-const BudgetTracker: React.FC = () => {
+const BudgetTracker = () => {
   const [activeTab, setActiveTab] = useState('add');
   const [entries, setEntries] = useState([
     // Sample data to verify it's working
@@ -30,7 +20,7 @@ const BudgetTracker: React.FC = () => {
   const incomeCategories = ['Freelance Payment', 'Residuals', 'Grant', 'Salary', 'Bonus', 'Other'];
   const expenseCategories = ['Equipment', 'Transportation', 'Software', 'Marketing', 'Office Supplies', 'Personal', 'Other'];
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -82,7 +72,7 @@ const BudgetTracker: React.FC = () => {
 
   const totals = calculateTotals();
 
-  const formatCurrency = (amount: number) => {
+  const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: 'USD'
@@ -336,73 +326,4 @@ const BudgetTracker: React.FC = () => {
   );
 };
 
-const App: React.FC = () => {
-  const [currentView, setCurrentView] = useState<CurrentView>('landing');
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  // Update currentView based on the current route
-  useEffect(() => {
-    const routeToViewMap: Record<string, CurrentView> = {
-      '/': 'landing',
-      '/planner': 'planner',
-      '/project-center': 'project-center',
-      '/budget-tracker': 'budget-tracker',
-      '/demos-trailers': 'demos-trailers',
-      '/content-scheduler': 'content-scheduler'
-    };
-
-    const currentRoute = location.pathname;
-    const matchedView = routeToViewMap[currentRoute];
-    if (matchedView) {
-      setCurrentView(matchedView);
-    }
-  }, [location.pathname]);
-
-  const handleNavigation = (view: CurrentView) => {
-    console.log('🚀 App handleNavigation called with:', view);
-    
-    // Map views to routes
-    const viewToRouteMap: Record<CurrentView, string> = {
-      'landing': '/',
-      'planner': '/planner',
-      'project-center': '/project-center',
-      'budget-tracker': '/budget-tracker',
-      'demos-trailers': '/demos-trailers',
-      'content-scheduler': '/content-scheduler'
-    };
-
-    const route = viewToRouteMap[view];
-    if (route) {
-      console.log('🎯 Navigating to route:', route);
-      navigate(route);
-      setCurrentView(view);
-    }
-  };
-
-  const showNavbar = !location.pathname.startsWith('/shared/') && location.pathname !== '/';
-
-  return (
-    <div className="min-h-screen">
-      {showNavbar && (
-        <Navbar
-          currentComponent={currentView}
-          onNavigate={handleNavigation}
-        />
-      )}
-      <div className={showNavbar ? '' : 'min-h-screen'}>
-        <Routes>
-          <Route path="/" element={<LandingPage onNavigate={handleNavigation} />} />
-          <Route path="/planner" element={<AIWeeklyPlanner />} />
-          <Route path="/project-center" element={<ProjectCenter />} />
-          <Route path="/budget-tracker" element={<BudgetTracker />} />
-          <Route path="/demos-trailers" element={<DemosTrailers />} />
-          <Route path="/content-scheduler" element={<ContentScheduler />} />
-          <Route path="/shared/:token" element={<SharedFileViewer />} />
-        </Routes>
-      </div>
-    </div>
-  );
-};
-
-export default App;
+export default BudgetTracker;
