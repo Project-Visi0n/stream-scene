@@ -111,26 +111,31 @@ export const fileService = {
   },
 
   // Update file metadata
-  async updateFile(id: number, updates: Partial<Pick<FileRecord, 'name' | 'tags'>>): Promise<FileRecord> {
+  async updateFile(id: number, updates: Partial<FileRecord>): Promise<FileRecord> {
     try {
+      console.log('Updating file:', id, 'with data:', updates);
+      
       const response = await fetch(`${API_BASE}/${id}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify(updates)
+        body: JSON.stringify(updates),
       });
-      
+
       if (!response.ok) {
+        const errorData = await response.text();
+        console.error('Update failed:', response.status, errorData);
         throw new Error(`Failed to update file: ${response.statusText}`);
       }
-      
-      const data = await response.json();
-      return data.file;
+
+      const result = await response.json();
+      console.log('Update response:', result);
+      return result;
     } catch (error) {
-      console.error('Error updating file:', error);
-      throw error;
+      console.error('Error in updateFile:', error);
+      throw new Error(`Failed to update file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   },
 

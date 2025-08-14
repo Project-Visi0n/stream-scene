@@ -22,10 +22,11 @@ import s3ProxyRoutes from "./routes/s3Proxy.js";
 import filesRoutes from "./routes/files.js";
 import sharesRoutes from "./routes/shares.js";
 import budgetRoutes from './routes/budget';
-// Add these new imports
 import socialAuthRoutes from './routes/socialAuth.js';
 import threadsRoutes from './routes/threads.js';
 import { syncDB } from "./db/index.js";
+import captionRouter from './routes/caption';
+
 
 const app = express();
 
@@ -90,6 +91,8 @@ app.use('/api/files', filesRoutes);
 app.use('/api/shares', sharesRoutes);
 app.use('/api/budget', budgetRoutes);
 app.use('/api/threads', threadsRoutes);  // Add Threads API routes
+app.use('/api/caption', captionRouter);
+
 
 // API test route
 app.get('/test-server', (req, res) => {
