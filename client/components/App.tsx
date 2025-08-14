@@ -21,6 +21,131 @@ type Entry = {
   receiptUrl?: string;
 };
 
+// Category chip component
+interface CategoryChipProps {
+  category: string;
+  isSelected: boolean;
+  onClick: (category: string) => void;
+  type: 'income' | 'expense';
+}
+
+const CategoryChip: React.FC<CategoryChipProps> = ({ category, isSelected, onClick, type }) => {
+  const baseClasses = "inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer select-none border";
+  
+  const typeColors = {
+    income: isSelected
+      ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100 shadow-sm"
+      : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 hover:border-gray-300",
+    expense: isSelected
+      ? "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 shadow-sm"
+      : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 hover:border-gray-300"
+  };
+
+  return (
+    <button
+      type="button"
+      className={`${baseClasses} ${typeColors[type]}`}
+      onClick={() => onClick(category)}
+    >
+      <span className="truncate max-w-32">{category}</span>
+      {isSelected && (
+        <svg
+          className={`ml-2 h-4 w-4 ${type === 'income' ? 'text-green-600' : 'text-red-600'}`}
+          fill="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+        </svg>
+      )}
+    </button>
+  );
+};
+
+// Category selector component 
+interface CategorySelectorProps {
+  categories: string[];
+  selectedCategory: string;
+  onCategorySelect: (category: string) => void;
+  type: 'income' | 'expense';
+  label: string;
+}
+
+const CategorySelector: React.FC<CategorySelectorProps> = ({
+  categories,
+  selectedCategory,
+  onCategorySelect,
+  type,
+  label
+}) => {
+  const [showAll, setShowAll] = useState(false);
+  const maxVisible = 6;
+  const visibleCategories = showAll ? categories : categories.slice(0, maxVisible);
+  const hasMore = categories.length > maxVisible;
+
+  return (
+    <div className="w-full">
+      <label className="block text-sm font-medium text-gray-700 mb-3">
+        <span className="inline-block w-4 h-4 mr-2 text-center">🏷️</span>
+        {label} *
+      </label>
+      
+      {/* Selected category display */}
+      {selectedCategory && (
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-600 font-medium">Selected:</span>
+            <div className="flex items-center gap-2">
+              <CategoryChip
+                category={selectedCategory}
+                isSelected={true}
+                onClick={onCategorySelect}
+                type={type}
+              />
+              <button
+                type="button"
+                onClick={() => onCategorySelect('')}
+                className="text-gray-400 hover:text-gray-600 p-1"
+              >
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Available categories */}
+      <div className="space-y-3">
+        <div className="text-sm text-gray-600 font-medium mb-2">Choose a category:</div>
+        <div className="flex flex-wrap gap-2">
+          {visibleCategories
+            .filter(cat => cat !== selectedCategory)
+            .map((category) => (
+              <CategoryChip
+                key={category}
+                category={category}
+                isSelected={false}
+                onClick={onCategorySelect}
+                type={type}
+              />
+            ))}
+        </div>
+        
+        {hasMore && (
+          <button
+            type="button"
+            onClick={() => setShowAll(!showAll)}
+            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+          >
+            {showAll ? 'Show Less' : `Show ${categories.length - maxVisible} More`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
+
 const BudgetTracker: React.FC = () => {
   const [activeTab, setActiveTab] = useState('add');
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -40,11 +165,19 @@ const BudgetTracker: React.FC = () => {
   const incomeCategories = ['Freelance Payment', 'Residuals', 'Grant', 'Salary', 'Bonus', 'Donation', 'Other'];
   const expenseCategories = ['Equipment', 'Transportation', 'Software', 'Marketing', 'Office Supplies', 'Personal', 'Food', 'Other'];
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  // NEW: Category selection handler
+  const handleCategorySelect = (category: string) => {
+    setFormData(prev => ({
+      ...prev,
+      category: prev.category === category ? '' : category
     }));
   };
 
@@ -272,24 +405,14 @@ const BudgetTracker: React.FC = () => {
                 </div>
               </div>
 
-              {/* Category */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <span className="inline-block w-4 h-4 mr-1 text-center font-bold">🏷️</span>
-                  Category *
-                </label>
-                <select
-                  name="category"
-                  value={formData.category}
-                  onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select category</option>
-                  {(formData.type === 'income' ? incomeCategories : expenseCategories).map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
-                  ))}
-                </select>
-              </div>
+              {/* Category Chips */}
+              <CategorySelector
+                categories={formData.type === 'income' ? incomeCategories : expenseCategories}
+                selectedCategory={formData.category}
+                onCategorySelect={handleCategorySelect}
+                type={formData.type}
+                label="Category"
+              />
 
               {/* Description */}
               <div>
@@ -314,7 +437,7 @@ const BudgetTracker: React.FC = () => {
                       name="receiptTitle"
                       value={formData.receiptTitle}
                       onChange={handleInputChange}
-                      placeholder="example:, Camera Store Receipt"
+                      placeholder="e.g., Camera Store Receipt"
                       className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   </div>
