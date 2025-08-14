@@ -16,17 +16,36 @@ const requireAuth = (req: Request, res: Response, next: any) => {
 // Get all files for the authenticated user
 router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
-    const userId = (req.user as any).id;
-    const tags = req.query.tags as string;
+    const userId = (req.user as any)?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const tags = req.query.tags as string | undefined;
     let where: any = { userId };
+
     if (tags) {
       const tagArray = tags.split(',').map(tag => tag.trim().toLowerCase()).filter(tag => tag.length > 0);
-  where.tags = { [Op.or]: tagArray.map(tag => ({ [Op.like]: `%${tag}%` })) };
+      where.tags = { [Op.or]: tagArray.map(tag => ({ [Op.like]: `%${tag}%` })) };
     }
+
     const files = await File.findAll({ where, order: [['uploadedAt', 'DESC']] });
-    // Convert tags from string to array for each file
-  const filesWithTags = files.map(f => ({ ...f.toJSON(), tags: f.tags || [] }));
-  res.json({ files: filesWithTags });
+    
+    // FIX: Add proper null/undefined checks before calling split
+    const filesWithTags = files.map(f => {
+      const fileData = f.toJSON();
+      let tags: string[] = [];
+      
+      if (fileData.tags) {
+        if (typeof fileData.tags === 'string') {
+          tags = fileData.tags.split(',').map(tag => tag.trim());
+        } else if (Array.isArray(fileData.tags)) {
+          tags = fileData.tags.map(tag => tag.toString().trim());
+        }
+      }
+      
+      return { ...fileData, tags };
+    });
+    
+    res.json({ files: filesWithTags });
   } catch (error) {
     console.error('Error fetching user files:', error);
     res.status(500).json({ error: 'Failed to fetch files' });
@@ -49,7 +68,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
       processedTags = tags
         .map(tag => tag.toString().toLowerCase().trim())
         .filter(tag => tag.length > 0)
-        .filter((tag, index, array) => array.indexOf(tag) === index); // Remove duplicates
+        .filter((tag, index, array) => array.indexOf(tag) === index);
     }
 
     const file = await File.create({
@@ -64,10 +83,45 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
       uploadedAt: new Date(),
       updatedAt: new Date()
     });
-  res.status(201).json({ file: { ...file.toJSON(), tags: file.tags || [] } });
+
+    // FIX: Convert tags back to array for response
+    const response = {
+      ...file.toJSON(),
+      tags: (file.tags && typeof file.tags === 'string') 
+        ? file.tags.split(',').map(tag => tag.trim()) 
+        : []
+    };
+
+    res.status(201).json({ file: response });
   } catch (error) {
     console.error('Error creating file record:', error);
     res.status(500).json({ error: 'Failed to create file record' });
+  }
+});
+
+// Get all unique tags for the authenticated user
+router.get('/tags/list', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any)?.id;
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    const files = await File.findAll({ where: { userId } });
+    
+    // FIX: Add proper null/undefined checks before calling split
+    const allTags = files
+      .flatMap(file => {
+        const fileData = file.toJSON();
+        return (fileData.tags && typeof fileData.tags === 'string') 
+          ? fileData.tags.split(',').map(tag => tag.trim().toLowerCase()) 
+          : [];
+      })
+      .filter((tag, index, array) => array.indexOf(tag) === index)
+      .sort();
+
+    res.json({ tags: allTags });
+  } catch (error) {
+    console.error('Error fetching user tags:', error);
+    res.status(500).json({ error: 'Failed to fetch tags' });
   }
 });
 
@@ -85,7 +139,20 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
-  res.json({ file: { ...file.toJSON(), tags: file.tags || [] } });
+
+    // FIX: Convert tags back to array for response
+    let responseTags: string[] = [];
+    if (file.tags) {
+      if (typeof file.tags === 'string') {
+        responseTags = file.tags.split(',').map(tag => tag.trim());
+      } else if (Array.isArray(file.tags)) {
+        responseTags = file.tags.map(tag => tag.toString().trim());
+      }
+    }
+
+    const response = { ...file.toJSON(), tags: responseTags };
+
+    res.json({ file: response });
   } catch (error) {
     console.error('Error fetching file:', error);
     res.status(500).json({ error: 'Failed to fetch file' });
@@ -114,57 +181,112 @@ router.delete('/:id', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// Update file metadata
+// Update a specific file
 router.put('/:id', requireAuth, async (req: Request, res: Response) => {
   try {
-    const userId = (req.user as any).id;
     const fileId = parseInt(req.params.id);
-    const { name, tags } = req.body;
+    const userId = (req.user as any)?.id;
+    
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
 
-    if (isNaN(fileId)) {
-      return res.status(400).json({ error: 'Invalid file ID' });
-    }
-
-    const file = await File.findOne({ where: { id: fileId, userId } });
-    if (!file) {
-      return res.status(404).json({ error: 'File not found' });
-    }
-    if (name) {
-      file.name = name;
-    }
+    const { tags, ...updateData } = req.body;
+    
+    console.log('=== PUT ROUTE DEBUG ===');
+    console.log('Request body:', req.body);
+    console.log('Tags received:', tags);
+    console.log('Tags type:', typeof tags);
+    console.log('Is tags array:', Array.isArray(tags));
+    
+    // Convert tags array to comma-separated string for database storage
     if (tags !== undefined) {
       if (Array.isArray(tags)) {
-        const processedTags = tags
-          .map(tag => tag.toString().toLowerCase().trim())
-          .filter(tag => tag.length > 0)
-          .filter((tag, index, array) => array.indexOf(tag) === index);
-        file.tags = processedTags.length > 0 ? processedTags.join(',') : undefined;
+        const processedTags = tags.filter(tag => tag && tag.trim()).map(tag => tag.trim().toLowerCase());
+        updateData.tags = processedTags.join(',');
+        console.log('Processed tags array:', processedTags);
+        console.log('Database tags string:', updateData.tags);
       } else {
-        file.tags = undefined;
+        updateData.tags = '';
+        console.log('Tags was not array, setting to empty string');
       }
     }
-    await file.save();
-  res.json({ file: { ...file.toJSON(), tags: file.tags || [] } });
+
+    console.log('Final update data:', updateData);
+
+    const [updatedRows] = await File.update(updateData, {
+      where: { id: fileId, userId }
+    });
+
+    console.log('Updated rows count:', updatedRows);
+
+    if (updatedRows === 0) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    const updatedFile = await File.findOne({ where: { id: fileId, userId } });
+    
+    if (!updatedFile) {
+      return res.status(404).json({ error: 'File not found after update' });
+    }
+
+    console.log('Raw file from database:', updatedFile.toJSON());
+    console.log('Raw tags from database:', updatedFile.tags);
+    console.log('Tags type from database:', typeof updatedFile.tags);
+
+    // FIX: Handle both string and array cases
+    let responseTags: string[] = [];
+    
+    if (updatedFile.tags) {
+      if (typeof updatedFile.tags === 'string') {
+        // If it's a string, split it
+        responseTags = updatedFile.tags.split(',').map(tag => tag.trim());
+      } else if (Array.isArray(updatedFile.tags)) {
+        // If it's already an array, use it directly
+        responseTags = updatedFile.tags.map(tag => tag.toString().trim());
+      }
+    }
+
+    const response = {
+      ...updatedFile.toJSON(),
+      tags: responseTags
+    };
+
+    console.log('Final response tags:', response.tags);
+    console.log('Update successful, sending response:', response);
+    res.json(response);
   } catch (error) {
     console.error('Error updating file:', error);
     res.status(500).json({ error: 'Failed to update file' });
   }
 });
 
-// Get all unique tags for the authenticated user
-router.get('/tags/list', requireAuth, async (req: Request, res: Response) => {
+// Handle tag key press for adding tags to files
+router.post('/tags', requireAuth, async (req: Request, res: Response) => {
   try {
+    const { fileId, tag } = req.body;
     const userId = (req.user as any).id;
-    const files = await File.findAll({ where: { userId } });
-    const allTags = files
-      .flatMap(file => file.tags || [])
-      .map(tag => tag.toLowerCase())
-      .filter((tag, index, array) => array.indexOf(tag) === index)
-      .sort();
-    res.json({ tags: allTags });
+
+    if (!fileId || !tag) {
+      return res.status(400).json({ error: 'File ID and tag are required' });
+    }
+
+    // Find the file to update
+    const file = await File.findOne({ where: { id: fileId, userId } });
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Add tag to current tags
+    const currentTags = file.tags ? file.tags.split(',').map(t => t.trim()) : [];
+    const newTags = Array.from(new Set([...currentTags, tag.toLowerCase()]));
+
+    // Update the file with new tags
+    file.tags = newTags.join(',');
+    await file.save();
+
+    res.json({ file: { ...file.toJSON(), tags: newTags } });
   } catch (error) {
-    console.error('Error fetching user tags:', error);
-    res.status(500).json({ error: 'Failed to fetch tags' });
+    console.error('Error adding tag to file:', error);
+    res.status(500).json({ error: 'Failed to add tag to file' });
   }
 });
 

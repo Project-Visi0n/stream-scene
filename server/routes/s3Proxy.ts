@@ -1,7 +1,11 @@
 import express from 'express';
 import multer from 'multer';
-import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import mime from 'mime-types';
+import ffmpeg from 'fluent-ffmpeg';
+import fs from 'fs';
+import path from 'path';
 
 const router = express.Router();
 
@@ -156,9 +160,12 @@ router.get('/proxy/:key(*)', async (req, res) => {
       return res.status(404).json({ error: 'File not found' });
     }
 
+    // Use mime-types to determine the correct Content-Type
+    const mimeType = mime.lookup(key) || response.ContentType || 'application/octet-stream';
+
     // Set appropriate headers
     res.set({
-      'Content-Type': response.ContentType || 'application/octet-stream',
+      'Content-Type': mimeType,
       'Content-Length': response.ContentLength?.toString() || '',
       'Cache-Control': 'public, max-age=3600',
       'Access-Control-Allow-Origin': '*',
@@ -188,26 +195,55 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
     const s3Client = getS3Client();
     const file = req.file;
-    const fileExtension = file.originalname.split('.').pop();
+    const fileExtension = file.originalname.split('.').pop()?.toLowerCase();
+
+    // Convert any video file that is not already mp4
+    if (file.mimetype.startsWith('video/') && file.mimetype !== 'video/mp4') {
+      const tempInputPath = path.join('/tmp', `${Date.now()}-${file.originalname}`);
+      const tempOutputPath = tempInputPath.replace(/\.[^.]+$/, '.mp4');
+      fs.writeFileSync(tempInputPath, file.buffer);
+
+      await new Promise<void>((resolve, reject) => {
+        ffmpeg(tempInputPath)
+          .output(tempOutputPath)
+          .videoCodec('libx264')
+          .audioCodec('aac')
+          .on('end', () => resolve())
+          .on('error', err => reject(err))
+          .run();
+      });
+
+      const mp4Buffer = fs.readFileSync(tempOutputPath);
+      const mp4Key = `uploads/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.mp4`;
+
+      const putCommand = new PutObjectCommand({
+        Bucket: env.BUCKET_NAME,
+        Key: mp4Key,
+        Body: mp4Buffer,
+        ContentType: 'video/mp4',
+      });
+      await s3Client.send(putCommand);
+
+      fs.unlinkSync(tempInputPath);
+      fs.unlinkSync(tempOutputPath);
+
+      const fileUrl = `https://${env.BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${mp4Key}`;
+      return res.json({ url: fileUrl, key: mp4Key, converted: true });
+    }
+
+    // If already mp4 or not a video, upload as usual
     const key = `uploads/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
     const putCommand = new PutObjectCommand({
       Bucket: env.BUCKET_NAME,
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
-      // ACL removed: not supported on this bucket
     });
     await s3Client.send(putCommand);
     const fileUrl = `https://${env.BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`;
-    res.json({ url: fileUrl, key });
+    res.json({ url: fileUrl, key, converted: false });
   } catch (error: any) {
-    // Detailed error logging
     console.error('[S3Proxy] Upload error:', error);
-    if (error?.name) console.error('Error name:', error.name);
-    if (error?.message) console.error('Error message:', error.message);
-    if (error?.stack) console.error('Error stack:', error.stack);
-    if (error?.$metadata) console.error('AWS metadata:', error.$metadata);
-    if (error?.Code) console.error('AWS error code:', error.Code);
     res.status(500).json({ error: 'Failed to upload file to S3', details: error?.message || error });
   }
 });
@@ -222,7 +258,7 @@ router.post('/upload/receipt', upload.single('file'), async (req, res) => {
     const file = req.file;
     const expenseId = req.body.expenseId;
     const type = req.body.type; // Should be 'receipt'
-    
+
     // Validate file type for receipts
     const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
     if (!allowedTypes.includes(file.mimetype)) {
@@ -297,5 +333,165 @@ router.post('/upload/receipt', upload.single('file'), async (req, res) => {
     });
   }
 });
+
+// File listing route
+router.get('/files', async (req, res) => {
+  try {
+    const env = getEnvVars();
+    if (!isS3Configured()) {
+      return res.status(500).json({ error: 'S3 not configured' });
+    }
+
+    const s3Client = getS3Client();
+    const command = new ListObjectsV2Command({
+      Bucket: env.BUCKET_NAME,
+      Prefix: 'uploads/', // Adjust prefix if needed
+    });
+
+    const response = await s3Client.send(command);
+    
+    const files = response.Contents?.map(file => ({
+      key: file.Key,
+      url: `https://${env.BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${file.Key}`,
+      // Include other metadata as needed
+    })) || [];
+    
+    res.json({ files });
+    
+  } catch (error) {
+    console.error('[S3Proxy] List files error:', error);
+    res.status(500).json({ error: 'Failed to list files' });
+  }
+});
+
+// NEW: File details route
+router.get('/file/:key(*)', async (req, res) => {
+  const key = req.params.key;
+  const env = getEnvVars();
+
+  if (!key) {
+    return res.status(400).json({ error: 'File key is required' });
+  }
+
+  if (!isS3Configured()) {
+    return res.status(500).json({ error: 'S3 not configured' });
+  }
+
+  try {
+    const s3Client = getS3Client();
+    const command = new HeadObjectCommand({
+      Bucket: env.BUCKET_NAME,
+      Key: key,
+    });
+
+    const metadata = await s3Client.send(command);
+    
+    res.json({
+      key,
+      url: `https://${env.BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`,
+      size: metadata.ContentLength,
+      type: metadata.ContentType,
+      // Include other metadata as needed
+    });
+    
+  } catch (error) {
+    console.error('[S3Proxy] Get file details error:', error);
+    res.status(500).json({ error: 'Failed to get file details' });
+  }
+});
+
+// NEW: File download route
+router.get('/download/:key(*)', async (req, res) => {
+  const key = req.params.key;
+  const env = getEnvVars();
+
+  if (!key) {
+    return res.status(400).json({ error: 'File key is required' });
+  }
+
+  if (!isS3Configured()) {
+    return res.status(500).json({ error: 'S3 not configured' });
+  }
+
+  try {
+    const s3Client = getS3Client();
+    const command = new GetObjectCommand({
+      Bucket: env.BUCKET_NAME,
+      Key: key,
+    });
+
+    const response = await s3Client.send(command);
+    
+    if (!response.Body) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Use mime-types to determine the correct Content-Type
+    const mimeType = mime.lookup(key) || response.ContentType || 'application/octet-stream';
+
+    // Set appropriate headers for download
+    res.set({
+      'Content-Type': mimeType,
+      'Content-Disposition': `attachment; filename="${key.split('/').pop()}"`,
+      'Content-Length': response.ContentLength?.toString() || '',
+      'Cache-Control': 'no-cache',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    });
+
+    // Stream the file
+    const stream = response.Body as NodeJS.ReadableStream;
+    stream.pipe(res);
+    
+  } catch (error) {
+    console.error('S3 download error:', error);
+    res.status(500).json({ error: 'Failed to download file' });
+  }
+});
+
+// Proxy route for uploads
+router.get('/proxy/uploads/:filename', async (req, res) => {
+  const { filename } = req.params;
+  const env = getEnvVars();
+
+  if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
+    return res.status(500).json({ error: 'AWS credentials not configured' });
+  }
+
+  try {
+    const s3Client = new S3Client({
+      region: env.AWS_REGION,
+      credentials: {
+        accessKeyId: env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+      },
+    });
+
+    const command = new GetObjectCommand({
+      Bucket: env.BUCKET_NAME,
+      Key: `uploads/${filename}`,
+    });
+
+    const response = await s3Client.send(command);
+    
+    if (!response.Body) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Guess the MIME type based on the file extension
+    const mimeType = mime.lookup(filename) || 'application/octet-stream';
+    res.setHeader('Content-Type', mimeType);
+
+    // Stream the file from S3
+    const s3Stream = response.Body as NodeJS.ReadableStream;
+    s3Stream.pipe(res);
+    
+  } catch (error) {
+    console.error('S3 proxy uploads error:', error);
+    res.status(500).json({ error: 'Failed to fetch file' });
+  }
+});
+
 
 export default router;

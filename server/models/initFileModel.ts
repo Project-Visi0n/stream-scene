@@ -12,6 +12,7 @@ export interface FileAttributes {
   tags?: string; // Stored as comma-separated string
   uploadedAt: Date;
   updatedAt: Date;
+  captionUrl?: string; 
 }
 
 export interface FileCreationAttributes extends Optional<FileAttributes, 'id' | 'tags' | 's3Key'> {}
@@ -28,6 +29,7 @@ export class File extends Model<FileAttributes, FileCreationAttributes> implemen
   public tags?: string;
   public uploadedAt!: Date;
   public updatedAt!: Date;
+  public captionUrl?: string; 
 }
 
 export function initFileModel(sequelize: Sequelize) {
@@ -67,7 +69,7 @@ export function initFileModel(sequelize: Sequelize) {
         allowNull: false,
       },
       tags: {
-        type: DataTypes.STRING,
+        type: DataTypes.TEXT,
         allowNull: true,
         get() {
           const rawValue = this.getDataValue('tags');
@@ -86,6 +88,10 @@ export function initFileModel(sequelize: Sequelize) {
         type: DataTypes.DATE,
         allowNull: false,
         defaultValue: DataTypes.NOW,
+      },
+      captionUrl: {
+        type: DataTypes.STRING,
+        allowNull: true,
       },
     },
     {

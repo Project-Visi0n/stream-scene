@@ -21,7 +21,7 @@ interface UploadedFile {
 const FileUpload: React.FC = () => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -129,6 +129,9 @@ const FileUpload: React.FC = () => {
 
     try {
       const tags = currentFileTags[file.id] || file.tags || [];
+      console.log('Saving tags for file:', file.name, 'Tags:', tags);
+      
+      // Send tags as array to backend
       await fileService.updateFile(file.fileRecordId, { tags });
       
       // Update local state
@@ -142,10 +145,11 @@ const FileUpload: React.FC = () => {
         return rest;
       });
 
-      // Refresh available tags
-      loadUserTags();
+      // Refresh available tags and files to get updated data
+      await loadUserTags();
+      await loadUserFiles(); // Refresh to get updated tags from DB
       
-      console.log('Tags saved for file:', file.name, tags);
+      console.log('Tags saved successfully for file:', file.name);
     } catch (error) {
       console.error('Failed to save tags:', error);
       setError('Failed to save tags. Please try again.');
@@ -169,21 +173,28 @@ const FileUpload: React.FC = () => {
       return { url: URL.createObjectURL(file) };
     }
 
-    // Always create a local blob URL for reliable preview
-    const localUrl = URL.createObjectURL(file);
-
     try {
       console.log('[FileUpload] handleS3Upload: Uploading file:', file);
-      const s3Result = await uploadFileToS3(file);
-      console.log('[FileUpload] handleS3Upload: S3 upload result:', s3Result);
-      
-      // Use local blob URL for preview, but store S3 info for later use
-      return { url: localUrl, s3Key: s3Result.key };
+      // Use your actual upload endpoint here:
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/api/s3/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
+
+      const data = await response.json();
+      // Use the backend's returned URL and key (which will be .mp4 if converted)
+      return { url: data.url, s3Key: data.key };
     } catch (s3Error) {
       console.warn('[FileUpload] S3 upload failed, using local preview:', s3Error);
       setError('S3 upload failed. Using local preview.');
-      // Use local blob URL as fallback
-      return { url: localUrl };
+      return { url: URL.createObjectURL(file) };
     }
   };
 
@@ -193,38 +204,38 @@ const FileUpload: React.FC = () => {
       return;
     }
 
-    setUploading(true);
+    setIsUploading(true);
     setError(null);
     setUploadProgress(0);
-    
+
     try {
       console.log('Starting upload for file:', file.name, 'Type:', file.type, 'Size:', file.size);
-      
+
       // Simulate progress for better UX
       const progressInterval = setInterval(() => {
         setUploadProgress(prev => Math.min(prev + 10, 90));
       }, 200);
       
-      const { url, s3Key } = await handleS3Upload(file);
+      const { url, s3Key } = await handleS3Upload(file); // Waits for backend to finish conversion
 
       clearInterval(progressInterval);
       setUploadProgress(95);
 
       // Always use the server proxy URL for previews if S3 key is available
-      const previewUrl = s3Key ? getFileUrl(s3Key) : url;
+      const previewUrl = url; // Now this is always the backend's returned URL
 
       console.log('Upload completed. Preview URL:', previewUrl, 'S3Key:', s3Key);
 
       // Create file record in database
       const fileData: CreateFileRequest = {
-        name: file.name,
+        name: url.endsWith('.mp4') ? file.name.replace(/\.[^/.]+$/, '.mp4') : file.name,
         originalName: file.name,
-        type: file.type,
+        type: url.endsWith('.mp4') ? 'video/mp4' : file.type,
         size: file.size,
         url: previewUrl,
         s3Key,
         tags: selectedTags.length > 0 ? [...selectedTags] : undefined
-      };
+};
 
       const fileRecord = await fileService.createFile(fileData);
       console.log('File record created:', fileRecord);
@@ -259,7 +270,7 @@ const FileUpload: React.FC = () => {
       setError('Upload failed. Please try again.');
       setUploadProgress(0);
     } finally {
-      setUploading(false);
+      setIsUploading(false);
     }
   };
 
@@ -555,6 +566,97 @@ const FileUpload: React.FC = () => {
     setSelectedFileForShare(null);
   };
 
+  const handleTagKeyPress = async (e: React.KeyboardEvent<HTMLInputElement>, fileId: string) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      const input = e.currentTarget;
+      const tag = input.value.trim().toLowerCase();
+      
+      if (!tag) return;
+
+      // Find the file to update
+      const file = uploadedFiles.find(f => f.id === fileId);
+      if (!file || !file.fileRecordId) return;
+
+      try {
+        // Get current tags (either from temporary state or file)
+        const currentTags = currentFileTags[fileId] || file.tags || [];
+        
+        // Check if tag already exists
+        if (currentTags.includes(tag)) {
+          input.value = ''; // Clear input if tag already exists
+          return;
+        }
+
+        const newTags = [...currentTags, tag];
+        
+        console.log('Auto-saving tag:', tag, 'for file:', file.name);
+        
+        // Save immediately to backend using the PUT route
+        const response = await fileService.updateFile(file.fileRecordId, { tags: newTags });
+        
+        console.log('Backend response:', response);
+        
+        // Update local state with the response from backend
+        setUploadedFiles(prev => prev.map(f => 
+          f.id === fileId ? { ...f, tags: response.tags || newTags } : f
+        ));
+        
+        // Update current tags state
+        setCurrentFileTags(prev => ({
+          ...prev,
+          [fileId]: response.tags || newTags
+        }));
+
+        // Add to available tags
+        addTag(tag);
+        await loadUserTags(); // Refresh available tags
+        
+        // Clear input
+        input.value = '';
+        
+        console.log('Tag saved successfully:', tag);
+      } catch (error) {
+        console.error('Failed to save tag:', error);
+        setError('Failed to save tag. Please try again.');
+      }
+    }
+  };
+
+  // Add this function inside the FileUpload component
+  const handleRemoveTag = async (fileId: string, tagToRemove: string) => {
+    const file = uploadedFiles.find(f => f.id === fileId);
+    if (!file || !file.fileRecordId) return;
+
+    try {
+      const currentTags = file.tags || [];
+      const newTags = currentTags.filter(tag => tag !== tagToRemove);
+      
+      console.log('Removing tag:', tagToRemove, 'from file:', file.name);
+      
+      // Update backend using existing fileService
+      const response = await fileService.updateFile(file.fileRecordId, { tags: newTags });
+      
+      // Update local state
+      setUploadedFiles(prev => prev.map(f => 
+        f.id === fileId ? { ...f, tags: response.tags || newTags } : f
+      ));
+      
+      // Update current tags state
+      setCurrentFileTags(prev => ({
+        ...prev,
+        [fileId]: response.tags || newTags
+      }));
+
+      await loadUserTags(); // Refresh available tags
+      
+      console.log('Tag removed successfully:', tagToRemove);
+    } catch (error) {
+      console.error('Failed to remove tag:', error);
+      setError('Failed to remove tag. Please try again.');
+    }
+  };
+
   return (
     <div className="w-full max-w-4xl mx-auto p-6 space-y-6">
       {/* Authentication Check */}
@@ -618,9 +720,13 @@ const FileUpload: React.FC = () => {
             className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            disabled={uploading}
+            disabled={isUploading}
           >
-            {uploading ? `Uploading... ${uploadProgress}%` : 'Select Files'}
+            {isUploading ? (
+              <div>Processing video, please wait...</div>
+            ) : (
+              'Select Files'
+            )}
           </motion.button>
 
           {/* Upload Tags Input */}
@@ -666,7 +772,7 @@ const FileUpload: React.FC = () => {
           </div>
           
           {/* Upload Progress Bar */}
-          {uploading && (
+          {isUploading && (
             <div className="w-full max-w-xs mx-auto">
               <div className="bg-gray-700 rounded-full h-2 overflow-hidden">
                 <motion.div
@@ -792,16 +898,16 @@ const FileUpload: React.FC = () => {
                   <div className="space-y-2">
                     {/* Display existing tags */}
                     {(file.tags || currentFileTags[file.id])?.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {(currentFileTags[file.id] || file.tags || []).map(tag => (
+                      <div className="flex flex-wrap gap-1 mb-2">
+                        {((currentFileTags[file.id] || file.tags || []) as string[]).map((tag, index) => (
                           <span
-                            key={tag}
-                            className="inline-flex items-center px-2 py-1 text-xs bg-purple-600/30 text-purple-200 rounded-full"
+                            key={index}
+                            className="px-2 py-1 text-xs bg-blue-600 text-white rounded-full flex items-center gap-1"
                           >
                             {tag}
                             <button
-                              onClick={() => handleRemoveFileTag(file.id, tag)}
-                              className="ml-1 text-purple-300 hover:text-white"
+                              onClick={() => handleRemoveTag(file.id, tag)}
+                              className="text-white hover:text-red-300 font-bold"
                               title="Remove tag"
                             >
                               ×
@@ -811,32 +917,16 @@ const FileUpload: React.FC = () => {
                       </div>
                     )}
                     
-                    {/* Add tag input */}
-                    <div className="flex gap-1">
+                    {/* Auto-saving tag input */}
+                    <div className="flex items-center gap-2">
                       <input
                         type="text"
-                        placeholder="Add tag..."
-                        className="flex-1 px-2 py-1 text-xs bg-gray-700 text-white rounded border border-gray-600 focus:border-purple-500 focus:outline-none"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            const input = e.target as HTMLInputElement;
-                            if (input.value.trim()) {
-                              handleAddFileTag(file.id, input.value);
-                              input.value = '';
-                            }
-                          }
-                        }}
+                        placeholder="Add tag (press Enter)"
+                        onKeyPress={(e) => handleTagKeyPress(e, file.id)}
+                        className="px-2 py-1 text-xs border border-gray-600 bg-gray-700 text-white rounded focus:outline-none focus:border-blue-500"
+                        style={{ width: '120px' }}
                       />
-                      {(currentFileTags[file.id]?.length > 0 || 
-                        (currentFileTags[file.id] || []).some(tag => !(file.tags || []).includes(tag))) && (
-                        <button
-                          onClick={() => saveFileTags(file)}
-                          className="px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors duration-200"
-                          title="Save tags"
-                        >
-                          ✓
-                        </button>
-                      )}
+                      <span className="text-xs text-gray-400">Press Enter to save</span>
                     </div>
                   </div>
                 </div>
