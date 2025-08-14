@@ -29,7 +29,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 
     const files = await File.findAll({ where, order: [['uploadedAt', 'DESC']] });
     
-    // FIX: Add proper null/undefined checks before calling split
+    //  Add proper null/undefined checks before calling split
     const filesWithTags = files.map(f => {
       const fileData = f.toJSON();
       let tags: string[] = [];
@@ -84,7 +84,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
       updatedAt: new Date()
     });
 
-    // FIX: Convert tags back to array for response
+    // Convert tags back to array for response
     const response = {
       ...file.toJSON(),
       tags: (file.tags && typeof file.tags === 'string') 
@@ -107,7 +107,7 @@ router.get('/tags/list', requireAuth, async (req: Request, res: Response) => {
 
     const files = await File.findAll({ where: { userId } });
     
-    // FIX: Add proper null/undefined checks before calling split
+    //  Add proper null/undefined checks before calling split
     const allTags = files
       .flatMap(file => {
         const fileData = file.toJSON();
@@ -140,7 +140,7 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'File not found' });
     }
 
-    // FIX: Convert tags back to array for response
+    // Convert tags back to array for response
     let responseTags: string[] = [];
     if (file.tags) {
       if (typeof file.tags === 'string') {
@@ -232,7 +232,7 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
     console.log('Raw tags from database:', updatedFile.tags);
     console.log('Tags type from database:', typeof updatedFile.tags);
 
-    // FIX: Handle both string and array cases
+    // Handle both string and array cases
     let responseTags: string[] = [];
     
     if (updatedFile.tags) {
