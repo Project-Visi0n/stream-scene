@@ -191,32 +191,19 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
 
     const { tags, ...updateData } = req.body;
     
-    console.log('=== PUT ROUTE DEBUG ===');
-    console.log('Request body:', req.body);
-    console.log('Tags received:', tags);
-    console.log('Tags type:', typeof tags);
-    console.log('Is tags array:', Array.isArray(tags));
-    
     // Convert tags array to comma-separated string for database storage
     if (tags !== undefined) {
       if (Array.isArray(tags)) {
         const processedTags = tags.filter(tag => tag && tag.trim()).map(tag => tag.trim().toLowerCase());
         updateData.tags = processedTags.join(',');
-        console.log('Processed tags array:', processedTags);
-        console.log('Database tags string:', updateData.tags);
       } else {
         updateData.tags = '';
-        console.log('Tags was not array, setting to empty string');
       }
     }
-
-    console.log('Final update data:', updateData);
 
     const [updatedRows] = await File.update(updateData, {
       where: { id: fileId, userId }
     });
-
-    console.log('Updated rows count:', updatedRows);
 
     if (updatedRows === 0) {
       return res.status(404).json({ error: 'File not found' });
@@ -227,10 +214,6 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
     if (!updatedFile) {
       return res.status(404).json({ error: 'File not found after update' });
     }
-
-    console.log('Raw file from database:', updatedFile.toJSON());
-    console.log('Raw tags from database:', updatedFile.tags);
-    console.log('Tags type from database:', typeof updatedFile.tags);
 
     // Handle both string and array cases
     let responseTags: string[] = [];
@@ -250,8 +233,6 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
       tags: responseTags
     };
 
-    console.log('Final response tags:', response.tags);
-    console.log('Update successful, sending response:', response);
     res.json(response);
   } catch (error) {
     console.error('Error updating file:', error);
