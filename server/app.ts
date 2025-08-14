@@ -3,7 +3,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 
-// Get __dirname equivalent for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -22,9 +21,12 @@ import scheduleRoutes from "./routes/schedule.js";
 import s3ProxyRoutes from "./routes/s3Proxy.js";
 import filesRoutes from "./routes/files.js";
 import sharesRoutes from "./routes/shares.js";
-import { syncDB } from "./db/index.js";
 import budgetRoutes from './routes/budget';
+import socialAuthRoutes from './routes/socialAuth.js';
+import threadsRoutes from './routes/threads.js';
+import { syncDB } from "./db/index.js";
 import captionRouter from './routes/caption';
+
 
 const app = express();
 
@@ -55,7 +57,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session middleware (REQUIRED for Google OAuth)
+// Session middleware (REQUIRED for Google OAuth AND Threads OAuth)
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-secret-key',
   resave: false,
@@ -73,13 +75,14 @@ app.use(passport.session());
 // Serve static files from public directory
 // Dynamically determine the correct path based on whether we're running from dist/ or server/
 const publicPath = __dirname.includes('dist/server') 
-  ? path.join(__dirname, '../../public')  // For deployment (dist/server -> public)
-  : path.join(__dirname, '../public');    // For local dev (server -> public)
+  ? path.join(__dirname, '../../public')  
+  : path.join(__dirname, '../public');    
 
 app.use(express.static(publicPath));
 
-// Auth routes 
+// Routes
 app.use('/auth', authRoutes);
+app.use('/auth', socialAuthRoutes);  // Add social auth routes (Threads OAuth)
 app.use('/', routes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/schedule', scheduleRoutes);
@@ -87,14 +90,15 @@ app.use('/api/s3', s3ProxyRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/shares', sharesRoutes);
 app.use('/api/budget', budgetRoutes);
+app.use('/api/threads', threadsRoutes);  // Add Threads API routes
 app.use('/api/caption', captionRouter);
+
 
 // API test route
 app.get('/test-server', (req, res) => {
   res.json({ message: 'Server is working!' });
 });
 
-// Catch-all handler for SPA routes
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) {
     return res.status(404).json({ error: 'Route not found' });
@@ -114,7 +118,7 @@ app.get('*', (req, res) => {
 });
 
 const PORT = Number(process.env.PORT) || 8000;
-const HOST = '0.0.0.0'; // Allow external connections
+const HOST = '0.0.0.0'; 
 
 // Initialize database
 syncDB().then(() => {
