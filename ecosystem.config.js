@@ -12,7 +12,8 @@ export default {
     },
     env_production: {
       NODE_ENV: 'production',
-      PORT: 8000
+      PORT: 8000,
+      HOST: '0.0.0.0'
     },
     error_file: './logs/err.log',
     out_file: './logs/out.log',
