@@ -29,13 +29,11 @@ router.post('/token', async (req, res) => {
   try {
     const { accountId, accessToken, expiresAt } = req.body;
     
-    // For now, just store in session
+    // For now, just store in session (type assertion for compatibility)
     req.session.threadsAuth = {
       ...req.session.threadsAuth,
-      accountId,
-      accessToken,
-      expiresAt
-    };
+      accessToken
+    } as any;
 
     res.json({ success: true });
   } catch (error) {
@@ -58,7 +56,7 @@ router.post('/schedule', async (req, res) => {
     }
 
     // Verify account ID matches session
-    if (req.session.threadsAuth.userId !== accountId) {
+    if (req.session.threadsAuth?.userId !== accountId) {
       return res.status(400).json({ error: 'Account ID mismatch' });
     }
 
@@ -67,7 +65,7 @@ router.post('/schedule', async (req, res) => {
     if (media?.imageUrls?.length || media?.videoUrl) {
       console.log('[Threads Schedule] Creating media container...');
       
-      const mediaPayload = {
+      const mediaPayload: any = {
         media_type: media.videoUrl ? 'VIDEO' : 'IMAGE',
         access_token: accessToken
       };
@@ -84,7 +82,7 @@ router.post('/schedule', async (req, res) => {
         body: JSON.stringify(mediaPayload)
       });
 
-      const mediaData = await mediaResponse.json();
+      const mediaData = await mediaResponse.json() as any;
       console.log('[Threads Schedule] Media response:', { ok: mediaResponse.ok, data: mediaData });
       
       if (!mediaResponse.ok) {
@@ -100,7 +98,7 @@ router.post('/schedule', async (req, res) => {
     // Create text post container
     console.log('[Threads Schedule] Creating post container...');
     
-    const postPayload = {
+    const postPayload: any = {
       media_type: 'TEXT',
       text: text,
       access_token: accessToken
@@ -117,7 +115,7 @@ router.post('/schedule', async (req, res) => {
       body: JSON.stringify(postPayload)
     });
 
-    const postData = await postResponse.json();
+    const postData = await postResponse.json() as any;
     console.log('[Threads Schedule] Post response:', { ok: postResponse.ok, data: postData });
     
     if (!postResponse.ok) {
@@ -142,7 +140,7 @@ router.post('/schedule', async (req, res) => {
 
   } catch (error) {
     console.error('[Threads Schedule] Error:', error);
-    res.status(500).json({ error: 'Failed to schedule post', details: error.message });
+    res.status(500).json({ error: 'Failed to schedule post', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 
@@ -166,7 +164,7 @@ router.post('/publish-now/:id', async (req, res) => {
       body: JSON.stringify({ access_token: accessToken })
     });
 
-    const publishData = await publishResponse.json();
+    const publishData = await publishResponse.json() as any;
     console.log('[Threads Publish] Publish response:', { ok: publishResponse.ok, data: publishData });
     
     if (!publishResponse.ok) {
@@ -187,7 +185,7 @@ router.post('/publish-now/:id', async (req, res) => {
 
   } catch (error) {
     console.error('[Threads Publish] Error:', error);
-    res.status(500).json({ error: 'Failed to publish post', details: error.message });
+    res.status(500).json({ error: 'Failed to publish post', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 
@@ -211,7 +209,7 @@ router.post('/test', async (req, res) => {
     });
   } catch (error) {
     console.error('[Threads Test] Error:', error);
-    res.status(500).json({ error: 'Test failed', details: error.message });
+    res.status(500).json({ error: 'Test failed', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 

@@ -57,7 +57,7 @@ router.post('/posts', async (req, res) => {
     console.error('[Save Post] Error:', error);
     res.status(500).json({ 
       error: 'Failed to save post',
-      details: error.message 
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
@@ -90,8 +90,8 @@ router.post('/post-now', async (req, res) => {
         results.push({ 
           platform, 
           success: false, 
-          error: error.message,
-          details: error.stack
+          error: error instanceof Error ? error.message : 'Unknown error',
+          details: error instanceof Error ? error.stack : 'No stack trace available'
         });
       }
     }
@@ -102,7 +102,7 @@ router.post('/post-now', async (req, res) => {
     console.error('[Post Now] Fatal error:', error);
     res.status(500).json({ 
       error: 'Failed to post content',
-      details: error.message 
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
@@ -194,7 +194,7 @@ async function postToTwitter(text: string, media: any[], auth: any) {
     return tweet;
   } catch (error) {
     console.error('[Twitter Post] API Error:', error);
-    throw new Error(`Failed to post to Twitter: ${error.message}`);
+    throw new Error(`Failed to post to Twitter: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -237,7 +237,7 @@ async function postToThreads(text: string, media: any[], auth: any) {
       }
     );
 
-    const containerData = await containerResponse.json();
+    const containerData = await containerResponse.json() as any;
     console.log('[Threads Post] Container response:', {
       success: containerResponse.ok,
       status: containerResponse.status,
@@ -274,7 +274,7 @@ async function postToThreads(text: string, media: any[], auth: any) {
       }
     );
 
-    const publishData = await publishResponse.json();
+    const publishData = await publishResponse.json() as any;
     console.log('[Threads Post] Publish response:', {
       success: publishResponse.ok,
       status: publishResponse.status,
@@ -311,14 +311,15 @@ async function postToThreads(text: string, media: any[], auth: any) {
     console.error('[Threads Post] Error:', error);
     
     // More specific error handling
-    if (error.message.includes('403')) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    if (errorMessage.includes('403')) {
       throw new Error('Threads API access denied - please check your app permissions and try reconnecting');
-    } else if (error.message.includes('400')) {
+    } else if (errorMessage.includes('400')) {
       throw new Error('Invalid request to Threads API - please check your content and try again');
-    } else if (error.message.includes('401')) {
+    } else if (errorMessage.includes('401')) {
       throw new Error('Threads authentication expired - please reconnect your account');
     } else {
-      throw new Error(`Failed to post to Threads: ${error.message}`);
+      throw new Error(`Failed to post to Threads: ${errorMessage}`);
     }
   }
 }
@@ -373,7 +374,7 @@ function schedulePost(post: ScheduledPost) {
   }, {
     scheduled: true,
     timezone: "America/New_York"
-  });
+  } as any);
 }
 
 // Debug endpoint
@@ -429,7 +430,7 @@ router.post('/test-threads', async (req, res) => {
     console.error('[Test Threads] Error:', error);
     res.status(500).json({ 
       error: 'Failed to test Threads post',
-      details: error.message 
+      details: error instanceof Error ? error.message : 'Unknown error'
     });
   }
 });
