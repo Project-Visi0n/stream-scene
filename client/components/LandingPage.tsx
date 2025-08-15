@@ -9,7 +9,7 @@ interface LandingPageProps {
   onNavigate?: (destination: CurrentView) => void;
 }
 
-// Improved Professional Film Reel Component with Static Text
+// Professional Film Reel Component with Static Text
 const AnimatedFilmReel = () => {
   return (
     <div className="inline-block group">
