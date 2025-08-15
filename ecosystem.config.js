@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   apps: [{
     name: 'stream-scene',
     script: 'dist/server/app.js',
