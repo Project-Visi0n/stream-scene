@@ -15,7 +15,7 @@ router.get('/threads', (req, res) => {
   req.session.oauthState = state;
   
   const authUrl = new URL('https://threads.net/oauth/authorize');
-  authUrl.searchParams.set('client_id', process.env.THREADS_CLIENT_ID);
+  authUrl.searchParams.set('client_id', process.env.THREADS_CLIENT_ID || '');
   authUrl.searchParams.set('redirect_uri', `${process.env.BASE_URL}/auth/threads/callback`);
   authUrl.searchParams.set('scope', scopes);
   authUrl.searchParams.set('response_type', 'code');
@@ -46,7 +46,7 @@ router.get('/threads/callback', async (req, res) => {
       return res.redirect('/dashboard?error=threads_state_mismatch');
     }
     
-    // Exchange code for access token
+        // Exchange code for access token
     console.log('[Threads Callback] Exchanging code for token...');
     
     const tokenResponse = await fetch('https://graph.threads.net/oauth/access_token', {
@@ -55,15 +55,15 @@ router.get('/threads/callback', async (req, res) => {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        client_id: process.env.THREADS_CLIENT_ID,
-        client_secret: process.env.THREADS_CLIENT_SECRET,
+        client_id: process.env.THREADS_CLIENT_ID || '',
+        client_secret: process.env.THREADS_CLIENT_SECRET || '',
         grant_type: 'authorization_code',
         redirect_uri: `${process.env.BASE_URL}/auth/threads/callback`,
-        code: code
+        code: typeof code === 'string' ? code : ''
       })
     });
     
-    const tokenData = await tokenResponse.json();
+    const tokenData = await tokenResponse.json() as any;
     console.log('[Threads Callback] Token response:', {
       success: tokenResponse.ok,
       hasAccessToken: !!tokenData.access_token,
@@ -75,15 +75,14 @@ router.get('/threads/callback', async (req, res) => {
       return res.redirect('/dashboard?error=threads_token_failed');
     }
     
-    // Get user profile information
+    // Get user profile
     console.log('[Threads Callback] Fetching user profile...');
-    
     const profileResponse = await fetch(
       `https://graph.threads.net/v1.0/me?fields=id,username,threads_profile_picture_url&access_token=${tokenData.access_token}`
     );
     
-    const profileData = await profileResponse.json();
-    console.log('[Threads Callback] Profile response:', {
+    const profileData = await profileResponse.json() as any;
+    console.log('[Threads Callback] Profile data:', {
       success: profileResponse.ok,
       username: profileData.username
     });
@@ -93,13 +92,12 @@ router.get('/threads/callback', async (req, res) => {
       return res.redirect('/dashboard?error=threads_profile_failed');
     }
     
-    // Store authentication data in session
+    // Store session data
     req.session.threadsAuth = {
       platform: 'threads',
       accessToken: tokenData.access_token,
       userId: profileData.id,
       username: profileData.username,
-      profilePicture: profileData.threads_profile_picture_url,
       connectedAt: new Date().toISOString()
     };
     
