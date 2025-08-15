@@ -91,9 +91,7 @@ const DemosTrailers: React.FC = () => {
 
   // Filter for trailer-tagged files
   const trailerFiles = files.filter(file =>
-    (typeof file.tags === 'string'
-      ? file.tags.includes('trailer')
-      : file.tags?.includes('trailer'))
+    file.tags?.includes('trailer')
   );
 
   return (
