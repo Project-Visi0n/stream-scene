@@ -26,6 +26,6 @@
     "useDefineForClassFields": false,
     "typeRoots": ["./node_modules/@types", "./types", "./client/types"]
   },
-  "include": ["client/src/**/*", "server/src/**/*", "types/**/*", "server/types", "server/routes", "server/models", "server/middleware", "server/db", "server/config", "server/app.ts", "server/server.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["client/**/*", "types/**/*"],
+  "exclude": ["node_modules", "dist", "server"]
 }
