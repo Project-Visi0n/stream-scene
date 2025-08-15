@@ -19,7 +19,7 @@
     "build": "npm run build:client:prod && npm run build:server",
         "build:client": "webpack --config webpack.config.mjs --mode development",
     "build:client:prod": "webpack --config webpack.config.mjs --mode production",
-    "build:server": "tsc",
+    "build:server": "tsc -p server/tsconfig.json",
     "start": "node dist/server/app.js",
     "db:migrate": "sequelize-cli db:migrate",
     "db:seed": "sequelize-cli db:seed:all"
