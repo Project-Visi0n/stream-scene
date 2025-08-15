@@ -20,8 +20,9 @@ const requireAuth = (req, res, next) => {
     next();
 };
 router.post('/:fileId', requireAuth, async (req, res) => {
+    var _a;
     try {
-        const userId = req.user?.id;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
         // 1. Find the video file by ID and ensure user owns it
         const file = await File.findOne({
             where: {
@@ -135,6 +136,7 @@ router.post('/:fileId', requireAuth, async (req, res) => {
 });
 // Poll for Transcribe job status
 router.get('/status/:jobName', async (req, res) => {
+    var _a, _b;
     try {
         const jobName = req.params.jobName;
         const command = new GetTranscriptionJobCommand({ TranscriptionJobName: jobName });
@@ -145,13 +147,13 @@ router.get('/status/:jobName', async (req, res) => {
         // Add debug logging
         console.log('=== TRANSCRIBE JOB DEBUG ===');
         console.log('Job Status:', job.TranscriptionJobStatus);
-        console.log('Transcript URI:', job.Transcript?.TranscriptFileUri);
+        console.log('Transcript URI:', (_a = job.Transcript) === null || _a === void 0 ? void 0 : _a.TranscriptFileUri);
         console.log('Failure Reason:', job.FailureReason);
         console.log('Creation Time:', job.CreationTime);
         console.log('Completion Time:', job.CompletionTime);
         res.json({
             status: job.TranscriptionJobStatus,
-            transcriptUri: job.Transcript?.TranscriptFileUri || null,
+            transcriptUri: ((_b = job.Transcript) === null || _b === void 0 ? void 0 : _b.TranscriptFileUri) || null,
             failureReason: job.FailureReason || null,
         });
     }
@@ -161,6 +163,7 @@ router.get('/status/:jobName', async (req, res) => {
     }
 });
 router.get('/transcript/:jobName', async (req, res) => {
+    var _a;
     try {
         const jobName = req.params.jobName;
         // Extract fileId from jobName (format: caption-job-{fileId}-{timestamp})
@@ -172,7 +175,7 @@ router.get('/transcript/:jobName', async (req, res) => {
         const command = new GetTranscriptionJobCommand({ TranscriptionJobName: jobName });
         const response = await transcribeClient.send(command);
         const job = response.TranscriptionJob;
-        if (!job || job.TranscriptionJobStatus !== 'COMPLETED' || !job.Transcript?.TranscriptFileUri) {
+        if (!job || job.TranscriptionJobStatus !== 'COMPLETED' || !((_a = job.Transcript) === null || _a === void 0 ? void 0 : _a.TranscriptFileUri)) {
             return res.status(400).json({ error: 'Transcript not available yet' });
         }
         // Fetch transcript JSON from S3 using AWS SDK instead of fetch
@@ -315,4 +318,3 @@ function srtToVtt(srt) {
     return vtt;
 }
 export default router;
-//# sourceMappingURL=caption.js.map
