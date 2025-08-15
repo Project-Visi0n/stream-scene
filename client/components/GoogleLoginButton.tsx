@@ -6,10 +6,7 @@ const GoogleLoginButton: React.FC = () => {
 
   const handleGoogleLogin = (): void => {
     const loginUrl = `${baseURL}/auth/google`
-    console.log("Login button clicked!");
-    console.log("Redirecting to:", 'loginUrl');
-    
-    window.location.href = 'loginUrl';
+    window.location.href = loginUrl;
   };
 
   return (
