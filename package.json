@@ -17,10 +17,10 @@
     "dev:client": "webpack --config webpack.config.mjs --mode development",
     "dev:server": "nodemon --watch server --ext ts --exec \"tsx server/app.ts\"",
     "build": "npm run build:client:prod && npm run build:server",
-    "build:client": "webpack --config webpack.config.mjs --mode development",
+        "build:client": "webpack --config webpack.config.mjs --mode development",
     "build:client:prod": "webpack --config webpack.config.mjs --mode production",
     "build:server": "tsc",
-    "sta    sudo mysql -u rootrt": "node dist/server/app.js",
+    "start": "node dist/server/app.js",
     "db:migrate": "sequelize-cli db:migrate",
     "db:seed": "sequelize-cli db:seed:all"
   },
