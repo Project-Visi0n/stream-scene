@@ -1,1000 +1,579 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+// client/ContentScheduler/ContentScheduler.tsx
+import React, { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
+import { PostContent, SocialPlatform, ProjectFile, ScheduledPost, CalendarEvent } from '../types/contentScheduler';
+import { getThreadsStatus, scheduleThreadsPost, publishThreadsNowById } from '../services/threads';
 
-// Integration types - extend your existing types
-interface XPost {
-  id: string;
-  content: string;
-  scheduledAt: string | null;
-  status: 'draft' | 'scheduled' | 'published' | 'failed';
-  media?: XMedia[];
-  createdAt: string;
-  publishedAt?: string;
-  errorMessage?: string;
-  // New integration fields
-  weeklyPlanId?: string;
-  projectFileIds?: string[];
-  aiGenerated?: boolean;
-  planThemes?: string[];
+interface ContentSchedulerProps {
+  onSchedulePost?: (post: ScheduledPost) => void;
+  onAddToCalendar?: (event: CalendarEvent) => void;
 }
 
-interface XMedia {
-  id: string;
-  url: string;
-  thumbnailUrl?: string;
-  type: 'image' | 'video' | 'gif';
-  filename: string;
-}
+const ContentScheduler: React.FC<ContentSchedulerProps> = ({
+  onSchedulePost,
+  onAddToCalendar
+}) => {
+  // State management
+  const [postContent, setPostContent] = useState<string>('');
+  const [selectedFiles, setSelectedFiles] = useState<ProjectFile[]>([]);
+  const [scheduledDate, setScheduledDate] = useState<string>('');
+  const [scheduledTime, setScheduledTime] = useState<string>('');
+  const [showFileSelector, setShowFileSelector] = useState(false);
+  const [showPlatformSettings, setShowPlatformSettings] = useState(false);
 
-interface CreatePostRequest {
-  content: string;
-  scheduledAt?: string;
-  mediaIds?: string[];
-  weeklyPlanId?: string;
-  projectFileIds?: string[];
-}
+  // Platform state (Threads only)
+  const [threadsConnected, setThreadsConnected] = useState(false);
+  const [threadsAccountId, setThreadsAccountId] = useState<string | undefined>();
 
-interface XConnection {
-  isConnected: boolean;
-  username?: string;
-  profileImage?: string;
-  lastConnected?: string;
-}
+  // Project files state
+  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
+  const [loadingFiles, setLoadingFiles] = useState(false);
 
-// Integration interfaces for connecting with your existing components
-interface WeeklyPlanSummary {
-  id: string;
-  week: string;
-  title: string;
-  themes: string[];
-  goals: string[];
-  postsScheduled: number;
-  targetPosts: number;
-  status: 'active' | 'completed' | 'draft';
-}
-
-interface ProjectFileSummary {
-  id: string;
-  name: string;
-  type: 'image' | 'video' | 'document' | 'template';
-  thumbnailUrl?: string;
-  lastModified: string;
-  size: string;
-  usageCount: number;
-}
-
-// Integration service layer - connects to your existing components
-interface IntegrationService {
-  getWeeklyPlanSummaries: () => Promise<WeeklyPlanSummary[]>;
-  getProjectFileSummaries: () => Promise<ProjectFileSummary[]>;
-  generateAIContent: (planId: string, themes: string[]) => Promise<string[]>;
-  linkPostToPlan: (postId: string, planId: string) => Promise<void>;
-  attachFilesToPost: (postId: string, fileIds: string[]) => Promise<void>;
-}
-
-// Mock integration service - replace with calls to your actual components
-const mockIntegrationService: IntegrationService = {
-  getWeeklyPlanSummaries: async () => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return [
-      {
-        id: '1',
-        week: '2025-08-10',
-        title: 'Product Launch Week',
-        themes: ['Product updates', 'User testimonials', 'Behind the scenes'],
-        goals: ['Launch feature X', 'Increase engagement 15%', 'Drive 500 visits'],
-        postsScheduled: 8,
-        targetPosts: 12,
-        status: 'active'
-      },
-      {
-        id: '2',
-        week: '2025-08-17',
-        title: 'Brand Awareness Campaign',
-        themes: ['Industry insights', 'Company culture', 'Tech tips'],
-        goals: ['Build thought leadership', 'Connect with developers'],
-        postsScheduled: 5,
-        targetPosts: 10,
-        status: 'draft'
-      }
-    ];
-  },
-
-  getProjectFileSummaries: async () => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return [
-      {
-        id: '1',
-        name: 'product-demo-video.mp4',
-        type: 'video',
-        thumbnailUrl: '/thumb1.jpg',
-        lastModified: '2025-08-09',
-        size: '15.2 MB',
-        usageCount: 3
-      },
-      {
-        id: '2',
-        name: 'brand-announcement.jpg',
-        type: 'image',
-        thumbnailUrl: '/thumb2.jpg',
-        lastModified: '2025-08-08',
-        size: '2.4 MB',
-        usageCount: 1
-      },
-      {
-        id: '3',
-        name: 'user-testimonial.png',
-        type: 'image',
-        thumbnailUrl: '/thumb3.jpg',
-        lastModified: '2025-08-07',
-        size: '1.8 MB',
-        usageCount: 5
-      },
-      {
-        id: '4',
-        name: 'tech-infographic.svg',
-        type: 'document',
-        lastModified: '2025-08-06',
-        size: '850 KB',
-        usageCount: 2
-      }
-    ];
-  },
-
-  generateAIContent: async (planId: string, themes: string[]) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    const suggestions = [
-      `Excited to share how ${themes[0]} is transforming our approach! 🚀`,
-      `Behind the scenes: Here's what we learned about ${themes[1]} this week`,
-      `Pro tip: ${themes[2]} best practices that actually work in 2025`,
-      `Why ${themes[0]} matters more than ever - a thread 🧵`,
-      `Quick update on our ${themes[1]} progress - amazing results!`
-    ];
-    return suggestions.slice(0, 3);
-  },
-
-  linkPostToPlan: async (postId: string, planId: string) => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    console.log(`Linked post ${postId} to plan ${planId}`);
-  },
-
-  attachFilesToPost: async (postId: string, fileIds: string[]) => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    console.log(`Attached files ${fileIds.join(', ')} to post ${postId}`);
-  }
-};
-
-// Mock X Content Scheduler service
-const xContentSchedulerService = {
-  getPosts: async ({ limit, offset }: { limit: number; offset: number }) => {
-    await new Promise(resolve => setTimeout(resolve, 500));
-    const mockPosts: XPost[] = [
-      {
-        id: '1',
-        content: 'Excited to share our latest product update! 🚀 New features transforming user experience.',
-        scheduledAt: null,
-        status: 'published' as const,
-        createdAt: new Date(Date.now() - 86400000).toISOString(),
-        publishedAt: new Date(Date.now() - 43200000).toISOString(),
-        weeklyPlanId: '1',
-        projectFileIds: ['1', '2'],
-        planThemes: ['Product updates', 'User testimonials']
-      },
-      {
-        id: '2',
-        content: 'Behind the scenes: Our team working on amazing features! #TeamWork #Innovation',
-        scheduledAt: new Date(Date.now() + 86400000).toISOString(),
-        status: 'scheduled' as const,
-        createdAt: new Date(Date.now() - 3600000).toISOString(),
-        weeklyPlanId: '1',
-        aiGenerated: true,
-        planThemes: ['Behind the scenes']
-      },
-      {
-        id: '3',
-        content: 'Pro tip: Here are the development best practices that actually work in 2025 🔧',
-        scheduledAt: null,
-        status: 'draft' as const,
-        createdAt: new Date(Date.now() - 1800000).toISOString(),
-        weeklyPlanId: '2',
-        projectFileIds: ['4'],
-        planThemes: ['Tech tips']
-      }
-    ];
-    return {
-      posts: mockPosts.slice(offset, offset + limit),
-      hasMore: offset + limit < mockPosts.length
-    };
-  },
-  
-  getConnection: async () => {
-    await new Promise(resolve => setTimeout(resolve, 300));
-    return {
-      isConnected: true,
-      username: 'yourcompany',
-      profileImage: '/profile.jpg',
-      lastConnected: new Date().toISOString()
-    };
-  },
-  
-  createPost: async (postData: CreatePostRequest) => {
-    await new Promise(resolve => setTimeout(resolve, 800));
-    const newPost: XPost = {
-      id: Date.now().toString(),
-      content: postData.content,
-      scheduledAt: postData.scheduledAt || null,
-      status: postData.scheduledAt ? 'scheduled' as const : 'published' as const,
-      createdAt: new Date().toISOString(),
-      publishedAt: postData.scheduledAt ? undefined : new Date().toISOString(),
-      weeklyPlanId: postData.weeklyPlanId,
-      projectFileIds: postData.projectFileIds
-    };
-    return newPost;
-  },
-  
-  deletePost: async (postId: string) => {
-    await new Promise(resolve => setTimeout(resolve, 400));
-    console.log('Post deleted:', postId);
-  },
-  
-  connectX: async () => {
-    await new Promise(resolve => setTimeout(resolve, 200));
-    return {
-      authUrl: 'https://api.twitter.com/oauth/authenticate?oauth_token=mock_token'
-    };
-  }
-};
-
-const IntegrationHub: React.FC = () => {
-  // State from your existing X scheduler
-  const [posts, setPosts] = useState<XPost[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [xConnection, setXConnection] = useState<XConnection>({ isConnected: false });
-  const [notifications, setNotifications] = useState<Array<{
-    id: string;
-    type: 'success' | 'error' | 'info';
-    message: string;
-  }>>([]);
-  const [hasMore, setHasMore] = useState(true);
-  const [offset, setOffset] = useState(0);
-  const limit = 20;
-
-  // Integration state
-  const [weeklyPlans, setWeeklyPlans] = useState<WeeklyPlanSummary[]>([]);
-  const [projectFiles, setProjectFiles] = useState<ProjectFileSummary[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<string>('');
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
-  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
-  const [showIntegrationPanel, setShowIntegrationPanel] = useState(true);
-
-  // Load all data
+  // Load project files and check auth status on mount
   useEffect(() => {
-    loadPosts();
-    loadXConnection();
-    loadIntegrationData();
+    console.log('[ContentScheduler] useeEffect running')
+    loadProjectFiles();
+    checkThreadsAuth();
   }, []);
 
-  const loadIntegrationData = async () => {
+const loadProjectFiles = async () => {
+  setLoadingFiles(true);
+  try {
+    console.log('[ContentScheduler] Loading files...');
+    const response = await fetch('/api/files', {
+      credentials: 'include'
+    });
+    
+    console.log('[ContentScheduler] Response status:', response.status);
+    
+    if (response.status === 401) {
+      console.warn('User not authenticated, cannot load files');
+      setProjectFiles([]);
+      return;
+    }
+    
+    if (response.ok) {
+      const data = await response.json();
+      console.log('[ContentScheduler] Response data:', data);
+      console.log('[ContentScheduler] Files array:', data.files);
+      
+      // Extract files from the response object
+      const files = data.files || [];
+      console.log('[ContentScheduler] Setting files:', files.length, 'files');
+      setProjectFiles(Array.isArray(files) ? files : []);
+    } else {
+      console.warn('Failed to load files:', response.status, response.statusText);
+      setProjectFiles([]);
+    }
+  } catch (error) {
+    console.error('Failed to load project files:', error);
+    setProjectFiles([]);
+  } finally {
+    setLoadingFiles(false);
+  }
+};
+
+  // Threads character limit
+  const threadsLimit = 500;
+  const charLimit = threadsLimit;
+
+  // Map selectedFiles -> Threads media payload
+  const toThreadsMedia = () => {
+    const imageUrls = selectedFiles
+      .filter(f => f.type?.startsWith('image/'))
+      .map(f => (f as any).url || (f as any).publicUrl || (f as any).s3Url)
+      .filter(Boolean) as string[];
+
+    const video = selectedFiles.find(f => f.type?.startsWith('video/'));
+    const videoUrl = video ? ((video as any).url || (video as any).publicUrl || (video as any).s3Url) : null;
+
+    return {
+      imageUrls: imageUrls.length ? imageUrls : undefined,
+      videoUrl: videoUrl || undefined,
+    };
+  };
+
+  // Check Threads authentication status
+  const checkThreadsAuth = async () => {
     try {
-      const [plans, files] = await Promise.all([
-        mockIntegrationService.getWeeklyPlanSummaries(),
-        mockIntegrationService.getProjectFileSummaries()
-      ]);
-      setWeeklyPlans(plans);
-      setProjectFiles(files);
-      if (plans.length > 0) {
-        setSelectedPlan(plans[0].id);
-      }
-    } catch (err) {
-      console.error('Failed to load integration data:', err);
+      const threads = await getThreadsStatus();
+      setThreadsConnected(!!threads.connected);
+      setThreadsAccountId(threads.accountId);
+    } catch (error) {
+      console.warn('[Auth] Threads status check failed', error);
+      setThreadsConnected(false);
+      setThreadsAccountId(undefined);
     }
   };
 
-  const loadPosts = useCallback(async (reset = false) => {
+  // Threads authentication
+  const connectThreads = async () => {
     try {
-      setLoading(true);
-      const currentOffset = reset ? 0 : offset;
-      const response = await xContentSchedulerService.getPosts({
-        limit,
-        offset: currentOffset
+      window.location.href = '/auth/threads';
+    } catch (error: any) {
+      console.error('[Auth] Failed to connect to Threads:', error);
+      toast.error(`Failed to connect to Threads: ${error.message}`);
+    }
+  };
+
+  const disconnectThreads = async () => {
+    try {
+      const response = await fetch('/auth/threads/disconnect', {
+        method: 'POST',
+        credentials: 'include'
       });
 
-      if (reset) {
-        setPosts(response.posts);
-        setOffset(limit);
+      if (response.ok) {
+        setThreadsConnected(false);
+        setThreadsAccountId(undefined);
+        toast.success('Disconnected from Threads');
       } else {
-        setPosts(prev => [...prev, ...response.posts]);
-        setOffset(prev => prev + limit);
+        throw new Error(`Failed to disconnect: ${response.statusText}`);
       }
-      
-      setHasMore(response.hasMore);
-      setError(null);
-    } catch (err) {
-      console.error('Error loading posts:', err);
-      setError(err instanceof Error ? err.message : 'Failed to load posts');
-      showNotification('error', 'Failed to load posts');
-    } finally {
-      setLoading(false);
-    }
-  }, [offset, limit]);
-
-  const loadXConnection = async () => {
-    try {
-      const connection = await xContentSchedulerService.getConnection();
-      setXConnection(connection);
-    } catch (err) {
-      console.error('Failed to load X connection:', err);
+    } catch (error: any) {
+      console.error('Failed to disconnect Threads:', error);
+      toast.error(`Failed to disconnect Threads: ${error.message}`);
     }
   };
 
-  const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
-    const id = Date.now().toString();
-    setNotifications(prev => [...prev, { id, type, message }]);
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 5000);
+  // File selection
+  const toggleFileSelection = (file: ProjectFile) => {
+    setSelectedFiles(prev => {
+      const isSelected = prev.some(f => f.id === file.id);
+      if (isSelected) {
+        return prev.filter(f => f.id !== file.id);
+      } else {
+        return [...prev, file];
+      }
+    });
   };
 
-  const generateAIContent = async () => {
-    if (!selectedPlan) return;
-    
-    const plan = weeklyPlans.find(p => p.id === selectedPlan);
-    if (!plan) return;
-
-    try {
-      setLoading(true);
-      const suggestions = await mockIntegrationService.generateAIContent(selectedPlan, plan.themes);
-      setAiSuggestions(suggestions);
-      showNotification('success', `Generated ${suggestions.length} AI content suggestions!`);
-    } catch (err) {
-      showNotification('error', 'Failed to generate AI content');
-    } finally {
-      setLoading(false);
+  // Post scheduling
+  const handleSchedulePost = async () => {
+    if (!postContent.trim()) {
+      toast.error('Please enter some content');
+      return;
     }
-  };
 
-  const createPostFromSuggestion = async (content: string) => {
-    try {
-      const postData: CreatePostRequest = {
-        content,
-        weeklyPlanId: selectedPlan,
-        projectFileIds: selectedFiles.length > 0 ? selectedFiles : undefined
-      };
-      
-      const newPost = await xContentSchedulerService.createPost(postData);
-      setPosts(prev => [{ ...newPost, aiGenerated: true }, ...prev]);
-      showNotification('success', 'AI-generated post created!');
-      
-      // Clear the suggestion
-      setAiSuggestions(prev => prev.filter(s => s !== content));
-    } catch (err) {
-      showNotification('error', 'Failed to create post');
+    if (!threadsConnected) {
+      toast.error('Please connect your Threads account first');
+      return;
     }
-  };
 
-  const handleCreatePost = async (postData: CreatePostRequest) => {
-    try {
-      setLoading(true);
-      const newPost = await xContentSchedulerService.createPost(postData);
-      setPosts(prev => [newPost, ...prev]);
-      setShowCreateModal(false);
-      showNotification('success', 'Post created successfully');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create post');
-      showNotification('error', 'Failed to create post');
-    } finally {
-      setLoading(false);
+    const scheduleDateTime = scheduledDate && scheduledTime
+      ? new Date(`${scheduledDate}T${scheduledTime}`)
+      : undefined;
+
+    if (!scheduleDateTime) {
+      toast.error('Please select a date and time to schedule');
+      return;
     }
-  };
 
-  const handleDeletePost = async (postId: string) => {
-    if (!confirm('Are you sure you want to delete this post?')) return;
-    
-    try {
-      await xContentSchedulerService.deletePost(postId);
-      setPosts(prev => prev.filter(post => post.id !== postId));
-      showNotification('success', 'Post deleted successfully');
-    } catch (err) {
-      showNotification('error', 'Failed to delete post');
+    if (postContent.length > charLimit) {
+      toast.error(`Content exceeds Threads character limit (${charLimit} chars)`);
+      return;
     }
-  };
 
-  const handleConnectX = async () => {
-    try {
-      const result = await xContentSchedulerService.connectX();
-      window.location.href = result.authUrl;
-    } catch (err) {
-      showNotification('error', 'Failed to connect to X');
-    }
-  };
-
-  const toggleFileSelection = (fileId: string) => {
-    setSelectedFiles(prev => 
-      prev.includes(fileId) 
-        ? prev.filter(id => id !== fileId)
-        : [...prev, fileId]
-    );
-  };
-
-  const getFileIcon = (type: string) => {
-    switch (type) {
-      case 'image': return '🖼️';
-      case 'video': return '🎥';
-      case 'document': return '📄';
-      case 'template': return '📋';
-      default: return '📁';
-    }
-  };
-
-  const StatusBadge: React.FC<{ status: XPost['status'] }> = ({ status }) => {
-    const colors = {
-      draft: 'bg-gray-500',
-      scheduled: 'bg-blue-500',
-      published: 'bg-green-500',
-      failed: 'bg-red-500'
+    const post: ScheduledPost = {
+      id: Date.now().toString(),
+      text: postContent,
+      media: selectedFiles,
+      platforms: ['threads'],
+      scheduledDate: scheduleDateTime,
+      status: 'scheduled',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      calendarEventId: `cal_${Date.now()}`
     };
-    
-    return (
-      <span className={`${colors[status]} text-white px-2 py-1 rounded-full text-xs font-medium`}>
-        {status.charAt(0).toUpperCase() + status.slice(1)}
-      </span>
-    );
+
+    try {
+      if (!threadsAccountId) {
+        throw new Error('Threads account not properly connected');
+      }
+
+      await scheduleThreadsPost({
+        accountId: threadsAccountId,
+        text: postContent,
+        media: toThreadsMedia(),
+        scheduledFor: scheduleDateTime.toISOString()
+      });
+
+      onSchedulePost?.(post);
+
+      if (onAddToCalendar) {
+        const calendarEvent: CalendarEvent = {
+          id: post.calendarEventId!,
+          title: 'Post to Threads',
+          description: postContent.slice(0, 100) + (postContent.length > 100 ? '...' : ''),
+          date: scheduleDateTime,
+          type: 'post',
+          postId: post.id,
+          platforms: ['threads']
+        };
+        onAddToCalendar(calendarEvent);
+      }
+
+      // Reset form
+      setPostContent('');
+      setSelectedFiles([]);
+      setScheduledDate('');
+      setScheduledTime('');
+
+      toast.success('Post scheduled successfully!');
+    } catch (error: any) {
+      console.error('Failed to schedule post:', error);
+      toast.error(`Failed to schedule: ${error.message}`);
+    }
   };
 
-  const NotificationContainer: React.FC = () => (
-    <div className="fixed top-4 right-4 z-50 space-y-2">
-      {notifications.map(notification => (
-        <div
-          key={notification.id}
-          className={`px-4 py-3 rounded-lg shadow-lg text-white ${
-            notification.type === 'success' ? 'bg-green-500' :
-            notification.type === 'error' ? 'bg-red-500' : 'bg-blue-500'
-          }`}
-        >
-          {notification.message}
-        </div>
-      ))}
-    </div>
-  );
+  // Post immediately
+  const handlePostNow = async () => {
+    if (!postContent.trim()) {
+      toast.error('Please enter some content');
+      return;
+    }
 
-  const IntegrationPanel: React.FC = () => {
-    const currentPlan = weeklyPlans.find(p => p.id === selectedPlan);
-    
-    return (
-      <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-            🔗 Integration Hub
-          </h2>
+    if (!threadsConnected) {
+      toast.error('Please connect your Threads account first');
+      return;
+    }
+
+    if (postContent.length > charLimit) {
+      toast.error(`Content exceeds Threads character limit (${charLimit} chars)`);
+      return;
+    }
+
+    try {
+      if (!threadsAccountId) {
+        throw new Error('Threads account not properly connected');
+      }
+
+      const nowIso = new Date().toISOString();
+      const media = toThreadsMedia();
+
+      const { post } = await scheduleThreadsPost({
+        accountId: threadsAccountId,
+        text: postContent,
+        media,
+        scheduledFor: nowIso
+      });
+
+      await publishThreadsNowById(post.id);
+
+      toast.success('Posted to Threads!');
+      
+      // Reset form
+      setPostContent('');
+      setSelectedFiles([]);
+    } catch (error: any) {
+      console.error('[Post Now] Error:', error);
+      toast.error(`Failed to post: ${error.message}`);
+    }
+  };
+
+  // Test Threads posting
+  const handleTestThreads = async () => {
+    if (!postContent.trim()) {
+      toast.error('Enter some content to test');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/content-scheduler/test-threads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ text: postContent })
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        toast.success('Threads test post successful!');
+      } else {
+        throw new Error(data.details || data.error || 'Test failed');
+      }
+    } catch (error: any) {
+      console.error('[Test Threads] Error:', error);
+      toast.error(`Threads test failed: ${error.message}`);
+    }
+  };
+
+  const getFileIcon = (fileType: string) => {
+    if (fileType.startsWith('image/')) return '🖼️';
+    if (fileType.startsWith('video/')) return '🎥';
+    if (fileType.startsWith('audio/')) return '🎵';
+    return '📄';
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-gray-900">Threads Content Scheduler</h1>
+        <div className="flex gap-2">
           <button
-            onClick={() => setShowIntegrationPanel(!showIntegrationPanel)}
-            className="text-gray-500 hover:text-gray-700"
+            onClick={checkThreadsAuth}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
           >
-            {showIntegrationPanel ? '−' : '+'}
+            <span>🔄</span>
+            Refresh Status
+          </button>
+          <button
+            onClick={() => setShowPlatformSettings(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+          >
+            <span>⚙️</span>
+            Account Settings
           </button>
         </div>
+      </div>
 
-        {showIntegrationPanel && (
-          <div className="space-y-6">
-            {/* Weekly Plan Selector */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Active Weekly Plan
-              </label>
-              <select
-                value={selectedPlan}
-                onChange={(e) => setSelectedPlan(e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                {weeklyPlans.map(plan => (
-                  <option key={plan.id} value={plan.id}>
-                    {plan.title} - Week of {plan.week}
-                  </option>
-                ))}
-              </select>
-              
-              {currentPlan && (
-                <div className="mt-3 p-3 bg-blue-50 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-blue-700">
-                      Progress: {currentPlan.postsScheduled}/{currentPlan.targetPosts} posts
-                    </span>
-                    <span className={`px-2 py-1 rounded text-xs font-medium ${
-                      currentPlan.status === 'active' ? 'bg-green-100 text-green-700' :
-                      currentPlan.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                      'bg-gray-100 text-gray-700'
-                    }`}>
-                      {currentPlan.status}
-                    </span>
+      {/* Connection Status */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <h3 className="text-sm font-medium text-gray-700 mb-2">Threads Connection Status:</h3>
+        <div className="flex items-center gap-2">
+          <span className={`w-2 h-2 rounded-full ${threadsConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+          <span className="text-sm">
+            {threadsConnected ? 'Connected to Threads' : 'Not connected to Threads'}
+          </span>
+          {threadsConnected && threadsAccountId && (
+            <span className="text-xs text-gray-500">(ID: {threadsAccountId})</span>
+          )}
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        {/* Content Input */}
+        <div className="space-y-4">
+          <textarea
+            value={postContent}
+            onChange={(e) => setPostContent(e.target.value)}
+            placeholder="What's on your mind? Share it on Threads..."
+            className="w-full h-32 p-4 border border-gray-300 rounded-lg resize-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+
+          {/* Character count */}
+          <div className="flex justify-between text-sm text-gray-500">
+            <span>{postContent.length} characters</span>
+            <span className={postContent.length > charLimit ? 'text-red-500' : ''}>
+              {charLimit - postContent.length} remaining (Threads limit)
+            </span>
+          </div>
+        </div>
+
+        {/* Selected Files Preview */}
+        {selectedFiles.length > 0 && (
+          <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+            <h3 className="text-sm font-medium text-gray-700 mb-2">Selected Files:</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {selectedFiles.map(file => (
+                <div key={file.id} className="relative group">
+                  <div className="flex items-center gap-2 p-2 bg-white rounded border">
+                    {getFileIcon(file.type)}
+                    <span className="text-xs truncate">{file.name}</span>
+                    <button
+                      onClick={() => toggleFileSelection(file)}
+                      className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <span className="text-red-500 text-sm">❌</span>
+                    </button>
                   </div>
-                  <div className="flex flex-wrap gap-1 mb-2">
-                    {currentPlan.themes.map((theme, idx) => (
-                      <span key={idx} className="bg-blue-100 text-blue-700 px-2 py-1 rounded text-xs">
-                        {theme}
-                      </span>
-                    ))}
-                  </div>
-                  <button
-                    onClick={generateAIContent}
-                    disabled={loading}
-                    className="w-full bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-                  >
-                    ⚡ Generate AI Content Suggestions
-                  </button>
                 </div>
-              )}
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Scheduling */}
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Schedule Date (optional)
+            </label>
+            <input
+              type="date"
+              value={scheduledDate}
+              onChange={(e) => setScheduledDate(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Schedule Time (optional)
+            </label>
+            <input
+              type="time"
+              value={scheduledTime}
+              onChange={(e) => setScheduledTime(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="mt-6 flex flex-wrap gap-3">
+          <button
+            onClick={() => setShowFileSelector(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors"
+          >
+            <span>📎</span>
+            Add Files
+          </button>
+
+          <button
+            onClick={handlePostNow}
+            disabled={!postContent.trim() || !threadsConnected}
+            className="flex items-center gap-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-lg transition-colors"
+          >
+            <span>📤</span>
+            Post Now
+          </button>
+
+          <button
+            onClick={handleSchedulePost}
+            disabled={!postContent.trim() || !threadsConnected}
+            className="flex items-center gap-2 px-6 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white rounded-lg transition-colors"
+          >
+            <span>⏰</span>
+            {scheduledDate && scheduledTime ? 'Schedule Post' : 'Save Draft'}
+          </button>
+
+          {/* Test Button for Threads */}
+          {threadsConnected && (
+            <button
+              onClick={handleTestThreads}
+              disabled={!postContent.trim()}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg transition-colors"
+            >
+              <span>🧪</span>
+              Test Threads
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* File Selector Modal */}
+      {showFileSelector && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[80vh] overflow-hidden">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Select Files from Project Center</h2>
+              <button
+                onClick={() => setShowFileSelector(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <span className="text-xl">❌</span>
+              </button>
             </div>
 
-            {/* AI Suggestions */}
-            {aiSuggestions.length > 0 && (
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-3">AI Content Suggestions</h3>
-                <div className="space-y-2">
-                  {aiSuggestions.map((suggestion, idx) => (
-                    <div key={idx} className="flex items-start gap-3 p-3 border border-purple-200 rounded-lg bg-purple-50">
-                      <div className="flex-1">
-                        <p className="text-sm text-gray-800">{suggestion}</p>
-                        <span className="text-xs text-purple-600">{suggestion.length}/280 characters</span>
+            <div className="overflow-y-auto max-h-96">
+              {loadingFiles ? (
+                <div className="text-center py-8">Loading files...</div>
+              ) : projectFiles.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  No files found in Project Center
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {projectFiles.map(file => (
+                    <div
+                      key={file.id}
+                      onClick={() => toggleFileSelection(file)}
+                      className={`cursor-pointer p-4 border-2 rounded-lg transition-colors ${
+                        selectedFiles.some(f => f.id === file.id)
+                          ? 'border-blue-500 bg-blue-50'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex flex-col items-center gap-2">
+                        <span className="text-2xl">{getFileIcon(file.type)}</span>
+                        <span className="text-sm font-medium truncate w-full text-center">
+                          {file.name}
+                        </span>
+                        <span className="text-xs text-gray-500">
+                          {file.size ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : 'Unknown size'}
+                        </span>
                       </div>
-                      <button
-                        onClick={() => createPostFromSuggestion(suggestion)}
-                        className="bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-xs font-medium transition-colors"
-                      >
-                        Use
-                      </button>
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
-
-            {/* Project Files */}
-            <div>
-              <h3 className="text-sm font-medium text-gray-700 mb-3">
-                Project Files ({selectedFiles.length} selected)
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {projectFiles.slice(0, 8).map(file => (
-                  <div
-                    key={file.id}
-                    onClick={() => toggleFileSelection(file.id)}
-                    className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                      selectedFiles.includes(file.id)
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-lg">{getFileIcon(file.type)}</span>
-                      {selectedFiles.includes(file.id) && (
-                        <span className="text-blue-600 font-bold">✓</span>
-                      )}
-                    </div>
-                    <div className="text-xs text-gray-600 truncate" title={file.name}>
-                      {file.name}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">
-                      Used {file.usageCount}x
-                    </div>
-                  </div>
-                ))}
-              </div>
-              {projectFiles.length > 8 && (
-                <button className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium">
-                  View all {projectFiles.length} files →
-                </button>
               )}
             </div>
-          </div>
-        )}
-      </div>
-    );
-  };
 
-  const EnhancedPostCard: React.FC<{ post: XPost }> = ({ post }) => {
-    const linkedPlan = post.weeklyPlanId ? weeklyPlans.find(p => p.id === post.weeklyPlanId) : null;
-    const linkedFiles = post.projectFileIds ? projectFiles.filter(f => post.projectFileIds!.includes(f.id)) : [];
-
-    return (
-      <div className="bg-white rounded-lg shadow-md p-4 border hover:shadow-lg transition-shadow">
-        <div className="flex justify-between items-start mb-3">
-          <div className="flex items-center gap-2">
-            <span className="text-black text-lg font-bold">𝕏</span>
-            <span className="text-sm text-gray-500">X</span>
-            {post.aiGenerated && (
-              <span className="bg-purple-100 text-purple-700 px-2 py-1 rounded text-xs font-medium flex items-center gap-1">
-                ⚡ AI
-              </span>
-            )}
-          </div>
-          <StatusBadge status={post.status} />
-        </div>
-        
-        <div className="mb-3">
-          <p className="text-gray-800 whitespace-pre-wrap">{post.content}</p>
-          <div className="text-sm text-gray-500 mt-1">
-            {post.content.length}/280 characters
-          </div>
-        </div>
-
-        {/* Integration indicators */}
-        {(linkedPlan || linkedFiles.length > 0 || post.planThemes) && (
-          <div className="space-y-2 mb-3">
-            {linkedPlan && (
-              <div className="bg-blue-50 border border-blue-200 rounded p-2">
-                <div className="flex items-center gap-2">
-                  📅 <span className="text-sm font-medium text-blue-700">
-                    {linkedPlan.title}
-                  </span>
-                </div>
-              </div>
-            )}
-            
-            {post.planThemes && post.planThemes.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {post.planThemes.map((theme, idx) => (
-                  <span key={idx} className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs">
-                    {theme}
-                  </span>
-                ))}
-              </div>
-            )}
-            
-            {linkedFiles.length > 0 && (
-              <div className="flex items-center gap-2">
-                📁 <span className="text-sm text-gray-600">
-                  {linkedFiles.length} file{linkedFiles.length !== 1 ? 's' : ''} attached
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-        
-        <div className="flex justify-between items-center text-sm text-gray-500">
-          <span>
-            {post.scheduledAt 
-              ? `Scheduled: ${new Date(post.scheduledAt).toLocaleString()}`
-              : post.publishedAt 
-              ? `Published: ${new Date(post.publishedAt).toLocaleString()}`
-              : `Created: ${new Date(post.createdAt).toLocaleString()}`
-            }
-          </span>
-          <button
-            onClick={() => handleDeletePost(post.id)}
-            className="text-red-500 hover:text-red-700 font-medium"
-          >
-            Delete
-          </button>
-        </div>
-        
-        {post.status === 'failed' && post.errorMessage && (
-          <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">
-            Error: {post.errorMessage}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const CreatePostModal: React.FC = () => {
-    const [content, setContent] = useState('');
-    const [scheduledAt, setScheduledAt] = useState('');
-    const [isScheduled, setIsScheduled] = useState(false);
-
-    const handleSubmit = (e: React.FormEvent) => {
-      e.preventDefault();
-      
-      if (!content.trim()) {
-        showNotification('error', 'Post content is required');
-        return;
-      }
-
-      if (content.length > 280) {
-        showNotification('error', 'Post content exceeds 280 character limit');
-        return;
-      }
-
-      const postData: CreatePostRequest = {
-        content: content.trim(),
-        scheduledAt: isScheduled && scheduledAt ? scheduledAt : undefined,
-        weeklyPlanId: selectedPlan || undefined,
-        projectFileIds: selectedFiles.length > 0 ? selectedFiles : undefined
-      };
-
-      handleCreatePost(postData);
-    };
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-          <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-xl font-semibold text-gray-900">Create New Post</h2>
-            <button
-              onClick={() => setShowCreateModal(false)}
-              className="text-gray-400 hover:text-gray-600 text-xl"
-            >
-              ✕
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="p-6">
-            <div className="mb-4">
-              <textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                placeholder="What's happening?"
-                className="w-full p-4 border border-gray-200 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent"
-                rows={4}
-              />
-              <div className="text-sm text-gray-500 mt-1">
-                {content.length}/280 characters
-              </div>
-            </div>
-
-            <div className="mb-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={isScheduled}
-                  onChange={(e) => setIsScheduled(e.target.checked)}
-                  className="rounded"
-                />
-                <span className="text-sm font-medium">Schedule for later</span>
-              </label>
-            </div>
-
-            {isScheduled && (
-              <div className="mb-4">
-                <input
-                  type="datetime-local"
-                  value={scheduledAt}
-                  onChange={(e) => setScheduledAt(e.target.value)}
-                  min={new Date().toISOString().slice(0, 16)}
-                  className="w-full p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-black"
-                />
-              </div>
-            )}
-
-            {selectedPlan && (
-              <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-                <div className="text-sm text-blue-700">
-                  Will be linked to: {weeklyPlans.find(p => p.id === selectedPlan)?.title}
-                </div>
-              </div>
-            )}
-
-            {selectedFiles.length > 0 && (
-              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                <div className="text-sm font-medium text-gray-700 mb-2">
-                  Attached Files ({selectedFiles.length}):
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {selectedFiles.map(fileId => {
-                    const file = projectFiles.find(f => f.id === fileId);
-                    return file ? (
-                      <span key={fileId} className="text-xs bg-white px-2 py-1 rounded border">
-                        {getFileIcon(file.type)} {file.name}
-                      </span>
-                    ) : null;
-                  })}
-                </div>
-              </div>
-            )}
-
-            <div className="flex justify-end gap-3">
+            <div className="mt-4 flex justify-end gap-2">
               <button
-                type="button"
-                onClick={() => setShowCreateModal(false)}
+                onClick={() => setShowFileSelector(false)}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
               >
                 Cancel
               </button>
               <button
-                type="submit"
-                disabled={loading || !content.trim() || content.length > 280}
-                className="bg-black hover:bg-gray-800 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-2 rounded-lg font-medium transition-colors"
+                onClick={() => setShowFileSelector(false)}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg"
               >
-                {isScheduled ? 'Schedule Post' : 'Post Now'}
+                Done
               </button>
             </div>
-          </form>
-        </div>
-      </div>
-    );
-  };
-
-  const XConnectionStatus: React.FC = () => (
-    <div className="bg-white rounded-lg shadow-md p-4 border mb-6">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-black text-2xl font-bold">𝕏</span>
-          <div>
-            <h3 className="font-semibold text-gray-900">X Account</h3>
-            {xConnection.isConnected ? (
-              <p className="text-sm text-green-600">
-                Connected as @{xConnection.username}
-              </p>
-            ) : (
-              <p className="text-sm text-gray-500">Not connected</p>
-            )}
-          </div>
-        </div>
-        
-        {!xConnection.isConnected ? (
-          <button
-            onClick={handleConnectX}
-            className="bg-black hover:bg-gray-800 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-          >
-            Connect X
-          </button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 bg-green-400 rounded-full"></div>
-            <span className="text-sm text-gray-600">Connected</span>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="max-w-4xl mx-auto p-6 bg-gray-50 min-h-screen">
-      <NotificationContainer />
-      
-      {/* Header */}
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">𝕏 Content Hub</h1>
-          <p className="text-gray-600 mt-1">Integrated scheduler with AI planning and project files</p>
-        </div>
-        
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => window.location.href = '/planner'}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-          >
-            📅 Open Planner
-          </button>
-          <button
-            onClick={() => window.location.href = '/project-center'}
-            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
-          >
-            📁 Project Center
-          </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="bg-black hover:bg-gray-800 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-          >
-            + New Post
-          </button>
-        </div>
-      </div>
-
-      {/* X Connection Status */}
-      <XConnectionStatus />
-
-      {/* Integration Panel */}
-      <IntegrationPanel />
-
-      {/* Error Display */}
-      {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-          <div className="flex">
-            ⚠️ <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">Error</h3>
-              <div className="mt-2 text-sm text-red-700">{error}</div>
-            </div>
           </div>
         </div>
       )}
 
-      {/* Stats Overview */}
-      <div className="grid md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg shadow-sm border p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">Total Posts</p>
-              <p className="text-2xl font-bold text-gray-900">{posts.length}</p>
+      {/* Account Settings Modal */}
+      {showPlatformSettings && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold">Threads Account</h2>
+              <button
+                onClick={() => setShowPlatformSettings(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <span className="text-xl">❌</span>
+              </button>
             </div>
-            𝕏
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm border p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">AI Generated</p>
-              <p className="text-2xl font-bold text-purple-600">
-                {posts.filter(p => p.aiGenerated).length}
-              </p>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                <div>
+                  <h3 className="font-medium">Threads</h3>
+                  <p className="text-sm text-gray-500">
+                    {threadsConnected
+                      ? `Connected (Account ID: ${threadsAccountId})`
+                      : 'Connect to start posting to Threads'
+                    }
+                  </p>
+                </div>
+                <div>
+                  {threadsConnected ? (
+                    <button
+                      onClick={disconnectThreads}
+                      className="px-3 py-1 text-sm bg-red-100 hover:bg-red-200 text-red-700 rounded"
+                    >
+                      Disconnect
+                    </button>
+                  ) : (
+                    <button
+                      onClick={connectThreads}
+                      className="px-3 py-1 text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 rounded"
+                    >
+                      Connect
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  💡 <strong>Tip:</strong> Once connected, you can post content directly to Threads and schedule posts for later.
+                </p>
+              </div>
             </div>
-            ⚡
-          </div>
-        </div>
-        <div className="bg-white rounded-lg shadow-sm border p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm text-gray-600">With Files</p>
-              <p className="text-2xl font-bold text-green-600">
-                {posts.filter(p => p.projectFileIds && p.projectFileIds.length > 0).length}
-              </p>
-            </div>
-            📁
-          </div>
-        </div>
-      </div>
-
-      {/* Loading State */}
-      {loading && posts.length === 0 && (
-        <div className="flex justify-center items-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-black"></div>
-          <span className="ml-2 text-gray-600">Loading posts...</span>
-        </div>
-      )}
-
-      {/* Posts Grid */}
-      {posts.length > 0 && (
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Posts</h2>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <span>{posts.filter(p => p.status === 'scheduled').length} scheduled</span>
-              <span>•</span>
-              <span>{posts.filter(p => p.status === 'published').length} published</span>
-              <span>•</span>
-              <span>{posts.filter(p => p.status === 'draft').length} drafts</span>
-            </div>
-          </div>
-          
-          {posts.map(post => (
-            <EnhancedPostCard key={post.id} post={post} />
-          ))}
-        </div>
-      )}
-
-      {/* Load More */}
-      {hasMore && !loading && posts.length > 0 && (
-        <div className="flex justify-center mt-8">
-          <button
-            onClick={() => loadPosts()}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium transition-colors"
-          >
-            Load More Posts
-          </button>
-        </div>
-      )}
-
-      {/* Empty State */}
-      {!loading && posts.length === 0 && (
-        <div className="text-center py-12">
-          <div className="text-4xl mb-4 font-bold">𝕏</div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">No posts yet</h3>
-          <p className="text-gray-600 mb-6">
-            Create your first post using AI suggestions or manual input.
-          </p>
-          <div className="flex items-center justify-center gap-3">
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="bg-black hover:bg-gray-800 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-            >
-              Create Your First Post
-            </button>
-            <button
-              onClick={generateAIContent}
-              disabled={!selectedPlan}
-              className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white px-6 py-3 rounded-lg font-medium transition-colors flex items-center gap-2"
-            >
-              ⚡ Get AI Suggestions
-            </button>
           </div>
         </div>
       )}
-
-      {/* Create Post Modal */}
-      {showCreateModal && <CreatePostModal />}
     </div>
   );
 };
 
-export default IntegrationHub;
+export default ContentScheduler;

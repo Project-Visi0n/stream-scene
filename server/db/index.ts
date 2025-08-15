@@ -1,15 +1,13 @@
+// server/db/index.ts
 // Always load environment variables first
 import dotenv from 'dotenv';
 dotenv.config();
 
-// Import Sequelize
 import { Sequelize } from 'sequelize';
-// Do not import models yet
 
-// Set up Sequelize connection (but don't connect yet)
+
 let sequelize: Sequelize | null = null;
-
-const getSequelize = () => {
+export const getSequelize = () => {
   if (!sequelize) {
     sequelize = new Sequelize({
       dialect: 'mysql',
@@ -23,11 +21,28 @@ const getSequelize = () => {
   return sequelize;
 };
 
-// Test the connection (non-blocking)
-const testConnection = async () => {
+// Create instance early
+const sequelizeInstance = getSequelize();
+
+// import model initializers **after** sequelizeInstance exists
+import { initFileModel } from '../models/initFileModel.js';
+import { Share } from '../models/Share.js';
+import { initSocialAccountTokenModel, SocialAccountToken } from '../models/initSocialAccountToken.js';
+import { initScheduledPostModel, ScheduledPost } from '../models/initScheduledPost.js';
+
+// Initialize models
+const File = initFileModel(sequelizeInstance);
+initSocialAccountTokenModel(sequelizeInstance);
+initScheduledPostModel(sequelizeInstance);
+
+// (Associations are set inside initScheduledPostModel via belongsTo)
+export const associate = () => {
+  console.log('Database associations set up');
+};
+
+export const testConnection = async () => {
   try {
-    const db = getSequelize();
-    await db.authenticate();
+    await sequelizeInstance.authenticate();
     console.log('Database connection established successfully.');
   } catch (error) {
     console.error('Unable to connect to the database:', error);
@@ -35,40 +50,25 @@ const testConnection = async () => {
   }
 };
 
-// Simplified associations
-export const associate = () => {
-  console.log('Database associations set up');
-};
-
-// call this to sync the DB (including File model)
+// Sync EVERYTHING (not just File)
 export const syncDB = async (force = false) => {
   try {
-    await File.sync({ force });
-    console.log('Database sync complete (File model)');
+    await sequelizeInstance.sync({ force });
+    console.log('Database sync complete (File, SocialAccountToken, ScheduledPost)');
   } catch (error) {
     console.error('Database sync failed:', error);
+    throw error;
   }
 };
-
-// After Sequelize is initialized, import models and register them
-const sequelizeInstance = getSequelize();
-
-// Import model initializer
-import { initFileModel } from '../models/initFileModel.js';
-import { Share } from '../models/Share.js';
-
-// Initialize File model after Sequelize is ready
-const File = initFileModel(sequelizeInstance);
 
 export const db = {
   sequelize: sequelizeInstance,
   File,
   Share,
+  SocialAccountToken,
+  ScheduledPost,
   associate,
 };
 
 export type DB = typeof db;
 export default db;
-
-// Don't test connection on startup - let it be tested when needed
-// testConnection();

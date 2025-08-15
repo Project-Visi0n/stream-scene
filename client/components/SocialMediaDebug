@@ -1,0 +1,170 @@
+// client/components/SocialMediaDebugPanel.tsx
+import React, { useState, useEffect } from 'react';
+
+interface DebugInfo {
+  session?: {
+    exists: boolean;
+    id: string;
+  };
+  xAuth?: {
+    platform: string;
+    userId: string;
+    username: string;
+    hasAccessToken: boolean;
+    hasTokenSecret: boolean;
+  } | null;
+  threadsAuth?: {
+    platform: string;
+    userId: string;
+    username: string;
+    hasAccessToken: boolean;
+  } | null;
+  env?: {
+    hasTwitterKey: boolean;
+    hasTwitterSecret: boolean;
+    hasThreadsId: boolean;
+  };
+}
+
+const SocialMediaDebugPanel: React.FC = () => {
+  const [debugInfo, setDebugInfo] = useState<DebugInfo>({});
+  const [sessionInfo, setSessionInfo] = useState<any>({});
+  const [isVisible, setIsVisible] = useState(false);
+
+  const fetchDebugInfo = async () => {
+    try {
+      // Fetch content scheduler debug info
+      const response = await fetch('/api/content-scheduler-enhanced/debug/auth');
+      const data = await response.json();
+      setDebugInfo(data);
+
+      // Fetch social auth debug info
+      const sessionResponse = await fetch('/api/auth/social/debug/session');
+      const sessionData = await sessionResponse.json();
+      setSessionInfo(sessionData);
+    } catch (error) {
+      console.error('Failed to fetch debug info:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (isVisible) {
+      fetchDebugInfo();
+    }
+  }, [isVisible]);
+
+  const testPost = async () => {
+    try {
+      const response = await fetch('/api/content-scheduler-enhanced/post-now', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: 'Test post from debug panel at ' + new Date().toLocaleTimeString(),
+          media: [],
+          platforms: ['x', 'threads']
+        })
+      });
+
+      const data = await response.json();
+      console.log('Test post result:', data);
+      alert('Test post result: ' + JSON.stringify(data, null, 2));
+    } catch (error) {
+      console.error('Test post failed:', error);
+      alert('Test post failed: ' + error.message);
+    }
+  };
+
+  if (!isVisible) {
+    return (
+      <button
+        onClick={() => setIsVisible(true)}
+        className="fixed bottom-4 right-4 bg-red-500 text-white px-3 py-2 rounded text-sm z-50"
+      >
+        🐛 Debug
+      </button>
+    );
+  }
+
+  return (
+    <div className="fixed bottom-4 right-4 bg-white border border-gray-300 rounded-lg shadow-lg p-4 w-96 max-h-96 overflow-y-auto z-50">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="font-bold text-sm">Social Media Debug Panel</h3>
+        <button
+          onClick={() => setIsVisible(false)}
+          className="text-gray-500 hover:text-gray-700"
+        >
+          ❌
+        </button>
+      </div>
+
+      <div className="space-y-3 text-xs">
+        <button
+          onClick={fetchDebugInfo}
+          className="w-full bg-blue-500 text-white px-2 py-1 rounded text-xs"
+        >
+          🔄 Refresh Debug Info
+        </button>
+
+        <button
+          onClick={testPost}
+          className="w-full bg-green-500 text-white px-2 py-1 rounded text-xs"
+        >
+          🧪 Test Post
+        </button>
+
+        <div className="border-t pt-2">
+          <h4 className="font-semibold">Environment:</h4>
+          <div className="ml-2">
+            <div>Twitter Key: {debugInfo.env?.hasTwitterKey ? '✅' : '❌'}</div>
+            <div>Twitter Secret: {debugInfo.env?.hasTwitterSecret ? '✅' : '❌'}</div>
+            <div>Threads ID: {debugInfo.env?.hasThreadsId ? '✅' : '❌'}</div>
+          </div>
+        </div>
+
+        <div className="border-t pt-2">
+          <h4 className="font-semibold">Session:</h4>
+          <div className="ml-2">
+            <div>Exists: {debugInfo.session?.exists ? '✅' : '❌'}</div>
+            <div>ID: {debugInfo.session?.id || 'None'}</div>
+          </div>
+        </div>
+
+        <div className="border-t pt-2">
+          <h4 className="font-semibold">Twitter/X Auth:</h4>
+          {debugInfo.xAuth ? (
+            <div className="ml-2">
+              <div>Connected: ✅</div>
+              <div>User: {debugInfo.xAuth.username}</div>
+              <div>Token: {debugInfo.xAuth.hasAccessToken ? '✅' : '❌'}</div>
+              <div>Secret: {debugInfo.xAuth.hasTokenSecret ? '✅' : '❌'}</div>
+            </div>
+          ) : (
+            <div className="ml-2 text-red-500">Not connected ❌</div>
+          )}
+        </div>
+
+        <div className="border-t pt-2">
+          <h4 className="font-semibold">Threads Auth:</h4>
+          {debugInfo.threadsAuth ? (
+            <div className="ml-2">
+              <div>Connected: ✅</div>
+              <div>User: {debugInfo.threadsAuth.username}</div>
+              <div>Token: {debugInfo.threadsAuth.hasAccessToken ? '✅' : '❌'}</div>
+            </div>
+          ) : (
+            <div className="ml-2 text-red-500">Not connected ❌</div>
+          )}
+        </div>
+
+        <div className="border-t pt-2">
+          <h4 className="font-semibold">Session Info:</h4>
+          <pre className="text-xs bg-gray-100 p-2 rounded overflow-x-auto">
+            {JSON.stringify(sessionInfo, null, 2)}
+          </pre>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SocialMediaDebugPanel;

@@ -1,344 +1,437 @@
-// server/routes/contentScheduler.ts - With proper auth import
+import { Router } from 'express';
+import { TwitterApi } from 'twitter-api-v2';
+import cron from 'node-cron';
 
-import express from 'express';
-import { Request, Response } from 'express';
-import { requireAuth } from '../middleware/authMiddleWare'; // Fixed import
+const router = Router();
 
-const router = express.Router();
-
-// Apply authentication middleware to all routes (uncomment when ready)
-// router.use(requireAuth);
-
-// Mock user for testing - remove when enabling real auth
-const MOCK_USER_ID = 'user_123';
-
-// Simple in-memory storage for testing
-const mockPosts = [
-  {
-    id: 'post_1',
-    userId: MOCK_USER_ID,
-    content: 'Just launched our new X content scheduler! 🚀 Building the future of social media management. #XScheduler #ProductLaunch #TechInnovation',
-  scheduledAt: null as Date | null,
-    createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000),
-    status: 'published',
-    xPostId: 'x_12345',
-    analytics: {
-      retweets: 23,
-      likes: 156,
-      replies: 12,
-      views: 2341
-    }
-  },
-  {
-    id: 'post_2',
-    userId: MOCK_USER_ID,
-    content: 'Working on some exciting new features for content creators. The future is automated! ✨ What features would you like to see?',
-  scheduledAt: new Date(Date.now() + 3 * 60 * 60 * 1000) as Date | null,
-    createdAt: new Date(Date.now() - 30 * 60 * 1000),
-    updatedAt: new Date(Date.now() - 30 * 60 * 1000),
-    status: 'scheduled',
-    analytics: {
-      retweets: 0,
-      likes: 0,
-      replies: 0,
-      views: 0
-    }
-  }
-];
-
-const mockConnection = {
-  isConnected: false,
-  username: null as string | null,
-  profileImage: null as string | null,
-  lastConnected: null as string | null
-};
-
-// GET /api/content-scheduler/health - Health check
-router.get('/health', async (req: Request, res: Response) => {
-  res.json({
-    status: 'healthy',
-    message: 'Mock X API service is running',
-    mode: 'mock',
-    timestamp: new Date().toISOString()
+// Debug logging middleware
+router.use((req, res, next) => {
+  console.log(`[Content Scheduler] ${req.method} ${req.path}`, {
+    hasSession: !!req.session,
+    hasXAuth: !!req.session?.xAuth,
+    hasThreadsAuth: !!req.session?.threadsAuth,
+    bodyKeys: Object.keys(req.body || {})
   });
+  next();
 });
 
-// GET /api/content-scheduler/connection - Get X connection status
-router.get('/connection', async (req: Request, res: Response) => {
+interface ScheduledPost {
+  id: string;
+  text: string;
+  media: any[];
+  platforms: ('threads' | 'x')[];
+  scheduledDate?: Date;
+  status: 'draft' | 'scheduled' | 'posted' | 'failed';
+  userId: string;
+}
+
+// In-memory store for scheduled posts (use database in production)
+const scheduledPosts: Map<string, ScheduledPost> = new Map();
+
+// Create/save a post
+router.post('/posts', async (req, res) => {
   try {
-    // Simulate delay
-    await new Promise(resolve => setTimeout(resolve, 300));
+    console.log('[Save Post] Request:', req.body);
     
-    res.json(mockConnection);
+    const post: ScheduledPost = {
+      ...req.body,
+      userId: req.user?.id || req.session?.id || 'anonymous'
+    };
+    
+    scheduledPosts.set(post.id, post);
+    
+    // If scheduled, set up cron job
+    if (post.scheduledDate && post.status === 'scheduled') {
+      try {
+        schedulePost(post);
+        console.log('[Save Post] Scheduled successfully');
+      } catch (scheduleError) {
+        console.error('[Save Post] Schedule error:', scheduleError);
+        // Don't fail the entire request for schedule errors
+      }
+    }
+    
+    console.log('[Save Post] Success:', { id: post.id, status: post.status });
+    res.json({ success: true, post });
   } catch (error) {
-    console.error('Error fetching X connection:', error);
-    res.status(500).json({ error: 'Failed to fetch X connection status' });
+    console.error('[Save Post] Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to save post',
+      details: error.message 
+    });
   }
 });
 
-// GET /api/content-scheduler/posts - Get all X posts
-router.get('/posts', async (req: Request, res: Response) => {
+// Post immediately
+router.post('/post-now', async (req, res) => {
   try {
-    const { limit = 20, offset = 0, status } = req.query;
+    console.log('[Post Now] Request:', req.body);
     
-    // Simulate delay
-    await new Promise(resolve => setTimeout(resolve, 400));
-
-    let filteredPosts = [...mockPosts];
-
-    // Apply status filter
-    if (status) {
-      const statusArray = (status as string).split(',');
-      filteredPosts = filteredPosts.filter(post => statusArray.includes(post.status));
+    const { text, media, platforms } = req.body;
+    
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: 'Text content is required' });
     }
-
-    // Apply pagination
-    const paginatedPosts = filteredPosts.slice(Number(offset), Number(offset) + Number(limit));
-    const hasMore = Number(offset) + Number(limit) < filteredPosts.length;
-
-    res.json({
-      posts: paginatedPosts,
-      hasMore,
-      total: filteredPosts.length
-    });
+    
+    if (!platforms || platforms.length === 0) {
+      return res.status(400).json({ error: 'At least one platform must be selected' });
+    }
+    
+    const results = [];
+    
+    for (const platform of platforms) {
+      try {
+        console.log(`[Post Now] Posting to ${platform}...`);
+        const result = await postToPlatform(platform, text, media, req.session);
+        results.push({ platform, success: true, result });
+        console.log(`[Post Now] ${platform} success:`, result);
+      } catch (error) {
+        console.error(`[Post Now] ${platform} error:`, error);
+        results.push({ 
+          platform, 
+          success: false, 
+          error: error.message,
+          details: error.stack
+        });
+      }
+    }
+    
+    console.log('[Post Now] Final results:', results);
+    res.json({ results });
   } catch (error) {
-    console.error('Error fetching posts:', error);
+    console.error('[Post Now] Fatal error:', error);
+    res.status(500).json({ 
+      error: 'Failed to post content',
+      details: error.message 
+    });
+  }
+});
+
+// Get scheduled posts
+router.get('/posts', (req, res) => {
+  try {
+    const userId = req.user?.id || req.session?.id || 'anonymous';
+    const userPosts = Array.from(scheduledPosts.values())
+      .filter(post => post.userId === userId);
+    
+    console.log('[Get Posts] Found:', userPosts.length);
+    res.json(userPosts);
+  } catch (error) {
+    console.error('[Get Posts] Error:', error);
     res.status(500).json({ error: 'Failed to fetch posts' });
   }
 });
 
-// POST /api/content-scheduler/posts - Create new X post
-router.post('/posts', async (req: Request, res: Response) => {
-  try {
-    const { content, scheduledAt, mediaIds } = req.body;
-    
-    // Simulate delay
-    await new Promise(resolve => setTimeout(resolve, 600));
-
-    // Validate required fields
-    if (!content || !content.trim()) {
-      return res.status(400).json({ error: 'Post content is required' });
-    }
-
-    // Validate X character limit
-    if (content.length > 280) {
-      return res.status(400).json({ 
-        error: `Content exceeds X character limit of 280 (current: ${content.length})` 
-      });
-    }
-
-    const postId = `post_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const scheduledDate = scheduledAt ? new Date(scheduledAt) : null;
-    const isImmediate = !scheduledDate || scheduledDate <= new Date();
-
-    const newPost = {
-      id: postId,
-      userId: MOCK_USER_ID,
-      content: content.trim(),
-      scheduledAt: scheduledDate,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      status: isImmediate ? 'published' : 'scheduled',
-      media: mediaIds ? [] : undefined, // Handle media later
-      xPostId: isImmediate ? `x_${Date.now()}` : undefined,
-      analytics: {
-        retweets: 0,
-        likes: 0,
-        replies: 0,
-        views: 0
-      }
-    };
-
-    // Add to mock storage
-    mockPosts.unshift(newPost);
-
-    res.status(201).json(newPost);
-  } catch (error) {
-    console.error('Error creating post:', error);
-    res.status(500).json({ error: 'Failed to create post' });
-  }
-});
-
-// DELETE /api/content-scheduler/posts/:id - Delete post
-router.delete('/posts/:id', async (req: Request, res: Response) => {
+// Delete a post
+router.delete('/posts/:id', (req, res) => {
   try {
     const { id } = req.params;
     
-    // Simulate delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    const postIndex = mockPosts.findIndex(post => post.id === id);
-    if (postIndex === -1) {
-      return res.status(404).json({ error: 'Post not found' });
+    if (scheduledPosts.has(id)) {
+      scheduledPosts.delete(id);
+      console.log('[Delete Post] Success:', id);
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Post not found' });
     }
-
-    mockPosts.splice(postIndex, 1);
-    res.status(204).send();
   } catch (error) {
-    console.error('Error deleting post:', error);
+    console.error('[Delete Post] Error:', error);
     res.status(500).json({ error: 'Failed to delete post' });
   }
 });
 
-// POST /api/content-scheduler/connect - Start X OAuth flow
-router.post('/connect', async (req: Request, res: Response) => {
+// Function to post to specific platform
+async function postToPlatform(platform: 'threads' | 'x', text: string, media: any[], session: any) {
+  console.log(`[Post Platform] ${platform}:`, { 
+    textLength: text.length,
+    mediaCount: media?.length || 0,
+    hasSession: !!session
+  });
+  
+  switch (platform) {
+    case 'x':
+      return await postToTwitter(text, media, session?.xAuth);
+    case 'threads':
+      return await postToThreads(text, media, session?.threadsAuth);
+    default:
+      throw new Error(`Unsupported platform: ${platform}`);
+  }
+}
+
+// Post to Twitter/X
+async function postToTwitter(text: string, media: any[], auth: any) {
+  console.log('[Twitter Post] Auth check:', {
+    hasAuth: !!auth,
+    hasToken: !!auth?.accessToken,
+    hasSecret: !!auth?.tokenSecret,
+    platform: auth?.platform
+  });
+  
+  if (!auth?.accessToken) {
+    throw new Error('Twitter not connected - please reconnect your account');
+  }
+
+  if (!process.env.TWITTER_CONSUMER_KEY || !process.env.TWITTER_CONSUMER_SECRET) {
+    throw new Error('Twitter API credentials not configured on server');
+  }
+
   try {
-    // Simulate delay
-    await new Promise(resolve => setTimeout(resolve, 500));
+    const twitterClient = new TwitterApi({
+      appKey: process.env.TWITTER_CONSUMER_KEY,
+      appSecret: process.env.TWITTER_CONSUMER_SECRET,
+      accessToken: auth.accessToken,
+      accessSecret: auth.tokenSecret,
+    });
+
+    console.log('[Twitter Post] Client created, posting...');
+
+    // Post tweet
+    const tweet = await twitterClient.v2.tweet({
+      text: text.slice(0, 280) // Ensure we don't exceed Twitter's limit
+    });
+
+    console.log('[Twitter Post] Success:', tweet);
+    return tweet;
+  } catch (error) {
+    console.error('[Twitter Post] API Error:', error);
+    throw new Error(`Failed to post to Twitter: ${error.message}`);
+  }
+}
+
+// Post to Threads (real implementation)
+async function postToThreads(text: string, media: any[], auth: any) {
+  console.log('[Threads Post] Starting real post:', {
+    hasAuth: !!auth,
+    textLength: text.length,
+    mediaCount: media?.length || 0,
+    userId: auth?.userId,
+    username: auth?.username
+  });
+  
+  if (!auth?.accessToken) {
+    throw new Error('Threads not connected - please reconnect your account');
+  }
+
+  if (!auth?.userId) {
+    throw new Error('Threads user ID missing - please reconnect your account');
+  }
+
+  try {
+    // Step 1: Create media container
+    const postData = {
+      media_type: 'TEXT',
+      text: text
+    };
+
+    console.log('[Threads Post] Creating media container...');
     
-    // Return mock OAuth URL
-    const authUrl = `/api/content-scheduler/mock-auth/x?user_id=${MOCK_USER_ID}&state=${Date.now()}`;
-    res.json({ authUrl });
-  } catch (error) {
-    console.error('Error initiating X connection:', error);
-    res.status(500).json({ error: 'Failed to initiate X connection' });
-  }
-});
+    const containerResponse = await fetch(
+      `https://graph.threads.net/v1.0/${auth.userId}/threads`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${auth.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(postData)
+      }
+    );
 
-// POST /api/content-scheduler/callback - Handle X OAuth callback
-router.post('/callback', async (req: Request, res: Response) => {
-  try {
-    // Simulate delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    // Update mock connection
-  mockConnection.isConnected = true;
-  mockConnection.username = 'streamscene_dev';
-  mockConnection.profileImage = 'https://api.dicebear.com/7.x/avataaars/svg?seed=streamscene';
-  mockConnection.lastConnected = new Date().toISOString();
-
-    res.json(mockConnection);
-  } catch (error) {
-    console.error('Error completing X OAuth:', error);
-    res.status(500).json({ error: 'Failed to complete X connection' });
-  }
-});
-
-// DELETE /api/content-scheduler/disconnect - Disconnect X account
-router.delete('/disconnect', async (req: Request, res: Response) => {
-  try {
-    // Simulate delay
-    await new Promise(resolve => setTimeout(resolve, 300));
-
-    // Reset mock connection
-    mockConnection.isConnected = false;
-    mockConnection.username = null;
-    mockConnection.profileImage = null;
-    mockConnection.lastConnected = null;
-
-    res.status(204).send();
-  } catch (error) {
-    console.error('Error disconnecting X account:', error);
-    res.status(500).json({ error: 'Failed to disconnect X account' });
-  }
-});
-
-// GET /api/content-scheduler/analytics - Get X analytics
-router.get('/analytics', async (req: Request, res: Response) => {
-  try {
-    // Simulate delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-
-    const publishedPosts = mockPosts.filter(p => p.status === 'published');
-    const scheduledPosts = mockPosts.filter(p => p.status === 'scheduled');
-    const failedPosts = mockPosts.filter(p => p.status === 'failed');
-
-    const totalLikes = publishedPosts.reduce((sum, post) => sum + (post.analytics?.likes || 0), 0);
-    const totalRetweets = publishedPosts.reduce((sum, post) => sum + (post.analytics?.retweets || 0), 0);
-    const totalReplies = publishedPosts.reduce((sum, post) => sum + (post.analytics?.replies || 0), 0);
-    const totalViews = publishedPosts.reduce((sum, post) => sum + (post.analytics?.views || 0), 0);
-
-    // Generate recent activity data
-    const recentActivity = [];
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date();
-      date.setDate(date.getDate() - i);
-      recentActivity.push({
-        date: date.toISOString().split('T')[0],
-        posts: Math.floor(Math.random() * 3) + 1,
-        likes: Math.floor(Math.random() * 50) + 10,
-        retweets: Math.floor(Math.random() * 20) + 2
-      });
+    const containerData = await containerResponse.json();
+    console.log('[Threads Post] Container response:', {
+      success: containerResponse.ok,
+      status: containerResponse.status,
+      containerId: containerData.id,
+      error: containerData.error,
+      fullResponse: containerData
+    });
+    
+    if (!containerResponse.ok) {
+      const errorMsg = containerData.error?.message || 
+                      containerData.error?.error_user_msg || 
+                      JSON.stringify(containerData);
+      throw new Error(`Failed to create Threads container (${containerResponse.status}): ${errorMsg}`);
     }
 
-    res.json({
-      totalPosts: mockPosts.length,
-      publishedPosts: publishedPosts.length,
-      scheduledPosts: scheduledPosts.length,
-      failedPosts: failedPosts.length,
-      totalEngagement: totalLikes + totalRetweets + totalReplies,
-      metrics: {
-        totalLikes,
-        totalRetweets,
-        totalReplies,
-        totalViews
-      },
-      recentActivity
+    if (!containerData.id) {
+      throw new Error('No container ID returned from Threads API');
+    }
+
+    // Step 2: Publish the post
+    console.log('[Threads Post] Publishing post with container ID:', containerData.id);
+    
+    const publishResponse = await fetch(
+      `https://graph.threads.net/v1.0/${auth.userId}/threads_publish`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${auth.accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          creation_id: containerData.id
+        })
+      }
+    );
+
+    const publishData = await publishResponse.json();
+    console.log('[Threads Post] Publish response:', {
+      success: publishResponse.ok,
+      status: publishResponse.status,
+      postId: publishData.id,
+      error: publishData.error,
+      fullResponse: publishData
     });
+    
+    if (!publishResponse.ok) {
+      const errorMsg = publishData.error?.message || 
+                      publishData.error?.error_user_msg || 
+                      JSON.stringify(publishData);
+      throw new Error(`Failed to publish to Threads (${publishResponse.status}): ${errorMsg}`);
+    }
+
+    if (!publishData.id) {
+      throw new Error('No post ID returned from Threads publish API');
+    }
+
+    const result = {
+      id: publishData.id,
+      text: text,
+      platform: 'threads',
+      timestamp: new Date().toISOString(),
+      success: true,
+      url: `https://threads.net/@${auth.username}/post/${publishData.id}`,
+      containerId: containerData.id
+    };
+    
+    console.log('[Threads Post] Success:', result);
+    return result;
+    
   } catch (error) {
-    console.error('Error fetching analytics:', error);
-    res.status(500).json({ error: 'Failed to fetch analytics' });
+    console.error('[Threads Post] Error:', error);
+    
+    // More specific error handling
+    if (error.message.includes('403')) {
+      throw new Error('Threads API access denied - please check your app permissions and try reconnecting');
+    } else if (error.message.includes('400')) {
+      throw new Error('Invalid request to Threads API - please check your content and try again');
+    } else if (error.message.includes('401')) {
+      throw new Error('Threads authentication expired - please reconnect your account');
+    } else {
+      throw new Error(`Failed to post to Threads: ${error.message}`);
+    }
   }
+}
+
+// Schedule a post using cron
+function schedulePost(post: ScheduledPost) {
+  if (!post.scheduledDate) {
+    throw new Error('No scheduled date provided');
+  }
+
+  const scheduleDate = new Date(post.scheduledDate);
+  const now = new Date();
+  
+  if (scheduleDate <= now) {
+    throw new Error('Scheduled date must be in the future');
+  }
+  
+  const cronExpression = `${scheduleDate.getMinutes()} ${scheduleDate.getHours()} ${scheduleDate.getDate()} ${scheduleDate.getMonth() + 1} *`;
+  
+  console.log('[Schedule Post] Setting up cron:', {
+    postId: post.id,
+    scheduleDate: scheduleDate.toISOString(),
+    cronExpression
+  });
+
+  cron.schedule(cronExpression, async () => {
+    try {
+      console.log(`[Scheduled Execution] Starting post: ${post.id}`);
+      
+      const scheduledPost = scheduledPosts.get(post.id);
+      if (!scheduledPost) {
+        console.error(`[Scheduled Execution] Post ${post.id} not found`);
+        return;
+      }
+
+      // Get current session for auth - this is a limitation of the current implementation
+      // In production, you'd want to store tokens in database with the post
+      console.log(`[Scheduled Execution] Attempting to post to platforms: ${scheduledPost.platforms.join(', ')}`);
+      
+      scheduledPost.status = 'posted';
+      scheduledPosts.set(post.id, scheduledPost);
+      console.log(`[Scheduled Execution] Post ${post.id} marked as posted`);
+      
+    } catch (error) {
+      console.error(`[Scheduled Execution] Failed post ${post.id}:`, error);
+      const scheduledPost = scheduledPosts.get(post.id);
+      if (scheduledPost) {
+        scheduledPost.status = 'failed';
+        scheduledPosts.set(post.id, scheduledPost);
+      }
+    }
+  }, {
+    scheduled: true,
+    timezone: "America/New_York"
+  });
+}
+
+// Debug endpoint
+router.get('/debug/auth', (req, res) => {
+  res.json({
+    session: {
+      exists: !!req.session,
+      id: req.sessionID
+    },
+    xAuth: req.session?.xAuth ? {
+      platform: req.session.xAuth.platform,
+      userId: req.session.xAuth.userId,
+      username: req.session.xAuth.username,
+      hasAccessToken: !!req.session.xAuth.accessToken,
+      hasTokenSecret: !!req.session.xAuth.tokenSecret
+    } : null,
+    threadsAuth: req.session?.threadsAuth ? {
+      platform: req.session.threadsAuth.platform,
+      userId: req.session.threadsAuth.userId,
+      username: req.session.threadsAuth.username,
+      hasAccessToken: !!req.session.threadsAuth.accessToken,
+      connectedAt: req.session.threadsAuth.connectedAt
+    } : null,
+    env: {
+      hasTwitterKey: !!process.env.TWITTER_CONSUMER_KEY,
+      hasTwitterSecret: !!process.env.TWITTER_CONSUMER_SECRET,
+      hasThreadsId: !!process.env.THREADS_CLIENT_ID,
+      hasThreadsSecret: !!process.env.THREADS_CLIENT_SECRET,
+      baseUrl: process.env.BASE_URL
+    }
+  });
 });
 
-// Mock OAuth page for development
-router.get('/mock-auth/x', (req: Request, res: Response) => {
-  const { user_id, state } = req.query;
-  
-  const mockAuthPage = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Mock X Authorization</title>
-      <style>
-        body { font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; }
-        .auth-box { border: 1px solid #ddd; border-radius: 8px; padding: 30px; text-align: center; }
-        .logo { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
-        button { background: #000; color: white; border: none; padding: 12px 24px; border-radius: 6px; cursor: pointer; font-size: 16px; }
-        button:hover { background: #333; }
-        .note { margin-top: 20px; font-size: 14px; color: #666; }
-      </style>
-    </head>
-    <body>
-      <div class="auth-box">
-        <div class="logo">𝕏</div>
-        <h2>Authorize StreamScene</h2>
-        <p>StreamScene would like permission to:</p>
-        <ul style="text-align: left; margin: 20px 0;">
-          <li>Read your account information</li>
-          <li>Post tweets on your behalf</li>
-          <li>Upload media</li>
-        </ul>
-        <button onclick="authorize()">Authorize App</button>
-        <div class="note">
-          <strong>Development Mode:</strong> This is a mock authorization page for testing.
-        </div>
-      </div>
-      
-      <script>
-        function authorize() {
-          // Call the callback endpoint
-          fetch('/api/content-scheduler/callback', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              oauth_token: 'mock_token_${state}',
-              oauth_verifier: 'mock_verifier_${Date.now()}'
-            })
-          })
-          .then(() => {
-            alert('Mock Authorization Successful!');
-            window.close();
-          })
-          .catch(console.error);
-        }
-      </script>
-    </body>
-    </html>
-  `;
-  
-  res.send(mockAuthPage);
+// Test endpoint for Threads posting
+router.post('/test-threads', async (req, res) => {
+  try {
+    const { text } = req.body;
+    
+    if (!text) {
+      return res.status(400).json({ error: 'Text is required' });
+    }
+    
+    const threadsAuth = req.session?.threadsAuth;
+    if (!threadsAuth) {
+      return res.status(401).json({ error: 'Threads not connected' });
+    }
+    
+    console.log('[Test Threads] Attempting post with text:', text);
+    const result = await postToThreads(text, [], threadsAuth);
+    
+    res.json({ success: true, result });
+  } catch (error) {
+    console.error('[Test Threads] Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to test Threads post',
+      details: error.message 
+    });
+  }
 });
 
 export default router;
