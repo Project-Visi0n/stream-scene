@@ -38,7 +38,7 @@ jobs:
         cp -r public/ deploy/
         
         # Copy configuration files
-        cp ecosystem.config.js deploy/
+        cp ecosystem.config.cjs deploy/
         cp package-server.json deploy/package.json
         
         # Create environment file template (will be populated with secrets)
@@ -52,6 +52,10 @@ jobs:
         AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_REGION=${{ secrets.AWS_REGION }}
         AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+        DB_HOST=localhost
+        DB_NAME=stream_scene_db
+        DB_USER=root
+        DB_PASS=StreamRoot2024!
         EOF
 
     - name: Setup server directory
@@ -103,5 +107,5 @@ jobs:
           pm2 delete stream-scene || true
           
           # Start with PM2 using ecosystem config
-          pm2 start ecosystem.config.js --env production
+          pm2 start ecosystem.config.cjs --env production
           pm2 save
