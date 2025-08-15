@@ -2,14 +2,14 @@ import React from 'react';
 
 const GoogleLoginButton: React.FC = () => {
   // Use environment variable for base URL, fallback to production URL
-  const baseURL = process.env.REACT_APP_API_URL || 'http://3.20.172.151:8000';
+  const baseURL = process.env.REACT_APP_API_URL || 'http://api.streamscene.net:8000';
 
   const handleGoogleLogin = (): void => {
     const loginUrl = `${baseURL}/auth/google`
     console.log("Login button clicked!");
     console.log("Redirecting to:", 'loginUrl');
     
-    window.location.href = 'http://localhost:8000/auth/google';
+    window.location.href = 'loginUrl';
   };
 
   return (
