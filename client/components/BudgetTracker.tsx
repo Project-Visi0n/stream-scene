@@ -1,5 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { uploadReceipt } from '../services/s3Service';
+import React, { useState, useRef } from 'react';
+import Tesseract from 'tesseract.js';
+
+// Types
+type Project = {
+  id: string;
+  name: string;
+  description?: string;
+  color: string;
+  isActive: boolean;
+};
 
 type Entry = {
   id: number;
@@ -8,194 +17,246 @@ type Entry = {
   description: string;
   date: string;
   category: string;
+  projectId?: string;
   receiptTitle?: string;
   receiptUrl?: string;
+  ocrScanned?: boolean;
+  ocrConfidence?: number;
+  ocrVendor?: string;
+  ocrDate?: string;
 };
 
-// Category chip component
-interface CategoryChipProps {
-  category: string;
-  isSelected: boolean;
-  onClick: (category: string) => void;
-  type: 'income' | 'expense';
-}
-
-const CategoryChip: React.FC<CategoryChipProps> = ({ category, isSelected, onClick, type }) => {
-  const baseClasses = "inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer select-none border";
+// OCR Helper Functions
+const extractAmountFromText = (text: string): { amount: number; confidence: number } | null => {
+  const patterns = [
+    /(?:total|amount|sum|subtotal)[\s:$]*([0-9]+\.?[0-9]*)/i,
+    /\$\s*([0-9]+\.?[0-9]*)/g,
+    /([0-9]+\.[0-9]{2})$/gm,
+    /([0-9]+\.?[0-9]*)\s*(?:usd|dollar)/i
+  ];
   
-  const typeColors = {
-    income: isSelected
-      ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100 shadow-sm"
-      : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 hover:border-gray-300",
-    expense: isSelected
-      ? "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 shadow-sm"
-      : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 hover:border-gray-300"
-  };
-
-  return (
-    <button
-      type="button"
-      className={`${baseClasses} ${typeColors[type]}`}
-      onClick={() => onClick(category)}
-    >
-      <span className="truncate max-w-32">{category}</span>
-      {isSelected && (
-        <svg
-          className={`ml-2 h-4 w-4 ${type === 'income' ? 'text-green-600' : 'text-red-600'}`}
-          fill="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-        </svg>
-      )}
-    </button>
-  );
+  const amounts: Array<{ amount: number; confidence: number }> = [];
+  
+  patterns.forEach((pattern, index) => {
+    const matches = [...text.matchAll(new RegExp(pattern, 'gi'))];
+    matches.forEach(match => {
+      const numStr = match[1] || match[0].replace(/[^0-9.]/g, '');
+      const num = parseFloat(numStr);
+      if (!isNaN(num) && num > 0 && num < 10000) {
+        const confidence = index === 0 ? 0.9 : 0.7;
+        amounts.push({ amount: num, confidence });
+      }
+    });
+  });
+  
+  if (amounts.length === 0) return null;
+  amounts.sort((a, b) => b.confidence - a.confidence || b.amount - a.amount);
+  return amounts[0];
 };
 
-// Category selector component 
-interface CategorySelectorProps {
-  categories: string[];
-  selectedCategory: string;
-  onCategorySelect: (category: string) => void;
-  type: 'income' | 'expense';
-  label: string;
-}
+const extractDateFromText = (text: string): string | null => {
+  const datePatterns = [
+    /(\d{1,2}\/\d{1,2}\/\d{4})/,
+    /(\d{1,2}-\d{1,2}-\d{4})/,
+    /(\d{4}-\d{1,2}-\d{1,2})/,
+    /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}/i
+  ];
+  
+  for (const pattern of datePatterns) {
+    const match = text.match(pattern);
+    if (match) return match[0];
+  }
+  return null;
+};
 
-const CategorySelector: React.FC<CategorySelectorProps> = ({
-  categories,
-  selectedCategory,
-  onCategorySelect,
-  type,
-  label
-}) => {
-  const [showAll, setShowAll] = useState(false);
-  const maxVisible = 6;
-  const visibleCategories = showAll ? categories : categories.slice(0, maxVisible);
-  const hasMore = categories.length > maxVisible;
-
-  return (
-    <div className="w-full">
-      <label className="block text-sm font-medium text-gray-700 mb-3">
-        <span className="inline-block w-4 h-4 mr-2 text-center">🏷️</span>
-        {label} *
-      </label>
-      
-      {/* Selected category display */}
-      {selectedCategory && (
-        <div className="mb-4 p-3 bg-gray-50 rounded-lg border border-gray-200">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600 font-medium">Selected:</span>
-            <div className="flex items-center gap-2">
-              <CategoryChip
-                category={selectedCategory}
-                isSelected={true}
-                onClick={onCategorySelect}
-                type={type}
-              />
-              <button
-                type="button"
-                onClick={() => onCategorySelect('')}
-                className="text-gray-400 hover:text-gray-600 p-1"
-              >
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Available categories */}
-      <div className="space-y-3">
-        <div className="text-sm text-gray-600 font-medium mb-2">Choose a category:</div>
-        <div className="flex flex-wrap gap-2">
-          {visibleCategories
-            .filter(cat => cat !== selectedCategory)
-            .map((category) => (
-              <CategoryChip
-                key={category}
-                category={category}
-                isSelected={false}
-                onClick={onCategorySelect}
-                type={type}
-              />
-            ))}
-        </div>
-        
-        {hasMore && (
-          <button
-            type="button"
-            onClick={() => setShowAll(!showAll)}
-            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-          >
-            {showAll ? 'Show Less' : `Show ${categories.length - maxVisible} More`}
-          </button>
-        )}
-      </div>
-    </div>
-  );
+const extractVendorFromText = (text: string): string | null => {
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 2);
+  
+  for (let i = 0; i < Math.min(5, lines.length); i++) {
+    const line = lines[i];
+    if (!/^\d+$/.test(line) && 
+        !/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}/.test(line) &&
+        !/^\d+\s+\w+\s+(st|ave|road|dr|blvd)/i.test(line) &&
+        line.length > 3 && line.length < 50) {
+      return line;
+    }
+  }
+  return null;
 };
 
 const BudgetTracker: React.FC = () => {
+  // State
   const [activeTab, setActiveTab] = useState('add');
-  const [entries, setEntries] = useState<Entry[]>([
-    { id: 1, type: 'income', amount: 2500, description: 'Freelance project', date: '2025-01-15', category: 'Freelance Payment' },
-    { id: 2, type: 'expense', amount: 300, description: 'New camera lens', date: '2025-01-14', category: 'Equipment', receiptTitle: 'Camera Receipt', receiptUrl: '/sample-receipt.jpg' },
-    { id: 3, type: 'income', amount: 850, description: 'Stock footage sales', date: '2025-01-12', category: 'Residuals' }
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [projects, setProjects] = useState<Project[]>([
+    { id: '1', name: 'Client Website', description: 'E-commerce site for ABC Corp', color: '#3B82F6', isActive: true },
+    { id: '2', name: 'Personal Blog', description: 'My photography blog', color: '#10B981', isActive: true },
+    { id: '3', name: 'Mobile App', description: 'iOS app development', color: '#F59E0B', isActive: true }
   ]);
 
   const [formData, setFormData] = useState({
-    type: 'income' as 'income' | 'expense',
+    type: 'expense' as 'income' | 'expense',
     amount: '',
     description: '',
     date: new Date().toISOString().split('T')[0],
     category: '',
-    receiptTitle: ''
+    projectId: '',
+    receiptTitle: '',
+    ocrScanned: false,
+    ocrConfidence: 0,
+    ocrVendor: '',
+    ocrDate: ''
   });
 
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptUrl, setReceiptUrl] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [newProjectData, setNewProjectData] = useState({
+    name: '',
+    description: '',
+    color: '#3B82F6'
+  });
 
-  const incomeCategories = ['Freelance Payment', 'Residuals', 'Grant', 'Salary', 'Bonus', 'Other'];
-  const expenseCategories = ['Equipment', 'Transportation', 'Software', 'Marketing', 'Office Supplies', 'Personal', 'Other'];
+  // Receipt Scanner State
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const allCategories = [...new Set(entries.map(entry => entry.category))];
+  // Categories
+  const incomeCategories = ['Freelance Payment', 'Residuals', 'Grant', 'Salary', 'Bonus', 'Donation', 'Other'];
+  const expenseCategories = ['Equipment', 'Transportation', 'Software', 'Marketing', 'Office Supplies', 'Personal', 'Food', 'Other'];
 
-  // Input handler for text inputs only
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  // OCR Processing
+  const processReceiptWithTesseract = async (file: File) => {
+    try {
+      setProgress(0);
+      
+      // Create image URL for Tesseract
+      const imageUrl = URL.createObjectURL(file);
+      
+      // Create a worker for better performance and error handling
+      const worker = await Tesseract.createWorker('eng');
+      
+      try {
+        // Set up progress tracking
+        let progressInterval: NodeJS.Timeout;
+        
+        // Simulate progress since direct logger causes serialization issues
+        progressInterval = setInterval(() => {
+          setProgress(prev => {
+            if (prev >= 90) return prev;
+            return prev + Math.random() * 15;
+          });
+        }, 300);
+        
+        const { data: { text } } = await worker.recognize(imageUrl);
+        
+        // Clear progress interval and set to 100%
+        clearInterval(progressInterval);
+        setProgress(100);
+        
+        console.log('OCR Raw Text:', text);
+        
+        const amountResult = extractAmountFromText(text);
+        const vendor = extractVendorFromText(text);
+        const date = extractDateFromText(text);
+        
+        return {
+          amount: amountResult?.amount,
+          confidence: amountResult?.confidence || 0,
+          vendor,
+          date,
+          rawText: text
+        };
+      } finally {
+        // Clean up worker and URL
+        await worker.terminate();
+        URL.revokeObjectURL(imageUrl);
+      }
+    } catch (error) {
+      console.error('Tesseract error:', error);
+      throw new Error(`OCR processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
-  // Separate handler for category selection
-  const handleCategorySelect = (category: string) => {
-    setFormData(prev => ({
-      ...prev,
-      category: prev.category === category ? '' : category
-    }));
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Event Handlers
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    // Enhanced file validation
+    const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/bmp', 'image/tiff'];
+    if (!validImageTypes.includes(file.type.toLowerCase())) {
+      setError('Please upload a valid image file (JPG, PNG, WEBP, BMP, or TIFF)');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File size too large. Please upload an image under 10MB.');
+      return;
+    }
+
+    // Check if image can be loaded before processing
+    const testImage = new Image();
+    const imageLoadPromise = new Promise<boolean>((resolve) => {
+      testImage.onload = () => resolve(true);
+      testImage.onerror = () => resolve(false);
+      testImage.src = URL.createObjectURL(file);
+    });
+
+    const canLoadImage = await imageLoadPromise;
+    if (!canLoadImage) {
+      setError('Cannot read this image file. Please try a different image.');
+      URL.revokeObjectURL(testImage.src);
+      return;
+    }
+
+    setIsProcessing(true);
+    setScanResult(null);
+    setError(null);
+    setProgress(0);
+
+    try {
+      const receiptUrl = URL.createObjectURL(file);
+      const ocrResult = await processReceiptWithTesseract(file);
+      
+      setScanResult(ocrResult);
+      
+      if (ocrResult.amount) {
+        setFormData(prev => ({
+          ...prev,
+          amount: ocrResult.amount.toString(),
+          ocrScanned: true,
+          ocrConfidence: ocrResult.confidence,
+          ocrVendor: ocrResult.vendor || '',
+          ocrDate: ocrResult.date || '',
+          description: prev.description || (ocrResult.vendor ? `Purchase from ${ocrResult.vendor}` : ''),
+          receiptTitle: file.name.replace(/\.[^/.]+$/, '')
+        }));
+      } else {
+        setError('Could not detect amount in receipt. Please enter manually.');
+      }
+      
       setReceiptFile(file);
+      setReceiptUrl(receiptUrl);
+    } catch (error) {
+      console.error('OCR processing failed:', error);
+      setError(error instanceof Error ? error.message : 'OCR processing failed. Please try a different image or enter details manually.');
+    } finally {
+      setIsProcessing(false);
+      setProgress(0);
+      // Clean up test image URL
+      URL.revokeObjectURL(testImage.src);
     }
   };
 
   const handleSubmit = () => {
     if (!formData.amount || !formData.description || !formData.category) {
-      alert('Please fill in all required fields');
+      alert('Please fill in all required fields (Amount, Description, Category)');
       return;
-    }
-
-    let receiptUrl = '';
-    if (receiptFile) {
-      receiptUrl = URL.createObjectURL(receiptFile);
     }
 
     const newEntry: Entry = {
@@ -205,21 +266,35 @@ const BudgetTracker: React.FC = () => {
       description: formData.description,
       date: formData.date,
       category: formData.category,
+      projectId: formData.projectId || undefined,
       receiptTitle: formData.receiptTitle || undefined,
-      receiptUrl: receiptUrl || undefined
+      receiptUrl: receiptUrl || undefined,
+      ocrScanned: formData.ocrScanned,
+      ocrConfidence: formData.ocrConfidence,
+      ocrVendor: formData.ocrVendor || undefined,
+      ocrDate: formData.ocrDate || undefined
     };
 
     setEntries(prev => [newEntry, ...prev]);
     
+    // Reset form
     setFormData({
-      type: 'income',
+      type: 'expense',
       amount: '',
       description: '',
       date: new Date().toISOString().split('T')[0],
       category: '',
-      receiptTitle: ''
+      projectId: '',
+      receiptTitle: '',
+      ocrScanned: false,
+      ocrConfidence: 0,
+      ocrVendor: '',
+      ocrDate: ''
     });
     setReceiptFile(null);
+    setReceiptUrl('');
+    setScanResult(null);
+    setError(null);
 
     alert('Entry saved successfully!');
   };
@@ -230,26 +305,52 @@ const BudgetTracker: React.FC = () => {
     }
   };
 
-  const handleCategoryFilterToggle = (category: string) => {
-    setCategoryFilter(prev => {
-      const isSelected = prev.includes(category);
-      if (isSelected) {
-        return prev.filter(cat => cat !== category);
-      } else {
-        return [...prev, category];
-      }
-    });
+  const handleCreateProject = () => {
+    setIsProjectModalOpen(true);
   };
 
-  const calculateTotals = () => {
-    const totalIncome = entries
-      .filter(entry => entry.type === 'income')
-      .reduce((sum, entry) => sum + entry.amount, 0);
-    
-    const totalExpenses = entries
-      .filter(entry => entry.type === 'expense')
-      .reduce((sum, entry) => sum + entry.amount, 0);
+  const handleSaveProject = () => {
+    if (!newProjectData.name.trim()) {
+      alert('Please enter a project name');
+      return;
+    }
 
+    const newProject: Project = {
+      id: Date.now().toString(),
+      name: newProjectData.name.trim(),
+      description: newProjectData.description.trim(),
+      color: newProjectData.color,
+      isActive: true
+    };
+
+    setProjects(prev => [...prev, newProject]);
+    setNewProjectData({ name: '', description: '', color: '#3B82F6' });
+    setIsProjectModalOpen(false);
+    
+    // Automatically select the new project
+    setFormData(prev => ({ ...prev, projectId: newProject.id }));
+  };
+
+  const handleRemoveReceipt = () => {
+    setReceiptFile(null);
+    setReceiptUrl('');
+    setScanResult(null);
+    setError(null);
+    setFormData(prev => ({ 
+      ...prev, 
+      receiptTitle: '', 
+      ocrScanned: false, 
+      ocrConfidence: 0,
+      ocrVendor: '',
+      ocrDate: '',
+      // Keep amount and description if user wants to save manually
+    }));
+  };
+
+  // Calculations
+  const calculateTotals = () => {
+    const totalIncome = entries.filter(entry => entry.type === 'income').reduce((sum, entry) => sum + entry.amount, 0);
+    const totalExpenses = entries.filter(entry => entry.type === 'expense').reduce((sum, entry) => sum + entry.amount, 0);
     return {
       income: totalIncome,
       expenses: totalExpenses,
@@ -257,393 +358,487 @@ const BudgetTracker: React.FC = () => {
     };
   };
 
-  const filteredEntries = entries.filter(entry => {
-    const matchesSearch = searchQuery === '' || 
-      entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.receiptTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      entry.category.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesCategory = categoryFilter.length === 0 || 
-      categoryFilter.includes(entry.category);
-    
-    return matchesSearch && matchesCategory;
-  });
+  const filteredEntries = entries.filter(entry => 
+    searchQuery === '' || 
+    entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    entry.receiptTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    entry.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    projects.find(p => p.id === entry.projectId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   const totals = calculateTotals();
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Navigation Bar */}
-      <nav className="bg-slate-700 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">🎬</span>
-            </div>
+    <div className="max-w-6xl mx-auto p-6 bg-gray-50 min-h-screen">
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 mb-2"> Budget Tracker</h1>
+        <p className="text-gray-600">Manage your freelance income and expenses with project tracking and AI-powered receipt scanning</p>
+      </div>
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-green-500">
+          <div className="flex items-center">
+            <div className="h-8 w-8 bg-green-500 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">↗</div>
             <div>
-              <h1 className="text-white font-bold text-lg">StreamScene</h1>
-              <p className="text-slate-300 text-xs">Creative Workspace</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-6">
-            <a href="#" className="text-slate-300 hover:text-white flex items-center space-x-2 text-sm">
-              <span>🏠</span><span>Home</span>
-            </a>
-            <a href="#" className="text-slate-300 hover:text-white flex items-center space-x-2 text-sm">
-              <span>📋</span><span>Project Center</span>
-            </a>
-            <a href="#" className="text-slate-300 hover:text-white flex items-center space-x-2 text-sm">
-              <span>📅</span><span>Content Scheduler</span>
-            </a>
-            <a href="#" className="text-slate-300 hover:text-white flex items-center space-x-2 text-sm">
-              <span>🤖</span><span>AI Weekly Planner</span>
-            </a>
-            <a href="#" className="bg-yellow-500 text-slate-900 px-3 py-1 rounded-lg flex items-center space-x-2 text-sm font-medium">
-              <span>💰</span><span>Budget Tracker</span>
-            </a>
-            <a href="#" className="text-slate-300 hover:text-white flex items-center space-x-2 text-sm">
-              <span>🎥</span><span>Demos & Trailers</span>
-            </a>
-          </div>
-        </div>
-      </nav>
-
-      <div className="max-w-6xl mx-auto p-6">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Budget Tracker</h1>
-          <p className="text-gray-600">Manage your freelance income and expenses</p>
-        </div>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-          <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-green-500">
-            <div className="flex items-center">
-              <div className="h-12 w-12 bg-green-500 rounded-full flex items-center justify-center text-white mr-4">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3.293 9.707a1 1 0 010-1.414l6-6a1 1 0 011.414 0l6 6a1 1 0 01-1.414 1.414L11 5.414V17a1 1 0 11-2 0V5.414L4.707 9.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Income</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(totals.income)}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-red-500">
-            <div className="flex items-center">
-              <div className="h-12 w-12 bg-red-500 rounded-full flex items-center justify-center text-white mr-4">
-                <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 10.293a1 1 0 010 1.414l-6 6a1 1 0 01-1.414 0l-6-6a1 1 0 111.414-1.414L9 14.586V3a1 1 0 012 0v11.586l4.293-4.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Expenses</p>
-                <p className="text-2xl font-bold text-red-600">{formatCurrency(totals.expenses)}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-blue-500">
-            <div className="flex items-center">
-              <div className="h-12 w-12 bg-blue-500 rounded-full flex items-center justify-center text-white mr-4">
-                <span className="text-xl font-bold">$</span>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-gray-600">Net Income</p>
-                <p className={`text-2xl font-bold ${totals.net >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                  {formatCurrency(totals.net)}
-                </p>
-              </div>
+              <p className="text-sm font-medium text-gray-600">Total Income</p>
+              <p className="text-2xl font-bold text-green-600">${totals.income.toFixed(2)}</p>
             </div>
           </div>
         </div>
-
-        {/* Tabs */}
-        <div className="bg-white rounded-lg shadow-sm mb-6">
-          <div className="border-b border-gray-200">
-            <div className="flex">
-              <button
-                onClick={() => setActiveTab('add')}
-                className={`px-6 py-4 font-medium flex items-center space-x-2 ${
-                  activeTab === 'add'
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <span className="text-xl">+</span>
-                <span>Add Entry</span>
-              </button>
-              <button
-                onClick={() => setActiveTab('history')}
-                className={`px-6 py-4 font-medium flex items-center space-x-2 ${
-                  activeTab === 'history'
-                    ? 'text-blue-600 border-b-2 border-blue-600'
-                    : 'text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <span>📋</span>
-                <span>Transaction History</span>
-              </button>
+        
+        <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-red-500">
+          <div className="flex items-center">
+            <div className="h-8 w-8 bg-red-500 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">↘</div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Expenses</p>
+              <p className="text-2xl font-bold text-red-600">${totals.expenses.toFixed(2)}</p>
             </div>
           </div>
+        </div>
+        
+        <div className="bg-white p-6 rounded-lg shadow-sm border-l-4 border-blue-500">
+          <div className="flex items-center">
+            <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-sm mr-3">$</div>
+            <div>
+              <p className="text-sm font-medium text-gray-600">Net Income</p>
+              <p className={`text-2xl font-bold ${totals.net >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                ${totals.net.toFixed(2)}
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
 
-          <div className="p-6">
-            {activeTab === 'add' ? (
-              /* Add Entry Form */
-              <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-gray-900">Add New Entry</h2>
+      {/* Tabs */}
+      <div className="bg-white rounded-lg shadow-sm mb-6">
+        <div className="border-b border-gray-200">
+          <div className="flex">
+            <button
+              onClick={() => setActiveTab('add')}
+              className={`px-6 py-4 font-medium ${
+                activeTab === 'add'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <span className="inline-block w-5 h-5 mr-2 text-center font-bold">+</span>
+              Add Entry
+            </button>
+            <button
+              onClick={() => setActiveTab('history')}
+              className={`px-6 py-4 font-medium ${
+                activeTab === 'history'
+                  ? 'text-blue-600 border-b-2 border-blue-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <span className="inline-block w-5 h-5 mr-2 text-center font-bold">📋</span>
+              Transaction History
+            </button>
+          </div>
+        </div>
+
+        <div className="p-6">
+          {activeTab === 'add' ? (
+            /* Add Entry Form */
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold text-gray-900">Add New Entry</h2>
+              
+              {/* Entry Type */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Entry Type *</label>
+                <div className="flex space-x-4">
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="type"
+                      value="income"
+                      checked={formData.type === 'income'}
+                      onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as 'income' | 'expense' }))}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <span className="ml-2 text-green-600 font-medium">Income</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="radio"
+                      name="type"
+                      value="expense"
+                      checked={formData.type === 'expense'}
+                      onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as 'income' | 'expense' }))}
+                      className="text-red-600 focus:ring-red-500"
+                    />
+                    <span className="ml-2 text-red-600 font-medium">Expense</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Project Association */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <span className="inline-block w-4 h-4 mr-2 text-center">📁</span>
+                  Associate with Project (Optional)
+                </label>
                 
-                {/* Entry Type */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Entry Type *</label>
-                  <div className="flex space-x-4">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="type"
-                        value="income"
-                        checked={formData.type === 'income'}
-                        onChange={handleInputChange}
-                        className="w-4 h-4 text-green-600 focus:ring-green-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-green-600 font-medium">Income</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="type"
-                        value="expense"
-                        checked={formData.type === 'expense'}
-                        onChange={handleInputChange}
-                        className="w-4 h-4 text-red-600 focus:ring-red-500 border-gray-300"
-                      />
-                      <span className="ml-2 text-red-600 font-medium">Expense</span>
-                    </label>
-                  </div>
-                </div>
-
-                {/* Amount and Date */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      <span className="inline-block w-4 h-4 mr-2 text-center">$</span>
-                      Amount *
-                    </label>
-                    <input
-                      type="number"
-                      name="amount"
-                      value={formData.amount}
-                      onChange={handleInputChange}
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-3">
-                      <span className="inline-block w-4 h-4 mr-2 text-center">📅</span>
-                      Date *
-                    </label>
-                    <input
-                      type="date"
-                      name="date"
-                      value={formData.date}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
-                  </div>
-                </div>
-
-                {/* CATEGORY CHIPS - NO DROPDOWN HERE! */}
-                <CategorySelector
-                  categories={formData.type === 'income' ? incomeCategories : expenseCategories}
-                  selectedCategory={formData.category}
-                  onCategorySelect={handleCategorySelect}
-                  type={formData.type}
-                  label="Category"
-                />
-
-                {/* Description */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">Description *</label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    rows={3}
-                    placeholder="Enter description..."
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                  />
-                </div>
-
-                {/* Receipt Upload (only for expenses) */}
-                {formData.type === 'expense' && (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">Receipt Title</label>
-                      <input
-                        type="text"
-                        name="receiptTitle"
-                        value={formData.receiptTitle}
-                        onChange={handleInputChange}
-                        placeholder="e.g., Camera Store Receipt"
-                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
+                {formData.projectId && (
+                  <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        {(() => {
+                          const selectedProject = projects.find(p => p.id === formData.projectId);
+                          return selectedProject ? (
+                            <>
+                              <div className="w-4 h-4 rounded-full mr-3" style={{ backgroundColor: selectedProject.color }}></div>
+                              <div>
+                                <span className="text-sm font-medium text-gray-900">{selectedProject.name}</span>
+                                {selectedProject.description && (
+                                  <p className="text-xs text-gray-600 mt-1">{selectedProject.description}</p>
+                                )}
+                              </div>
+                            </>
+                          ) : null;
+                        })()}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, projectId: '' }))}
+                        className="text-gray-400 hover:text-gray-600 p-1"
+                      >
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                        </svg>
+                      </button>
                     </div>
+                  </div>
+                )}
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        <span className="inline-block w-4 h-4 mr-2 text-center">📎</span>
-                        Upload Receipt
-                      </label>
-                      <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-gray-400 transition-colors">
-                        <div className="space-y-1 text-center">
-                          {receiptFile ? (
-                            <div className="text-sm text-gray-600">
-                              <span className="font-medium text-green-600">✓ {receiptFile.name}</span>
+                <div className="flex flex-wrap gap-2">
+                  {projects
+                    .filter(p => p.isActive && p.id !== formData.projectId)
+                    .map((project) => (
+                      <button
+                        key={project.id}
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, projectId: project.id }))}
+                        className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium border border-gray-200 bg-white hover:bg-blue-50 hover:border-blue-300 transition-all duration-200"
+                      >
+                        <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: project.color }}></div>
+                        <span>{project.name}</span>
+                      </button>
+                    ))}
+                  
+                  <button
+                    type="button"
+                    onClick={handleCreateProject}
+                    className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium border-2 border-dashed border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-700 hover:bg-blue-50 transition-all duration-200"
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+                    </svg>
+                    Create New Project
+                  </button>
+                </div>
+              </div>
+
+              {/* Smart Receipt Scanner (only for expenses) */}
+              {formData.type === 'expense' && (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      <span className="inline-block w-4 h-4 mr-2 text-center">🤖</span>
+                      Smart Receipt Scanner
+                      <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                        AI-Powered OCR
+                      </span>
+                    </label>
+                    
+                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 hover:border-gray-400 transition-colors">
+                      <div className="text-center">
+                        {isProcessing ? (
+                          <div className="space-y-3">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                            <p className="text-sm text-gray-600">Scanning receipt with AI...</p>
+                            {progress > 0 && (
+                              <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div 
+                                  className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                  style={{ width: `${progress}%` }}
+                                ></div>
+                              </div>
+                            )}
+                            <p className="text-xs text-gray-500">{progress}% complete</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <div className="text-4xl">📱</div>
+                            <div>
                               <button
                                 type="button"
-                                onClick={() => setReceiptFile(null)}
-                                className="ml-2 text-red-600 hover:text-red-800"
+                                onClick={() => fileInputRef.current?.click()}
+                                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
                               >
-                                Remove
+                                Upload & Scan Receipt
                               </button>
+                              <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept="image/jpeg,image/jpg,image/png,image/webp,image/bmp,image/tiff"
+                                onChange={handleFileUpload}
+                                className="hidden"
+                              />
                             </div>
-                          ) : (
-                            <>
-                              <div className="text-4xl">📄</div>
-                              <div className="flex text-sm text-gray-600">
-                                <label htmlFor="receipt-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500">
-                                  <span>Upload a file</span>
-                                  <input
-                                    id="receipt-upload"
-                                    name="receipt-upload"
-                                    type="file"
-                                    className="sr-only"
-                                    accept="image/*,.pdf"
-                                    onChange={handleFileChange}
-                                  />
-                                </label>
-                                <p className="pl-1">or drag and drop</p>
-                              </div>
-                              <p className="text-xs text-gray-500">PNG, JPG, PDF up to 10MB</p>
-                            </>
-                          )}
-                        </div>
+                            <p className="text-xs text-gray-500">
+                              AI will automatically extract amount, vendor, and date from your receipt
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                )}
 
-                {/* Submit Button */}
-                <div className="flex justify-end pt-4">
-                  <button
-                    onClick={handleSubmit}
-                    className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
-                  >
-                    <span className="inline-block mr-2 text-lg">💾</span>
-                    Save Entry
-                  </button>
-                  </div>
+                  {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-center">
+                        <svg className="w-5 h-5 text-red-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                        </svg>
+                        <div>
+                          <p className="text-sm font-medium text-red-800">Scanning Error</p>
+                          <p className="text-xs text-red-600">{error}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {scanResult && scanResult.amount && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-start">
+                        <svg className="w-5 h-5 text-green-600 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-green-800 mb-1">Receipt Scanned Successfully!</p>
+                          <div className="space-y-1 text-xs text-green-700">
+                            <p><strong>Amount:</strong> ${scanResult.amount.toFixed(2)} ({Math.round((scanResult.confidence || 0) * 100)}% confidence)</p>
+                            {scanResult.vendor && (
+                              <p><strong>Vendor:</strong> {scanResult.vendor}</p>
+                            )}
+                            {scanResult.date && (
+                              <p><strong>Date:</strong> {scanResult.date}</p>
+                            )}
+                          </div>
+                          <p className="text-xs text-green-600 mt-2">
+                            💡 You can still edit the amount below if needed
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Amount and Date */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <span className="inline-block w-4 h-4 mr-1 text-center font-bold">$</span>
+                    Amount *
+                    {formData.ocrScanned && (
+                      <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                        AI-detected ({Math.round(formData.ocrConfidence * 100)}%)
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="number"
+                    name="amount"
+                    value={formData.amount}
+                    onChange={(e) => setFormData(prev => ({ 
+                      ...prev, 
+                      amount: e.target.value,
+                      ocrScanned: prev.amount === e.target.value ? prev.ocrScanned : false
+                    }))}
+                    step="0.01"
+                    min="0"
+                    placeholder="0.00"
+                    className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                      formData.ocrScanned ? 'border-green-300 bg-green-50' : 'border-gray-300'
+                    }`}
+                  />
+                  {formData.ocrScanned && (
+                    <p className="mt-1 text-xs text-green-600">
+                      ✨ Amount automatically extracted from receipt. You can edit if needed.
+                    </p>
+                  )}
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <span className="inline-block w-4 h-4 mr-1 text-center font-bold">📅</span>
+                    Date *
+                  </label>
+                  <input
+                    type="date"
+                    name="date"
+                    value={formData.date}
+                    onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
               </div>
-            ) : (
-              /* Transaction History */
-              <div className="space-y-6">
-                <div className="flex justify-between items-center flex-wrap gap-4">
-                  <h2 className="text-xl font-semibold text-gray-900">Recent Transactions</h2>
-                  
-                  <div className="w-64">
-                    <input
-                      type="text"
-                      placeholder="Search transactions..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    />
+
+              {/* Category Chips */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <span className="inline-block w-4 h-4 mr-2 text-center">🏷️</span>
+                  Category *
+                </label>
+                
+                <div className="flex flex-wrap gap-2">
+                  {(formData.type === 'income' ? incomeCategories : expenseCategories).map((category) => (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setFormData(prev => ({ 
+                        ...prev, 
+                        category: prev.category === category ? '' : category 
+                      }))}
+                      className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer select-none border ${
+                        formData.category === category
+                          ? formData.type === 'income'
+                            ? "bg-green-50 text-green-700 border-green-200 hover:bg-green-100 shadow-sm"
+                            : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100 shadow-sm"
+                          : "bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100 hover:border-gray-300"
+                      }`}
+                    >
+                      <span className="truncate max-w-32">{category}</span>
+                      {formData.category === category && (
+                        <svg
+                          className={`ml-2 h-4 w-4 ${formData.type === 'income' ? 'text-green-600' : 'text-red-600'}`}
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description *
+                  {formData.ocrVendor && (
+                    <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
+                      Vendor: {formData.ocrVendor}
+                    </span>
+                  )}
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                  rows={3}
+                  placeholder="Enter description..."
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              {/* Receipt preview if uploaded */}
+              {receiptFile && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <svg className="w-8 h-8 text-green-600 mr-3" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <p className="text-sm font-medium text-gray-900">{receiptFile.name}</p>
+                        <p className="text-xs text-gray-500">Receipt uploaded & scanned successfully</p>
+                        {formData.ocrScanned && (
+                          <p className="text-xs text-green-600">
+                            ✅ AI extracted: ${formData.amount} {formData.ocrVendor && `from ${formData.ocrVendor}`}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveReceipt}
+                      className="text-red-600 hover:text-red-800 px-2 py-1 rounded hover:bg-red-50 transition-colors"
+                      title="Remove receipt and clear OCR data"
+                    >
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clipRule="evenodd" />
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                    </button>
                   </div>
                 </div>
+              )}
 
-                {allCategories.length > 0 && (
-                  <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <h3 className="text-sm font-medium text-gray-700 mb-3">Filter by Category:</h3>
-                    <div className="flex flex-wrap gap-2">
-                      {allCategories.map((category) => (
-                        <button
-                          key={category}
-                          onClick={() => handleCategoryFilterToggle(category)}
-                          className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 border ${
-                            categoryFilter.includes(category)
-                              ? 'bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 shadow-sm'
-                              : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-                          }`}
-                        >
-                          {category}
-                          {categoryFilter.includes(category) && (
-                            <svg
-                              className="ml-2 h-4 w-4 text-blue-600"
-                              fill="currentColor"
-                              viewBox="0 0 24 24"
-                            >
-                              <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                            </svg>
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                    {categoryFilter.length > 0 && (
-                      <button
-                        onClick={() => setCategoryFilter([])}
-                        className="mt-2 text-sm text-gray-500 hover:text-gray-700"
-                      >
-                        Clear all filters
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {(searchQuery || categoryFilter.length > 0) && (
-                  <div className="text-sm text-gray-600">
-                    Showing {filteredEntries.length} of {entries.length} transactions
-                  </div>
-                )}
+              {/* Submit Button */}
+              <div className="flex justify-end pt-4">
+                <button
+                  onClick={handleSubmit}
+                  className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+                >
+                  <span className="inline-block w-5 h-5 mr-2 text-center font-bold">💾</span>
+                  Save Entry
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Transaction History */
+            <div className="space-y-6">
+              <div className="flex justify-between items-center">
+                <h2 className="text-xl font-semibold text-gray-900">Recent Transactions</h2>
                 
-                {filteredEntries.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="mx-auto h-12 w-12 bg-gray-400 rounded-full flex items-center justify-center text-white font-bold text-xl mb-4">$</div>
-                    <h3 className="mt-2 text-sm font-medium text-gray-900">
-                      {searchQuery || categoryFilter.length > 0 ? 'No transactions match your filters' : 'No transactions yet'}
-                    </h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      {searchQuery || categoryFilter.length > 0 ? 'Try adjusting your search or filters' : 'Get started by adding your first income or expense entry.'}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 rounded-lg">
-                    <table className="min-w-full divide-y divide-gray-300">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipt</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {filteredEntries.map((entry) => (
+                {/* Search Box */}
+                <div className="w-64">
+                  <input
+                    type="text"
+                    placeholder="Search transactions, projects..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  />
+                </div>
+              </div>
+              
+              {filteredEntries.length === 0 ? (
+                <div className="text-center py-12">
+                  <div className="mx-auto h-12 w-12 bg-gray-400 rounded-full flex items-center justify-center text-white font-bold text-xl mb-4">$</div>
+                  <h3 className="mt-2 text-sm font-medium text-gray-900">
+                    {searchQuery ? 'No transactions match your search' : 'No transactions yet'}
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {searchQuery ? 'Try a different search term' : 'Get started by adding your first income or expense entry.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+                  <table className="min-w-full divide-y divide-gray-300">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Project</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Receipt</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredEntries.map((entry) => {
+                        const project = projects.find(p => p.id === entry.projectId);
+                        return (
                           <tr key={entry.id} className="hover:bg-gray-50">
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {new Date(entry.date).toLocaleDateString()}
@@ -658,47 +853,144 @@ const BudgetTracker: React.FC = () => {
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {project ? (
+                                <div className="flex items-center">
+                                  <div 
+                                    className="w-3 h-3 rounded-full mr-2"
+                                    style={{ backgroundColor: project.color }}
+                                  ></div>
+                                  <span className="text-xs">{project.name}</span>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 text-xs">No project</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {entry.category}
                             </td>
-                            <td className="px-6 py-4 text-sm text-gray-900">
-                              {entry.description}
+                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs">
+                              <div className="truncate">{entry.description}</div>
+                              {entry.ocrScanned && (
+                                <div className="flex items-center mt-1">
+                                  <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                    🤖 AI-scanned ({Math.round((entry.ocrConfidence || 0) * 100)}%)
+                                  </span>
+                                </div>
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                               {entry.receiptTitle ? (
                                 <button
                                   onClick={() => entry.receiptUrl && window.open(entry.receiptUrl, '_blank')}
-                                  className="text-blue-600 hover:text-blue-800 underline"
+                                  className="text-blue-600 hover:text-blue-800 underline text-xs"
                                 >
                                   {entry.receiptTitle}
                                 </button>
                               ) : (
-                                <span className="text-gray-400">No receipt</span>
+                                <span className="text-gray-400 text-xs">No receipt</span>
                               )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                               <span className={entry.type === 'income' ? 'text-green-600' : 'text-red-600'}>
-                                {entry.type === 'income' ? '+' : '-'}{formatCurrency(entry.amount)}
+                                {entry.type === 'income' ? '+' : '-'}${entry.amount.toFixed(2)}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                               <button
                                 onClick={() => handleDelete(entry.id)}
-                                className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition-colors"
+                                className="text-red-600 hover:text-red-900 bg-red-50 hover:bg-red-100 px-3 py-1 rounded-md transition-colors text-xs"
                               >
                                 Delete
                               </button>
                             </td>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Project Creation Modal */}
+      {isProjectModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Create New Project</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Project Name *
+                </label>
+                <input
+                  type="text"
+                  value={newProjectData.name}
+                  onChange={(e) => setNewProjectData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g., Client Website, Personal Blog"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description (Optional)
+                </label>
+                <textarea
+                  value={newProjectData.description}
+                  onChange={(e) => setNewProjectData(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Optional project description"
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Color
+                </label>
+                <div className="flex space-x-2">
+                  {['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#F97316', '#06B6D4', '#84CC16'].map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setNewProjectData(prev => ({ ...prev, color }))}
+                      className={`w-8 h-8 rounded-full border-2 hover:scale-110 transition-transform ${
+                        newProjectData.color === color ? 'border-gray-400 ring-2 ring-gray-200' : 'border-gray-200'
+                      }`}
+                      style={{ backgroundColor: color }}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProjectModalOpen(false);
+                    setNewProjectData({ name: '', description: '', color: '#3B82F6' });
+                  }}
+                  className="px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveProject}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  Create Project
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
