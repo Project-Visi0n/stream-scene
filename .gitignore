@@ -45,3 +45,4 @@ public/bundle.js
 dist/
 .env.local
 .envpublic/bundle.js
+public/
