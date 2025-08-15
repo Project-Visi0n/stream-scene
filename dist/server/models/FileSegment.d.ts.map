@@ -1,0 +1,1 @@
+{"version":3,"file":"FileSegment.d.ts","sourceRoot":"","sources":["../../../server/models/FileSegment.ts"],"names":[],"mappings":"AACA,OAAO,EAGL,KAAK,EAIN,MAAM,sBAAsB,CAAC;AAE9B,OAAO,EAAE,IAAI,EAAE,MAAM,QAAQ,CAAC;AAE9B,qBACa,WAAY,SAAQ,KAAK;IAMpC,EAAE,EAAG,MAAM,CAAC;IAIZ,OAAO,EAAG,MAAM,CAAC;IAGjB,IAAI,EAAG,MAAM,CAAC;IAGd,IAAI,EAAG,IAAI,CAAC;CACb"}
