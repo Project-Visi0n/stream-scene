@@ -209,7 +209,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
           .videoCodec('libx264')
           .audioCodec('aac')
           .on('end', () => resolve())
-          .on('error', err => reject(err))
+          .on('error', (err: any) => reject(err))
           .run();
       });
 

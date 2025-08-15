@@ -33,15 +33,13 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     const filesWithTags = files.map(f => {
       const fileData = f.toJSON();
       let tags: string[] = [];
-      
       if (fileData.tags) {
         if (typeof fileData.tags === 'string') {
-          tags = fileData.tags.split(',').map(tag => tag.trim());
+          tags = fileData.tags.split(',').map((tag: string) => tag.trim());
         } else if (Array.isArray(fileData.tags)) {
-          tags = fileData.tags.map(tag => tag.toString().trim());
+          tags = (fileData.tags as any[]).map((tag: any) => tag.toString().trim());
         }
       }
-      
       return { ...fileData, tags };
     });
     
@@ -144,9 +142,9 @@ router.get('/:id', requireAuth, async (req: Request, res: Response) => {
     let responseTags: string[] = [];
     if (file.tags) {
       if (typeof file.tags === 'string') {
-        responseTags = file.tags.split(',').map(tag => tag.trim());
+        responseTags = file.tags.split(',').map((tag: string) => tag.trim());
       } else if (Array.isArray(file.tags)) {
-        responseTags = file.tags.map(tag => tag.toString().trim());
+        responseTags = (file.tags as any[]).map((tag: any) => tag.toString().trim());
       }
     }
 
@@ -221,10 +219,10 @@ router.put('/:id', requireAuth, async (req: Request, res: Response) => {
     if (updatedFile.tags) {
       if (typeof updatedFile.tags === 'string') {
         // If it's a string, split it
-        responseTags = updatedFile.tags.split(',').map(tag => tag.trim());
+        responseTags = updatedFile.tags.split(',').map((tag: string) => tag.trim());
       } else if (Array.isArray(updatedFile.tags)) {
         // If it's already an array, use it directly
-        responseTags = updatedFile.tags.map(tag => tag.toString().trim());
+        responseTags = (updatedFile.tags as any[]).map((tag: any) => tag.toString().trim());
       }
     }
 
