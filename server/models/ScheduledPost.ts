@@ -1,5 +1,5 @@
 import { Table, Column, Model, DataType, PrimaryKey, AutoIncrement, AllowNull, Default, ForeignKey, BelongsTo } from 'sequelize-typescript';
-import { SocialAccountToken } from './SocialAccountToken';
+import { SocialAccountToken } from './SocialAccountToken.js';
 
 export type PostStatus = 'pending' | 'queued' | 'published' | 'failed';
 

@@ -5,7 +5,7 @@ import fs from 'fs/promises';
 import fetch from 'node-fetch';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { TranscribeClient, StartTranscriptionJobCommand, GetTranscriptionJobCommand } from '@aws-sdk/client-transcribe';
-import { db } from '../db/index';
+import { db } from '../db/index.js';
 
 const router = express.Router();
 const { File } = db;
