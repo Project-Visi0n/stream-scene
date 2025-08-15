@@ -52,6 +52,7 @@
     "react-sketch-canvas": "^6.2.0",
     "sequelize": "^6.37.7",
     "sequelize-typescript": "^2.1.6",
+    "tesseract.js": "^6.0.1",
     "twitter-api-v2": "^1.24.0",
     "wavesurfer.js": "^7.10.1"
   },
