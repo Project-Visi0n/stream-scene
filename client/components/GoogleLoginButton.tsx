@@ -3,9 +3,12 @@ import React from 'react';
 const GoogleLoginButton: React.FC = () => {
   const handleGoogleLogin = (): void => {
     console.log("Login button clicked!");
-    console.log("Redirecting to:", 'http://localhost:8000/auth/google');
     
-    window.location.href = 'http://localhost:8000/auth/google';
+    // Use the current host for the auth URL (works for both dev and production)
+    const authUrl = `${window.location.origin}/auth/google`;
+    console.log("Redirecting to:", authUrl);
+    
+    window.location.href = authUrl;
   };
 
   return (
