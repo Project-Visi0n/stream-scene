@@ -20,13 +20,13 @@ type Feature = {
   readonly available: boolean;
 };
 
-// Feature data for better maintainability
+// Features cards, put into alphabetical order for the users
 const FEATURES: Feature[] = [
   { 
-    icon: '📁', 
-    title: 'Project Center', 
-    desc: 'Organize all your creative projects in one place', 
-    destination: 'project-center' as CurrentView,
+    icon: '🤖', 
+    title: 'AI Weekly Planner', 
+    desc: 'Smart task scheduling with AI assistance', 
+    destination: 'planner' as CurrentView,
     available: true 
   },
   { 
@@ -37,13 +37,6 @@ const FEATURES: Feature[] = [
     available: true 
   },
   { 
-    icon: '▶️', 
-    title: 'Demos & Trailers', 
-    desc: 'Showcase your best work professionally',
-    destination: 'demos-trailers' as CurrentView,
-    available: true 
-  },
-  { 
     icon: '📅', 
     title: 'Content Scheduler', 
     desc: 'Plan and schedule your content across platforms',
@@ -51,10 +44,17 @@ const FEATURES: Feature[] = [
     available: true 
   },
   { 
-    icon: '🤖', 
-    title: 'AI Weekly Planner', 
-    desc: 'Smart task scheduling with AI assistance', 
-    destination: 'planner' as CurrentView,
+    icon: '▶️', 
+    title: 'Demos & Trailers', 
+    desc: 'Showcase your best work professionally',
+    destination: 'demos-trailers' as CurrentView,
+    available: true 
+  },
+  { 
+    icon: '📁', 
+    title: 'Project Center', 
+    desc: 'Organize all your creative projects in one place', 
+    destination: 'project-center' as CurrentView,
     available: true 
   }
 ] as const satisfies Feature[];
