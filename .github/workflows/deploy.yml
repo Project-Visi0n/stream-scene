@@ -25,6 +25,8 @@ jobs:
         npm ci
       
     - name: Build application
+      env:
+        REACT_APP_API_URL: http://streamscene.net:8000
       run: |
         npm run build
         
