@@ -13,7 +13,7 @@ const GoogleLoginButton: React.FC = () => {
     }
     
     // Final fallback
-    return 'http://api.streamscene.net:8000';
+    return 'http://streamscene.net:8000';
   };
 
   const handleGoogleLogin = (): void => {
