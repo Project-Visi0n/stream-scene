@@ -173,8 +173,13 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           </h1>
 
           {/* Tagline */}
-          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-300 max-w-4xl px-4 mx-auto mb-8 font-light leading-relaxed">
-            Your complete creative production platform for streamlined workflows
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-300 max-w-4xl px-4 mx-auto mb-4 font-light leading-relaxed">
+            The ultimate project management tool for creative professionals and teams
+          </p>
+
+          {/* Login Instructions */}
+          <p className="text-sm sm:text-base text-gray-400 max-w-2xl px-4 mx-auto mb-8">
+            Sign in with Google to get started
           </p>
         </div>
 
@@ -189,7 +194,6 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           ))}
         </div>
 
-        {/* CTA Section - REMOVED */}
       </main>
     </div>
   );
