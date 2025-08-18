@@ -8,9 +8,14 @@ router.get('/test', (req, res) => {
 // Initiate Google OAuth
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 // Google OAuth callback
-router.get('/google/callback', passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:8000'}/?error=auth_failed` }), (req, res) => {
-    res.redirect(process.env.CLIENT_URL || 'http://localhost:8000/');
-});
+router.get('/google/callback', (req, res, next) => {
+    console.log('Callback received - Query params:', req.query);
+    console.log('Callback received - Headers:', req.headers);
+    next();
+}, passport.authenticate('google', {
+    failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:8000'}/?error=auth_failed`,
+    successRedirect: process.env.CLIENT_URL || 'http://localhost:8000'
+}));
 // Get current authenticated user
 router.get('/user', (req, res) => {
     console.log('Auth check - Session ID:', req.sessionID);

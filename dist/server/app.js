@@ -61,10 +61,11 @@ app.use(session({
     resave: false,
     saveUninitialized: false,
     cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: false,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'lax' // CSRF protection while allowing OAuth redirects
+        sameSite: 'lax',
+        domain: 'streamscene.net' // Ensure cookies work across your domain
     }
 }));
 // Passport middleware 
