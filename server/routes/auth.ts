@@ -36,10 +36,32 @@ router.get(
    console.log('Callback received - Headers:', req.headers);
    next();
  },
- passport.authenticate('google', { 
-   failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:8000'}/?error=auth_failed`,
-   successRedirect: process.env.CLIENT_URL || 'http://localhost:8000'
- })
+ (req: Request, res: Response, next: NextFunction) => {
+   passport.authenticate('google', (err: any, user: any, info: any) => {
+     console.log('Passport authenticate result:', { err, user, info });
+     
+     if (err) {
+       console.error('OAuth error:', err);
+       return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:8000'}/?error=oauth_error`);
+     }
+     
+     if (!user) {
+       console.log('No user returned from OAuth');
+       return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:8000'}/?error=auth_failed`);
+     }
+     
+     req.logIn(user, (loginErr) => {
+       if (loginErr) {
+         console.error('Login error:', loginErr);
+         return res.redirect(`${process.env.CLIENT_URL || 'http://localhost:8000'}/?error=login_failed`);
+       }
+       
+       console.log('OAuth success - User:', user);
+       console.log('OAuth success - Session:', req.session);
+       return res.redirect(process.env.CLIENT_URL || 'http://localhost:8000/');
+     });
+   })(req, res, next);
+ }
 );
 
 // Get current authenticated user
