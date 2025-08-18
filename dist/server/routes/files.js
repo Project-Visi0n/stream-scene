@@ -1,3 +1,14 @@
+var __rest = (this && this.__rest) || function (s, e) {
+    var t = {};
+    for (var p in s) if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
+        t[p] = s[p];
+    if (s != null && typeof Object.getOwnPropertySymbols === "function")
+        for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+            if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+                t[p[i]] = s[p[i]];
+        }
+    return t;
+};
 import { Router } from 'express';
 import { db } from '../db/index.js';
 import { Op } from 'sequelize';
@@ -12,8 +23,9 @@ const requireAuth = (req, res, next) => {
 };
 // Get all files for the authenticated user
 router.get('/', requireAuth, async (req, res) => {
+    var _a;
     try {
-        const userId = req.user?.id;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
         if (!userId)
             return res.status(401).json({ error: 'Unauthorized' });
         const tags = req.query.tags;
@@ -35,7 +47,7 @@ router.get('/', requireAuth, async (req, res) => {
                     tags = fileData.tags.map((tag) => tag.toString().trim());
                 }
             }
-            return { ...fileData, tags };
+            return Object.assign(Object.assign({}, fileData), { tags });
         });
         res.json({ files: filesWithTags });
     }
@@ -73,12 +85,9 @@ router.post('/', requireAuth, async (req, res) => {
             updatedAt: new Date()
         });
         // Convert tags back to array for response
-        const response = {
-            ...file.toJSON(),
-            tags: (file.tags && typeof file.tags === 'string')
+        const response = Object.assign(Object.assign({}, file.toJSON()), { tags: (file.tags && typeof file.tags === 'string')
                 ? file.tags.split(',').map(tag => tag.trim())
-                : []
-        };
+                : [] });
         res.status(201).json({ file: response });
     }
     catch (error) {
@@ -88,8 +97,9 @@ router.post('/', requireAuth, async (req, res) => {
 });
 // Get all unique tags for the authenticated user
 router.get('/tags/list', requireAuth, async (req, res) => {
+    var _a;
     try {
-        const userId = req.user?.id;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
         if (!userId)
             return res.status(401).json({ error: 'Unauthorized' });
         const files = await File.findAll({ where: { userId } });
@@ -132,7 +142,7 @@ router.get('/:id', requireAuth, async (req, res) => {
                 responseTags = file.tags.map((tag) => tag.toString().trim());
             }
         }
-        const response = { ...file.toJSON(), tags: responseTags };
+        const response = Object.assign(Object.assign({}, file.toJSON()), { tags: responseTags });
         res.json({ file: response });
     }
     catch (error) {
@@ -162,12 +172,13 @@ router.delete('/:id', requireAuth, async (req, res) => {
 });
 // Update a specific file
 router.put('/:id', requireAuth, async (req, res) => {
+    var _a;
     try {
         const fileId = parseInt(req.params.id);
-        const userId = req.user?.id;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
         if (!userId)
             return res.status(401).json({ error: 'Unauthorized' });
-        const { tags, ...updateData } = req.body;
+        const _b = req.body, { tags } = _b, updateData = __rest(_b, ["tags"]);
         // Convert tags array to comma-separated string for database storage
         if (tags !== undefined) {
             if (Array.isArray(tags)) {
@@ -200,10 +211,7 @@ router.put('/:id', requireAuth, async (req, res) => {
                 responseTags = updatedFile.tags.map((tag) => tag.toString().trim());
             }
         }
-        const response = {
-            ...updatedFile.toJSON(),
-            tags: responseTags
-        };
+        const response = Object.assign(Object.assign({}, updatedFile.toJSON()), { tags: responseTags });
         res.json(response);
     }
     catch (error) {
@@ -230,7 +238,7 @@ router.post('/tags', requireAuth, async (req, res) => {
         // Update the file with new tags
         file.tags = newTags.join(',');
         await file.save();
-        res.json({ file: { ...file.toJSON(), tags: newTags } });
+        res.json({ file: Object.assign(Object.assign({}, file.toJSON()), { tags: newTags }) });
     }
     catch (error) {
         console.error('Error adding tag to file:', error);
@@ -238,4 +246,3 @@ router.post('/tags', requireAuth, async (req, res) => {
     }
 });
 export default router;
-//# sourceMappingURL=files.js.map

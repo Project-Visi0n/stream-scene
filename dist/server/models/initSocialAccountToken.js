@@ -17,4 +17,3 @@ export function initSocialAccountTokenModel(sequelize) {
     });
     return SocialAccountToken;
 }
-//# sourceMappingURL=initSocialAccountToken.js.map

@@ -70,4 +70,3 @@ export function initFileModel(sequelize) {
     });
     return File;
 }
-//# sourceMappingURL=initFileModel.js.map

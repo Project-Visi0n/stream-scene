@@ -11,8 +11,9 @@ const requireAuth = (req, res, next) => {
 };
 // GET /api/tasks - Get all tasks for the authenticated user
 router.get('/', requireAuth, async (req, res) => {
+    var _a;
     try {
-        const userId = req.user?.id;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
         if (!userId) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
@@ -29,8 +30,9 @@ router.get('/', requireAuth, async (req, res) => {
 });
 // POST /api/tasks - Create a new task
 router.post('/', requireAuth, async (req, res) => {
+    var _a;
     try {
-        const userId = req.user?.id;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
         if (!userId) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
@@ -68,7 +70,7 @@ router.post('/', requireAuth, async (req, res) => {
         const task = await Task.create({
             user_id: userId,
             title: title.trim(),
-            description: description?.trim() || null,
+            description: (description === null || description === void 0 ? void 0 : description.trim()) || null,
             priority,
             task_type,
             status: 'pending',
@@ -84,8 +86,9 @@ router.post('/', requireAuth, async (req, res) => {
 });
 // PUT /api/tasks/:id - Update a task
 router.put('/:id', requireAuth, async (req, res) => {
+    var _a;
     try {
-        const userId = req.user?.id;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
         if (!userId) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
@@ -128,15 +131,7 @@ router.put('/:id', requireAuth, async (req, res) => {
             });
         }
         // Update the task
-        await task.update({
-            ...(title !== undefined && { title: title.trim() }),
-            ...(description !== undefined && { description: description?.trim() || null }),
-            ...(priority !== undefined && { priority }),
-            ...(task_type !== undefined && { task_type }),
-            ...(status !== undefined && { status }),
-            ...(deadline !== undefined && { deadline: deadline || null }),
-            ...(estimated_hours !== undefined && { estimated_hours: estimated_hours || null })
-        });
+        await task.update(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, (title !== undefined && { title: title.trim() })), (description !== undefined && { description: (description === null || description === void 0 ? void 0 : description.trim()) || null })), (priority !== undefined && { priority })), (task_type !== undefined && { task_type })), (status !== undefined && { status })), (deadline !== undefined && { deadline: deadline || null })), (estimated_hours !== undefined && { estimated_hours: estimated_hours || null })));
         res.json(task);
     }
     catch (error) {
@@ -146,8 +141,9 @@ router.put('/:id', requireAuth, async (req, res) => {
 });
 // DELETE /api/tasks/:id - Delete a task
 router.delete('/:id', requireAuth, async (req, res) => {
+    var _a;
     try {
-        const userId = req.user?.id;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
         if (!userId) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
@@ -179,8 +175,9 @@ router.delete('/:id', requireAuth, async (req, res) => {
 });
 // GET /api/tasks/:id - Get a specific task
 router.get('/:id', requireAuth, async (req, res) => {
+    var _a;
     try {
-        const userId = req.user?.id;
+        const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
         if (!userId) {
             return res.status(401).json({ error: 'User not authenticated' });
         }
@@ -202,4 +199,3 @@ router.get('/:id', requireAuth, async (req, res) => {
     }
 });
 export default router;
-//# sourceMappingURL=tasks.js.map

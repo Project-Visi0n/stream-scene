@@ -2,10 +2,11 @@ import { Router } from 'express';
 const router = Router();
 // Get Threads connection status
 router.get('/status', async (req, res) => {
+    var _a;
     try {
         console.log('[Threads Status] Checking session for threads auth');
         // Check session for threads auth
-        if (req.session?.threadsAuth) {
+        if ((_a = req.session) === null || _a === void 0 ? void 0 : _a.threadsAuth) {
             console.log('[Threads Status] Found session auth for user:', req.session.threadsAuth.username);
             return res.json({
                 connected: true,
@@ -26,10 +27,7 @@ router.post('/token', async (req, res) => {
     try {
         const { accountId, accessToken, expiresAt } = req.body;
         // For now, just store in session (type assertion for compatibility)
-        req.session.threadsAuth = {
-            ...req.session.threadsAuth,
-            accessToken
-        };
+        req.session.threadsAuth = Object.assign(Object.assign({}, req.session.threadsAuth), { accessToken });
         res.json({ success: true });
     }
     catch (error) {
@@ -39,21 +37,22 @@ router.post('/token', async (req, res) => {
 });
 // Schedule a Threads post
 router.post('/schedule', async (req, res) => {
+    var _a, _b, _c, _d, _e;
     try {
         const { accountId, text, media, scheduledFor } = req.body;
-        console.log('[Threads Schedule] Request:', { accountId, text: text?.slice(0, 50), scheduledFor });
+        console.log('[Threads Schedule] Request:', { accountId, text: text === null || text === void 0 ? void 0 : text.slice(0, 50), scheduledFor });
         // Get access token from session
-        const accessToken = req.session?.threadsAuth?.accessToken;
+        const accessToken = (_b = (_a = req.session) === null || _a === void 0 ? void 0 : _a.threadsAuth) === null || _b === void 0 ? void 0 : _b.accessToken;
         if (!accessToken) {
             return res.status(400).json({ error: 'Threads not connected - no access token found' });
         }
         // Verify account ID matches session
-        if (req.session.threadsAuth?.userId !== accountId) {
+        if (((_c = req.session.threadsAuth) === null || _c === void 0 ? void 0 : _c.userId) !== accountId) {
             return res.status(400).json({ error: 'Account ID mismatch' });
         }
         // Create media container if media is provided
         let mediaContainerId;
-        if (media?.imageUrls?.length || media?.videoUrl) {
+        if (((_d = media === null || media === void 0 ? void 0 : media.imageUrls) === null || _d === void 0 ? void 0 : _d.length) || (media === null || media === void 0 ? void 0 : media.videoUrl)) {
             console.log('[Threads Schedule] Creating media container...');
             const mediaPayload = {
                 media_type: media.videoUrl ? 'VIDEO' : 'IMAGE',
@@ -62,7 +61,7 @@ router.post('/schedule', async (req, res) => {
             if (media.videoUrl) {
                 mediaPayload.video_url = media.videoUrl;
             }
-            else if (media.imageUrls?.[0]) {
+            else if ((_e = media.imageUrls) === null || _e === void 0 ? void 0 : _e[0]) {
                 mediaPayload.image_url = media.imageUrls[0];
             }
             const mediaResponse = await fetch(`https://graph.threads.net/v1.0/${accountId}/threads`, {
@@ -124,11 +123,12 @@ router.post('/schedule', async (req, res) => {
 });
 // Publish a scheduled post immediately
 router.post('/publish-now/:id', async (req, res) => {
+    var _a, _b;
     try {
         const { id } = req.params;
         console.log('[Threads Publish] Publishing post:', id);
         // Get access token from session
-        const accessToken = req.session?.threadsAuth?.accessToken;
+        const accessToken = (_b = (_a = req.session) === null || _a === void 0 ? void 0 : _a.threadsAuth) === null || _b === void 0 ? void 0 : _b.accessToken;
         if (!accessToken) {
             return res.status(400).json({ error: 'Threads not connected - no access token found' });
         }
@@ -161,9 +161,10 @@ router.post('/publish-now/:id', async (req, res) => {
 });
 // Test endpoint for debugging
 router.post('/test', async (req, res) => {
+    var _a;
     try {
         const { text } = req.body;
-        if (!req.session?.threadsAuth) {
+        if (!((_a = req.session) === null || _a === void 0 ? void 0 : _a.threadsAuth)) {
             return res.status(400).json({ error: 'Threads not connected' });
         }
         res.json({
@@ -182,4 +183,3 @@ router.post('/test', async (req, res) => {
     }
 });
 export default router;
-//# sourceMappingURL=threads.js.map

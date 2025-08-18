@@ -36,4 +36,3 @@ SocialAccountToken = __decorate([
     Table({ tableName: 'SocialAccountTokens', timestamps: true })
 ], SocialAccountToken);
 export { SocialAccountToken };
-//# sourceMappingURL=SocialAccountToken.js.map

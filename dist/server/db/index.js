@@ -62,4 +62,3 @@ export const db = {
     associate,
 };
 export default db;
-//# sourceMappingURL=index.js.map

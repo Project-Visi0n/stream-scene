@@ -55,11 +55,8 @@ router.post('/', requireAuth, async (req, res) => {
         const baseUrl = getBaseUrl(req);
         const shareUrl = share.getShareUrl(baseUrl);
         res.status(201).json({
-            share: {
-                ...share.toJSON(),
-                shareUrl,
-                shareToken: share.shareToken // Include token for the creator
-            }
+            share: Object.assign(Object.assign({}, share.toJSON()), { shareUrl, shareToken: share.shareToken // Include token for the creator
+             })
         });
     }
     catch (error) {
@@ -83,11 +80,8 @@ router.get('/file/:fileId', requireAuth, async (req, res) => {
         const shares = await Share.findAllByFileId(fileId, userId);
         const baseUrl = getBaseUrl(req);
         // Add share URLs to each share
-        const sharesWithUrls = shares.map((share) => ({
-            ...share.toJSON(),
-            shareUrl: share.getShareUrl(baseUrl),
-            shareToken: share.shareToken // Include token for the creator
-        }));
+        const sharesWithUrls = shares.map((share) => (Object.assign(Object.assign({}, share.toJSON()), { shareUrl: share.getShareUrl(baseUrl), shareToken: share.shareToken // Include token for the creator
+         })));
         res.json({ shares: sharesWithUrls });
     }
     catch (error) {
@@ -102,11 +96,8 @@ router.get('/', requireAuth, async (req, res) => {
         const shares = await Share.findAllByUserId(userId);
         const baseUrl = getBaseUrl(req);
         // Add share URLs to each share
-        const sharesWithUrls = shares.map((share) => ({
-            ...share.toJSON(),
-            shareUrl: share.getShareUrl(baseUrl),
-            shareToken: share.shareToken // Include token for the creator
-        }));
+        const sharesWithUrls = shares.map((share) => (Object.assign(Object.assign({}, share.toJSON()), { shareUrl: share.getShareUrl(baseUrl), shareToken: share.shareToken // Include token for the creator
+         })));
         res.json({ shares: sharesWithUrls });
     }
     catch (error) {
@@ -218,4 +209,3 @@ router.delete('/:id', requireAuth, async (req, res) => {
     }
 });
 export default router;
-//# sourceMappingURL=shares.js.map

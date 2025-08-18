@@ -241,4 +241,3 @@ function getOptimalCreativeDay() {
     return date;
 }
 export default router;
-//# sourceMappingURL=ai.js.map

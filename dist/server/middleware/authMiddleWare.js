@@ -12,4 +12,3 @@ export const requireAuth = (req, res, next) => {
     }
     next();
 };
-//# sourceMappingURL=authMiddleWare.js.map

@@ -48,10 +48,11 @@ export const XApiUtils = {
     },
     // Format error messages for user display
     formatApiError: (error) => {
-        if (error?.data?.errors?.[0]?.message) {
+        var _a, _b, _c;
+        if ((_c = (_b = (_a = error === null || error === void 0 ? void 0 : error.data) === null || _a === void 0 ? void 0 : _a.errors) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.message) {
             return error.data.errors[0].message;
         }
-        if (error?.code) {
+        if (error === null || error === void 0 ? void 0 : error.code) {
             switch (error.code) {
                 case 187:
                     return 'This tweet appears to be a duplicate';
@@ -67,13 +68,13 @@ export const XApiUtils = {
                     return `X API Error (${error.code}): ${error.message || 'Unknown error'}`;
             }
         }
-        return error?.message || 'An error occurred while posting to X';
+        return (error === null || error === void 0 ? void 0 : error.message) || 'An error occurred while posting to X';
     },
     // Check if error is retryable
     isRetryableError: (error) => {
         const retryableCodes = [88, 130, 131, 503, 504];
-        return retryableCodes.includes(error?.code) ||
-            (error?.status >= 500 && error?.status < 600);
+        return retryableCodes.includes(error === null || error === void 0 ? void 0 : error.code) ||
+            ((error === null || error === void 0 ? void 0 : error.status) >= 500 && (error === null || error === void 0 ? void 0 : error.status) < 600);
     },
     // Calculate optimal posting times based on user's timezone
     getOptimalPostingTimes: (timezone = 'UTC') => {
@@ -88,4 +89,3 @@ export const XApiUtils = {
 };
 // Export configuration
 export default getXApiConfig;
-//# sourceMappingURL=xApi.js.map

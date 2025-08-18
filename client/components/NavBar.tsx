@@ -10,21 +10,11 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) => {
-  const navigationItems = [
+const navigationItems = [
     {
       id: 'landing',
       label: '🏠 Home',
       description: 'Back to homepage'
-    },
-    {
-      id: 'project-center',
-      label: '🎨 Project Center', 
-      description: 'Creative workspace'
-    },
-    {
-      id: 'content-scheduler',
-      label: '📅 Content Scheduler',
-      description: 'Plan your content'
     },
     {
       id: 'planner',
@@ -37,9 +27,19 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
       description: 'Track expenses'
     },
     {
+      id: 'content-scheduler',
+      label: '📅 Content Scheduler',
+      description: 'Plan your content'
+    },
+    {
       id: 'demos-trailers',
       label: '🎬 Demos & Trailers',
       description: 'Showcase content'
+    },
+    {
+      id: 'project-center',
+      label: '🎨 Project Center', 
+      description: 'Creative workspace'
     }
   ];
 

@@ -31,10 +31,7 @@ export class User {
     static async create(data) {
         console.log('User.create called with:', data);
         const userId = nextUserId++;
-        const userRecord = {
-            id: userId,
-            ...data
-        };
+        const userRecord = Object.assign({ id: userId }, data);
         userStorage.set(userId, userRecord);
         userByGoogleId.set(data.googleId, userId);
         console.log('User created with ID:', userId);
@@ -59,4 +56,3 @@ export class User {
     }
 }
 export default User;
-//# sourceMappingURL=User.js.map

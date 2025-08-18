@@ -4,10 +4,11 @@ import cron from 'node-cron';
 const router = Router();
 // Debug logging middleware
 router.use((req, res, next) => {
+    var _a, _b;
     console.log(`[Content Scheduler] ${req.method} ${req.path}`, {
         hasSession: !!req.session,
-        hasXAuth: !!req.session?.xAuth,
-        hasThreadsAuth: !!req.session?.threadsAuth,
+        hasXAuth: !!((_a = req.session) === null || _a === void 0 ? void 0 : _a.xAuth),
+        hasThreadsAuth: !!((_b = req.session) === null || _b === void 0 ? void 0 : _b.threadsAuth),
         bodyKeys: Object.keys(req.body || {})
     });
     next();
@@ -16,12 +17,10 @@ router.use((req, res, next) => {
 const scheduledPosts = new Map();
 // Create/save a post
 router.post('/posts', async (req, res) => {
+    var _a, _b;
     try {
         console.log('[Save Post] Request:', req.body);
-        const post = {
-            ...req.body,
-            userId: req.user?.id || req.session?.id || 'anonymous'
-        };
+        const post = Object.assign(Object.assign({}, req.body), { userId: ((_a = req.user) === null || _a === void 0 ? void 0 : _a.id) || ((_b = req.session) === null || _b === void 0 ? void 0 : _b.id) || 'anonymous' });
         scheduledPosts.set(post.id, post);
         // If scheduled, set up cron job
         if (post.scheduledDate && post.status === 'scheduled') {
@@ -87,8 +86,9 @@ router.post('/post-now', async (req, res) => {
 });
 // Get scheduled posts
 router.get('/posts', (req, res) => {
+    var _a, _b;
     try {
-        const userId = req.user?.id || req.session?.id || 'anonymous';
+        const userId = ((_a = req.user) === null || _a === void 0 ? void 0 : _a.id) || ((_b = req.session) === null || _b === void 0 ? void 0 : _b.id) || 'anonymous';
         const userPosts = Array.from(scheduledPosts.values())
             .filter(post => post.userId === userId);
         console.log('[Get Posts] Found:', userPosts.length);
@@ -121,14 +121,14 @@ router.delete('/posts/:id', (req, res) => {
 async function postToPlatform(platform, text, media, session) {
     console.log(`[Post Platform] ${platform}:`, {
         textLength: text.length,
-        mediaCount: media?.length || 0,
+        mediaCount: (media === null || media === void 0 ? void 0 : media.length) || 0,
         hasSession: !!session
     });
     switch (platform) {
         case 'x':
-            return await postToTwitter(text, media, session?.xAuth);
+            return await postToTwitter(text, media, session === null || session === void 0 ? void 0 : session.xAuth);
         case 'threads':
-            return await postToThreads(text, media, session?.threadsAuth);
+            return await postToThreads(text, media, session === null || session === void 0 ? void 0 : session.threadsAuth);
         default:
             throw new Error(`Unsupported platform: ${platform}`);
     }
@@ -137,11 +137,11 @@ async function postToPlatform(platform, text, media, session) {
 async function postToTwitter(text, media, auth) {
     console.log('[Twitter Post] Auth check:', {
         hasAuth: !!auth,
-        hasToken: !!auth?.accessToken,
-        hasSecret: !!auth?.tokenSecret,
-        platform: auth?.platform
+        hasToken: !!(auth === null || auth === void 0 ? void 0 : auth.accessToken),
+        hasSecret: !!(auth === null || auth === void 0 ? void 0 : auth.tokenSecret),
+        platform: auth === null || auth === void 0 ? void 0 : auth.platform
     });
-    if (!auth?.accessToken) {
+    if (!(auth === null || auth === void 0 ? void 0 : auth.accessToken)) {
         throw new Error('Twitter not connected - please reconnect your account');
     }
     if (!process.env.TWITTER_CONSUMER_KEY || !process.env.TWITTER_CONSUMER_SECRET) {
@@ -169,17 +169,18 @@ async function postToTwitter(text, media, auth) {
 }
 // Post to Threads (real implementation)
 async function postToThreads(text, media, auth) {
+    var _a, _b, _c, _d;
     console.log('[Threads Post] Starting real post:', {
         hasAuth: !!auth,
         textLength: text.length,
-        mediaCount: media?.length || 0,
-        userId: auth?.userId,
-        username: auth?.username
+        mediaCount: (media === null || media === void 0 ? void 0 : media.length) || 0,
+        userId: auth === null || auth === void 0 ? void 0 : auth.userId,
+        username: auth === null || auth === void 0 ? void 0 : auth.username
     });
-    if (!auth?.accessToken) {
+    if (!(auth === null || auth === void 0 ? void 0 : auth.accessToken)) {
         throw new Error('Threads not connected - please reconnect your account');
     }
-    if (!auth?.userId) {
+    if (!(auth === null || auth === void 0 ? void 0 : auth.userId)) {
         throw new Error('Threads user ID missing - please reconnect your account');
     }
     try {
@@ -206,8 +207,8 @@ async function postToThreads(text, media, auth) {
             fullResponse: containerData
         });
         if (!containerResponse.ok) {
-            const errorMsg = containerData.error?.message ||
-                containerData.error?.error_user_msg ||
+            const errorMsg = ((_a = containerData.error) === null || _a === void 0 ? void 0 : _a.message) ||
+                ((_b = containerData.error) === null || _b === void 0 ? void 0 : _b.error_user_msg) ||
                 JSON.stringify(containerData);
             throw new Error(`Failed to create Threads container (${containerResponse.status}): ${errorMsg}`);
         }
@@ -235,8 +236,8 @@ async function postToThreads(text, media, auth) {
             fullResponse: publishData
         });
         if (!publishResponse.ok) {
-            const errorMsg = publishData.error?.message ||
-                publishData.error?.error_user_msg ||
+            const errorMsg = ((_c = publishData.error) === null || _c === void 0 ? void 0 : _c.message) ||
+                ((_d = publishData.error) === null || _d === void 0 ? void 0 : _d.error_user_msg) ||
                 JSON.stringify(publishData);
             throw new Error(`Failed to publish to Threads (${publishResponse.status}): ${errorMsg}`);
         }
@@ -319,19 +320,20 @@ function schedulePost(post) {
 }
 // Debug endpoint
 router.get('/debug/auth', (req, res) => {
+    var _a, _b;
     res.json({
         session: {
             exists: !!req.session,
             id: req.sessionID
         },
-        xAuth: req.session?.xAuth ? {
+        xAuth: ((_a = req.session) === null || _a === void 0 ? void 0 : _a.xAuth) ? {
             platform: req.session.xAuth.platform,
             userId: req.session.xAuth.userId,
             username: req.session.xAuth.username,
             hasAccessToken: !!req.session.xAuth.accessToken,
             hasTokenSecret: !!req.session.xAuth.tokenSecret
         } : null,
-        threadsAuth: req.session?.threadsAuth ? {
+        threadsAuth: ((_b = req.session) === null || _b === void 0 ? void 0 : _b.threadsAuth) ? {
             platform: req.session.threadsAuth.platform,
             userId: req.session.threadsAuth.userId,
             username: req.session.threadsAuth.username,
@@ -349,12 +351,13 @@ router.get('/debug/auth', (req, res) => {
 });
 // Test endpoint for Threads posting
 router.post('/test-threads', async (req, res) => {
+    var _a;
     try {
         const { text } = req.body;
         if (!text) {
             return res.status(400).json({ error: 'Text is required' });
         }
-        const threadsAuth = req.session?.threadsAuth;
+        const threadsAuth = (_a = req.session) === null || _a === void 0 ? void 0 : _a.threadsAuth;
         if (!threadsAuth) {
             return res.status(401).json({ error: 'Threads not connected' });
         }
@@ -371,4 +374,3 @@ router.post('/test-threads', async (req, res) => {
     }
 });
 export default router;
-//# sourceMappingURL=contentScheduler.js.map

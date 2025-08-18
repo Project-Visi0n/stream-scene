@@ -108,6 +108,7 @@ router.delete('/delete/:key(*)', async (req, res) => {
 });
 // Proxy route to serve S3 files with proper CORS headers
 router.get('/proxy/:key(*)', async (req, res) => {
+    var _a;
     const key = req.params.key;
     const env = getEnvVars();
     if (!env.AWS_ACCESS_KEY_ID || !env.AWS_SECRET_ACCESS_KEY) {
@@ -134,7 +135,7 @@ router.get('/proxy/:key(*)', async (req, res) => {
         // Set appropriate headers
         res.set({
             'Content-Type': mimeType,
-            'Content-Length': response.ContentLength?.toString() || '',
+            'Content-Length': ((_a = response.ContentLength) === null || _a === void 0 ? void 0 : _a.toString()) || '',
             'Cache-Control': 'public, max-age=3600',
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET',
@@ -151,6 +152,7 @@ router.get('/proxy/:key(*)', async (req, res) => {
 });
 // Direct file upload to S3
 router.post('/upload', upload.single('file'), async (req, res) => {
+    var _a;
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
@@ -161,7 +163,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         }
         const s3Client = getS3Client();
         const file = req.file;
-        const fileExtension = file.originalname.split('.').pop()?.toLowerCase();
+        const fileExtension = (_a = file.originalname.split('.').pop()) === null || _a === void 0 ? void 0 : _a.toLowerCase();
         // Convert any video file that is not already mp4
         if (file.mimetype.startsWith('video/') && file.mimetype !== 'video/mp4') {
             const tempInputPath = path.join('/tmp', `${Date.now()}-${file.originalname}`);
@@ -204,7 +206,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
     catch (error) {
         console.error('[S3Proxy] Upload error:', error);
-        res.status(500).json({ error: 'Failed to upload file to S3', details: error?.message || error });
+        res.status(500).json({ error: 'Failed to upload file to S3', details: (error === null || error === void 0 ? void 0 : error.message) || error });
     }
 });
 // NEW: Receipt upload route
@@ -268,24 +270,25 @@ router.post('/upload/receipt', upload.single('file'), async (req, res) => {
     }
     catch (error) {
         console.error('[S3Proxy] Receipt upload error:', error);
-        if (error?.name)
+        if (error === null || error === void 0 ? void 0 : error.name)
             console.error('Error name:', error.name);
-        if (error?.message)
+        if (error === null || error === void 0 ? void 0 : error.message)
             console.error('Error message:', error.message);
-        if (error?.stack)
+        if (error === null || error === void 0 ? void 0 : error.stack)
             console.error('Error stack:', error.stack);
-        if (error?.$metadata)
+        if (error === null || error === void 0 ? void 0 : error.$metadata)
             console.error('AWS metadata:', error.$metadata);
-        if (error?.Code)
+        if (error === null || error === void 0 ? void 0 : error.Code)
             console.error('AWS error code:', error.Code);
         res.status(500).json({
             error: 'Failed to upload receipt to S3',
-            details: error?.message || error
+            details: (error === null || error === void 0 ? void 0 : error.message) || error
         });
     }
 });
 // File listing route
 router.get('/files', async (req, res) => {
+    var _a;
     try {
         const env = getEnvVars();
         if (!isS3Configured()) {
@@ -297,11 +300,11 @@ router.get('/files', async (req, res) => {
             Prefix: 'uploads/', // Adjust prefix if needed
         });
         const response = await s3Client.send(command);
-        const files = response.Contents?.map(file => ({
+        const files = ((_a = response.Contents) === null || _a === void 0 ? void 0 : _a.map(file => ({
             key: file.Key,
             url: `https://${env.BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${file.Key}`,
             // Include other metadata as needed
-        })) || [];
+        }))) || [];
         res.json({ files });
     }
     catch (error) {
@@ -341,6 +344,7 @@ router.get('/file/:key(*)', async (req, res) => {
 });
 // NEW: File download route
 router.get('/download/:key(*)', async (req, res) => {
+    var _a;
     const key = req.params.key;
     const env = getEnvVars();
     if (!key) {
@@ -365,7 +369,7 @@ router.get('/download/:key(*)', async (req, res) => {
         res.set({
             'Content-Type': mimeType,
             'Content-Disposition': `attachment; filename="${key.split('/').pop()}"`,
-            'Content-Length': response.ContentLength?.toString() || '',
+            'Content-Length': ((_a = response.ContentLength) === null || _a === void 0 ? void 0 : _a.toString()) || '',
             'Cache-Control': 'no-cache',
             'Access-Control-Allow-Origin': '*',
             'Access-Control-Allow-Methods': 'GET',
@@ -416,4 +420,3 @@ router.get('/proxy/uploads/:filename', async (req, res) => {
     }
 });
 export default router;
-//# sourceMappingURL=s3Proxy.js.map

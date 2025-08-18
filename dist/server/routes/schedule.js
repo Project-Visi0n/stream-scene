@@ -180,4 +180,3 @@ function getNextMonday() {
     return date;
 }
 export default router;
-//# sourceMappingURL=schedule.js.map

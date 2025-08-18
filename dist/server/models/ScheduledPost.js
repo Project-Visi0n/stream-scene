@@ -8,7 +8,7 @@ var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
 import { Table, Column, Model, DataType, PrimaryKey, AutoIncrement, AllowNull, Default, ForeignKey, BelongsTo } from 'sequelize-typescript';
-import { SocialAccountToken } from './SocialAccountToken.js';
+import { SocialAccountToken } from './SocialAccountToken';
 let ScheduledPost = class ScheduledPost extends Model {
 };
 __decorate([
@@ -62,4 +62,3 @@ ScheduledPost = __decorate([
     Table({ tableName: 'ScheduledPosts', timestamps: true })
 ], ScheduledPost);
 export { ScheduledPost };
-//# sourceMappingURL=ScheduledPost.js.map

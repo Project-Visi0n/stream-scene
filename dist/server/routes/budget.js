@@ -1,5 +1,5 @@
 import express from 'express';
-import { requireAuth } from '../middleware/authMiddleWare';
+import { requireAuth } from '../middleware/authMiddleWare.js';
 const router = express.Router();
 // GET - Fetch user's income entries
 router.get('/income', requireAuth, async (req, res) => {
@@ -42,4 +42,3 @@ router.post('/expense', requireAuth, async (req, res) => {
     }
 });
 export default router;
-//# sourceMappingURL=budget.js.map

@@ -17,4 +17,3 @@ export function initScheduledPostModel(sequelize) {
     ScheduledPost.belongsTo(SocialAccountToken, { foreignKey: 'socialAccountTokenId', as: 'account' });
     return ScheduledPost;
 }
-//# sourceMappingURL=initScheduledPost.js.map

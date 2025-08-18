@@ -15,9 +15,10 @@ passport.use(new GoogleStrategy({
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
     callbackURL: process.env.GOOGLE_CALLBACK_URL,
 }, async (accessToken, refreshToken, profile, done) => {
+    var _a, _b, _c, _d;
     try {
-        const email = profile.emails?.[0]?.value;
-        const photo = profile.photos?.[0]?.value || undefined;
+        const email = (_b = (_a = profile.emails) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.value;
+        const photo = ((_d = (_c = profile.photos) === null || _c === void 0 ? void 0 : _c[0]) === null || _d === void 0 ? void 0 : _d.value) || undefined;
         if (!email) {
             return done(new Error('No email found in Google profile'), false);
         }
@@ -59,4 +60,3 @@ passport.deserializeUser(async (id, done) => {
         done(err, null);
     }
 });
-//# sourceMappingURL=passport.js.map

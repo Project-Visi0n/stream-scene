@@ -162,4 +162,3 @@ export class Share {
         return `${baseUrl}/shared/${this.shareToken}`;
     }
 }
-//# sourceMappingURL=Share.js.map

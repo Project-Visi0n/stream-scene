@@ -18,11 +18,11 @@ import scheduleRoutes from "./routes/schedule.js";
 import s3ProxyRoutes from "./routes/s3Proxy.js";
 import filesRoutes from "./routes/files.js";
 import sharesRoutes from "./routes/shares.js";
-import budgetRoutes from './routes/budget';
+import budgetRoutes from './routes/budget.js';
 import socialAuthRoutes from './routes/socialAuth.js';
 import threadsRoutes from './routes/threads.js';
 import { syncDB } from "./db/index.js";
-import captionRouter from './routes/caption';
+import captionRouter from './routes/caption.js';
 const app = express();
 // CORS configuration
 app.use(cors({
@@ -109,4 +109,3 @@ syncDB().then(() => {
     process.exit(1);
 });
 export default app;
-//# sourceMappingURL=app.js.map

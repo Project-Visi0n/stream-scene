@@ -26,4 +26,3 @@ router.use('/api/content-scheduler', contentSchedulerRouter);
 router.use('/api/auth/social', socialAuthRouter);
 router.use('/api/threads', threadsRouter);
 export default router;
-//# sourceMappingURL=index.js.map
