@@ -6,12 +6,12 @@ const GoogleLoginButton: React.FC = () => {
     if (process.env.REACT_APP_API_URL) {
       return process.env.REACT_APP_API_URL;
     }
-    
+
     // If no env var, use current window location
     if (typeof window !== 'undefined') {
       return `${window.location.protocol}//${window.location.host}`;
     }
-    
+
     // Final fallback
     return 'http://streamscene.net:8000';
   };
