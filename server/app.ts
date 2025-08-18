@@ -41,9 +41,19 @@ app.use(cors({
       return callback(null, true);
     }
     
+    // Allow EC2 instance IP
+    if (origin.includes('3.20.172.151')) {
+      return callback(null, true);
+    }
+    
     // Allow same domain for deployed environments
     const currentHost = process.env.HOST || 'localhost';
     if (origin.includes(currentHost)) {
+      return callback(null, true);
+    }
+    
+    // Allow streamscene.net domain
+    if (origin.includes('streamscene.net')) {
       return callback(null, true);
     }
     
@@ -63,8 +73,10 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: { 
-    secure: false, 
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    secure: process.env.NODE_ENV === 'production', // Use secure cookies in production
+    httpOnly: true, // Prevent XSS attacks
+    maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    sameSite: 'lax' // CSRF protection while allowing OAuth redirects
   }
 }));
 

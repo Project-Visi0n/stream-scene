@@ -31,9 +31,9 @@ router.get(
 // Google OAuth callback
 router.get(
  '/google/callback',
- passport.authenticate('google', { failureRedirect: 'http://localhost:8000/?error=auth_failed' }),
+ passport.authenticate('google', { failureRedirect: `${process.env.CLIENT_URL || 'http://localhost:8000'}/?error=auth_failed` }),
  (req: Request, res: Response) => {
-   res.redirect('http://localhost:8000/');
+   res.redirect(process.env.CLIENT_URL || 'http://localhost:8000/');
  }
 );
 
