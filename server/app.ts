@@ -76,8 +76,8 @@ app.use(session({
     secure: false, // Set to false for HTTP deployment
     httpOnly: true, // Prevent XSS attacks
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'lax', // CSRF protection while allowing OAuth redirects
-    domain: 'streamscene.net' // Ensure cookies work across your domain
+    sameSite: 'lax' // CSRF protection while allowing OAuth redirects
+    // Removed domain setting for broader compatibility
   }
 }));
 

@@ -64,8 +64,8 @@ app.use(session({
         secure: false,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'lax',
-        domain: 'streamscene.net' // Ensure cookies work across your domain
+        sameSite: 'lax' // CSRF protection while allowing OAuth redirects
+        // Removed domain setting for broader compatibility
     }
 }));
 // Passport middleware 
