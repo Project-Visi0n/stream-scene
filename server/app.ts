@@ -73,11 +73,10 @@ app.use(session({
   resave: false,
   saveUninitialized: false,
   cookie: { 
-    secure: false, // Set to false for HTTP deployment
-    httpOnly: true, // Prevent XSS attacks
-    maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    sameSite: 'lax' // CSRF protection while allowing OAuth redirects
-    // Removed domain setting for broader compatibility
+    secure: false,
+    httpOnly: true,
+    maxAge: 24 * 60 * 60 * 1000,
+    sameSite: 'lax'
   }
 }));
 
@@ -98,7 +97,6 @@ app.use('/api/threads', threadsRoutes);  // Add Threads API routes
 app.use('/api/caption', captionRouter);
 
 // Serve static files from public directory
-// Dynamically determine the correct path based on whether we're running from dist/ or server/
 const publicPath = __dirname.includes('dist/server') 
   ? path.join(__dirname, '../../public')  
   : path.join(__dirname, '../public');    
@@ -110,15 +108,16 @@ app.get('/test-server', (req, res) => {
   res.json({ message: 'Server is working!' });
 });
 
+// Catch-all route for React SPA - must be last
 app.get('*', (req, res) => {
+  // Don't serve index.html for API or auth routes
   if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) {
     return res.status(404).json({ error: 'Route not found' });
   }
 
-  // Dynamically determine the correct path for index.html
   const indexPath = __dirname.includes('dist/server') 
-    ? path.join(__dirname, '../../public/index.html')  // For deployment
-    : path.join(__dirname, '../public/index.html');    // For local dev
+    ? path.join(__dirname, '../../public/index.html')
+    : path.join(__dirname, '../public/index.html');
   
   if (!fs.existsSync(indexPath)) {
     console.error('index.html file not found at:', indexPath);
