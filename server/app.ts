@@ -86,6 +86,8 @@ app.use(passport.session());
 
 // API routes MUST come before static file serving
 app.use('/auth', authRoutes);
+console.log('Auth routes loaded at /auth');  // Add this line
+
 app.use('/auth', socialAuthRoutes);  // Add social auth routes (Threads OAuth)
 app.use('/api', aiRoutes);
 app.use('/api/schedule', scheduleRoutes);
