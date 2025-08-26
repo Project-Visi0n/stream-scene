@@ -85,19 +85,10 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-// Serve static files from public directory
-// Dynamically determine the correct path based on whether we're running from dist/ or server/
-const publicPath = __dirname.includes('dist/server') 
-  ? path.join(__dirname, '../../public')  
-  : path.join(__dirname, '../public');    
-
-app.use(express.static(publicPath));
-
-// Routes
+// API routes MUST come before static file serving
 app.use('/auth', authRoutes);
 app.use('/auth', socialAuthRoutes);  // Add social auth routes (Threads OAuth)
-app.use('/', routes);
-app.use('/api/ai', aiRoutes);
+app.use('/api', aiRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/s3', s3ProxyRoutes);
 app.use('/api/files', filesRoutes);
@@ -106,6 +97,13 @@ app.use('/api/budget', budgetRoutes);
 app.use('/api/threads', threadsRoutes);  // Add Threads API routes
 app.use('/api/caption', captionRouter);
 
+// Serve static files from public directory
+// Dynamically determine the correct path based on whether we're running from dist/ or server/
+const publicPath = __dirname.includes('dist/server') 
+  ? path.join(__dirname, '../../public')  
+  : path.join(__dirname, '../public');    
+
+app.use(express.static(publicPath));
 
 // API test route
 app.get('/test-server', (req, res) => {

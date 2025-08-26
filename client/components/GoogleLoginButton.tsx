@@ -6,25 +6,16 @@ const GoogleLoginButton: React.FC = () => {
     e.preventDefault();
     e.stopPropagation();
     
-    // Comprehensive logging
     console.log('=== Google OAuth Login Debug ===');
-    console.log('Current URL:', window.location.href);
-    console.log('Current origin:', window.location.origin);
-    console.log('Current pathname:', window.location.pathname);
-    console.log('Target OAuth URL:', window.location.origin + '/auth/google');
-    console.log('Button event:', e);
-    console.log('Button type:', e.currentTarget.type);
-    console.log('Parent element:', e.currentTarget.parentElement?.tagName);
-    console.log('Is inside form?:', e.currentTarget.closest('form') !== null);
+    console.log('Initiating OAuth flow...');
     
-    const loginUrl = '/auth/google';
-    console.log('Redirecting to:', loginUrl);
+    // Use window.location.assign for a full page navigation
+    // This ensures we're doing a full HTTP request, not a React Router navigation
+    const loginUrl = `${window.location.origin}/auth/google`;
+    console.log('Full redirect URL:', loginUrl);
     
-    // Add a small delay to ensure console logs are visible
-    setTimeout(() => {
-      console.log('Executing redirect now...');
-      window.location.href = loginUrl;
-    }, 100);
+    // Use assign instead of href to ensure proper navigation
+    window.location.assign(loginUrl);
   };
 
   return (
