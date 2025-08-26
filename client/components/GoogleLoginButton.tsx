@@ -1,12 +1,30 @@
 import React from 'react';
 
 const GoogleLoginButton: React.FC = () => {
-  const handleGoogleLogin = (): void => {
-    // Since your app is served from the same port as your API (8000),
-    // we can use a relative path for the OAuth endpoint
+  const handleGoogleLogin = (e: React.MouseEvent<HTMLButtonElement>): void => {
+    // Prevent any default behavior
+    e.preventDefault();
+    e.stopPropagation();
+    
+    // Comprehensive logging
+    console.log('=== Google OAuth Login Debug ===');
+    console.log('Current URL:', window.location.href);
+    console.log('Current origin:', window.location.origin);
+    console.log('Current pathname:', window.location.pathname);
+    console.log('Target OAuth URL:', window.location.origin + '/auth/google');
+    console.log('Button event:', e);
+    console.log('Button type:', e.currentTarget.type);
+    console.log('Parent element:', e.currentTarget.parentElement?.tagName);
+    console.log('Is inside form?:', e.currentTarget.closest('form') !== null);
+    
     const loginUrl = '/auth/google';
-    console.log('Initiating Google OAuth...');
-    window.location.href = loginUrl;
+    console.log('Redirecting to:', loginUrl);
+    
+    // Add a small delay to ensure console logs are visible
+    setTimeout(() => {
+      console.log('Executing redirect now...');
+      window.location.href = loginUrl;
+    }, 100);
   };
 
   return (
