@@ -1,24 +1,11 @@
 import React from 'react';
 
 const GoogleLoginButton: React.FC = () => {
-  // Use environment variable for base URL, fallback to current location or production URL
-  const getBaseURL = () => {
-    if (process.env.REACT_APP_API_URL) {
-      return process.env.REACT_APP_API_URL;
-    }
-
-    // If no env var, use current window location
-    if (typeof window !== 'undefined') {
-      return `${window.location.protocol}//${window.location.host}`;
-    }
-
-    // Final fallback
-    return 'http://streamscene.net:8000';
-  };
-
   const handleGoogleLogin = (): void => {
-    const baseURL = getBaseURL();
-    const loginUrl = `${baseURL}/auth/google`;
+    // Since your app is served from the same port as your API (8000),
+    // we can use a relative path for the OAuth endpoint
+    const loginUrl = '/auth/google';
+    console.log('Initiating Google OAuth...');
     window.location.href = loginUrl;
   };
 
