@@ -46,13 +46,7 @@ app.use(cors({
       return callback(null, true);
     }
     
-    // Allow same domain for deployed environments
-    const currentHost = process.env.HOST || 'localhost';
-    if (origin.includes(currentHost)) {
-      return callback(null, true);
-    }
-    
-    // Allow streamscene.net domain
+    // Allow streamscene.net WITH and WITHOUT www
     if (origin.includes('streamscene.net')) {
       return callback(null, true);
     }
@@ -85,10 +79,10 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // API routes MUST come before static file serving
-app.use('/auth', authRoutes);
-console.log('Auth routes loaded at /auth');  // Add this line
+app.use('/auth', authRoutes);  // Google OAuth routes
+console.log('Auth routes loaded at /auth');
 
-app.use('/auth', socialAuthRoutes);  // Add social auth routes (Threads OAuth)
+app.use('/social', socialAuthRoutes);  // Threads OAuth routes - CHANGED PATH
 app.use('/api', aiRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/s3', s3ProxyRoutes);
