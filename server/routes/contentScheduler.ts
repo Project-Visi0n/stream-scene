@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Request, Response, Router } from 'express';
 import { TwitterApi } from 'twitter-api-v2';
 import cron from 'node-cron';
 import { requireAuth } from '../middleware/authMiddleWare.js';
@@ -15,6 +15,13 @@ router.use((req, res, next) => {
   });
   next();
 });
+
+interface AuthenticatedRequest extends Request {
+  user: {
+    id: string;  // Change from number to string
+    email: string;
+  };
+}
 
 interface ScheduledPost {
   id: string;
@@ -36,7 +43,7 @@ router.post('/posts', async (req, res) => {
     
     const post: ScheduledPost = {
       ...req.body,
-      userId: req.user?.id || req.session?.id || 'anonymous'
+      userId: (req.user as any)?.id || req.session?.id || 'anonymous'
     };
     
     scheduledPosts.set(post.id, post);
@@ -111,7 +118,7 @@ router.post('/post-now', async (req, res) => {
 // Get scheduled posts
 router.get('/posts', (req, res) => {
   try {
-    const userId = req.user?.id || req.session?.id || 'anonymous';
+    const userId = (req.user as any)?.id || req.session?.id || 'anonymous';
     const userPosts = Array.from(scheduledPosts.values())
       .filter(post => post.userId === userId);
     
@@ -466,7 +473,7 @@ router.post('/schedule', requireAuth, async (req: Request, res: Response) => {
       platforms,
       scheduledDate: new Date(scheduledDate),
       status: 'scheduled',
-      userId
+      userId: String(userId)  // Convert number to string
     };
     
     scheduledPosts.set(postId, post);
@@ -490,7 +497,7 @@ router.get('/scheduled', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req as AuthenticatedRequest).user.id;
     const userPosts = Array.from(scheduledPosts.values())
-      .filter(post => post.userId === userId);
+      .filter(post => post.userId === String(userId));  // Convert for comparison
     
     console.log('[Get Scheduled Posts] Found:', userPosts.length);
     res.json(userPosts);

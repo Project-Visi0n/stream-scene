@@ -12,7 +12,6 @@ import passport from 'passport';
 import cors from 'cors';
 import "./config/passport.js";
 import authRoutes from "./routes/auth.js";
-import routes from "./routes/index.js";
 import aiRoutes from "./routes/ai.js";
 import scheduleRoutes from "./routes/schedule.js";
 import s3ProxyRoutes from "./routes/s3Proxy.js";
@@ -23,6 +22,7 @@ import socialAuthRoutes from './routes/socialAuth.js';
 import threadsRoutes from './routes/threads.js';
 import { syncDB } from "./db/index.js";
 import captionRouter from './routes/caption.js';
+import contentSchedulerRoutes from './routes/contentScheduler.js'; // ADD THIS LINE
 const app = express();
 // CORS configuration
 app.use(cors({
@@ -38,12 +38,7 @@ app.use(cors({
         if (origin.includes('3.20.172.151')) {
             return callback(null, true);
         }
-        // Allow same domain for deployed environments
-        const currentHost = process.env.HOST || 'localhost';
-        if (origin.includes(currentHost)) {
-            return callback(null, true);
-        }
-        // Allow streamscene.net domain
+        // Allow streamscene.net WITH and WITHOUT www
         if (origin.includes('streamscene.net')) {
             return callback(null, true);
         }
@@ -64,43 +59,43 @@ app.use(session({
         secure: false,
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000,
-        sameSite: 'lax' // CSRF protection while allowing OAuth redirects
-        // Removed domain setting for broader compatibility
+        sameSite: 'lax'
     }
 }));
 // Passport middleware 
 app.use(passport.initialize());
 app.use(passport.session());
-// Serve static files from public directory
-// Dynamically determine the correct path based on whether we're running from dist/ or server/
-const publicPath = __dirname.includes('dist/server')
-    ? path.join(__dirname, '../../public')
-    : path.join(__dirname, '../public');
-app.use(express.static(publicPath));
-// Routes
-app.use('/auth', authRoutes);
-app.use('/auth', socialAuthRoutes); // Add social auth routes (Threads OAuth)
-app.use('/', routes);
-app.use('/api/ai', aiRoutes);
+// API routes MUST come before static file serving
+app.use('/auth', authRoutes); // Google OAuth routes
+console.log('Auth routes loaded at /auth');
+app.use('/social', socialAuthRoutes); // Threads OAuth routes - CHANGED PATH
+app.use('/api', aiRoutes);
 app.use('/api/schedule', scheduleRoutes);
+app.use('/api/content-scheduler', contentSchedulerRoutes); // ADD THIS LINE
 app.use('/api/s3', s3ProxyRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/shares', sharesRoutes);
 app.use('/api/budget', budgetRoutes);
 app.use('/api/threads', threadsRoutes); // Add Threads API routes
 app.use('/api/caption', captionRouter);
+// Serve static files from public directory
+const publicPath = __dirname.includes('dist/server')
+    ? path.join(__dirname, '../../public')
+    : path.join(__dirname, '../public');
+app.use(express.static(publicPath));
 // API test route
 app.get('/test-server', (req, res) => {
     res.json({ message: 'Server is working!' });
 });
+// Catch-all route for React SPA - must be last
 app.get('*', (req, res) => {
+    // Don't serve index.html for API or auth routes
     if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) {
         return res.status(404).json({ error: 'Route not found' });
     }
-    // Dynamically determine the correct path for index.html
     const indexPath = __dirname.includes('dist/server')
-        ? path.join(__dirname, '../../public/index.html') // For deployment
-        : path.join(__dirname, '../public/index.html'); // For local dev
+        ? path.join(__dirname, '../../public/index.html')
+        : path.join(__dirname, '../public/index.html');
     if (!fs.existsSync(indexPath)) {
         console.error('index.html file not found at:', indexPath);
         return res.status(404).send('index.html file not found');
