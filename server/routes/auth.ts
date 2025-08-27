@@ -99,21 +99,22 @@ router.get(
 
 // Get current authenticated user
 router.get('/user', (req: Request, res: Response) => {
-  console.log('Auth check - Session ID:', req.sessionID);
-  console.log('Auth check - User:', req.user);
-  console.log('Auth check - Session:', req.session);
+  console.log('=== AUTH CHECK DEBUG ===');
+  console.log('Session ID:', req.sessionID);
+  console.log('Session data:', req.session);
+  console.log('User object:', req.user);
+  console.log('Is authenticated:', req.isAuthenticated?.());
+  console.log('Cookies:', req.headers.cookie);
   
-  if (req.user) {
-    res.json({
-      authenticated: true,
-      user: req.user
-    });
-  } else {
-    res.json({
-      authenticated: false,
-      user: null
-    });
-  }
+  res.json({
+    authenticated: !!req.user,
+    user: req.user || null,
+    debug: {
+      sessionId: req.sessionID,
+      hasSession: !!req.session,
+      hasUser: !!req.user
+    }
+  });
 });
 
 // Logout endpoint
