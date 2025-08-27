@@ -123,12 +123,25 @@ router.get('/user', (req: Request, res: Response) => {
 
 // Logout endpoint
 router.post('/logout', (req: Request, res: Response) => {
+  console.log('=== Logout Debug ===');
+  console.log('User before logout:', req.user);
+  
   req.logout((err) => {
     if (err) {
       console.error('Logout error:', err);
-      return res.status(500).json({ error: 'Failed to logout' });
+      return res.status(500).json({ error: 'Logout failed' });
     }
-    res.json({ message: 'Logged out successfully' });
+    
+    req.session.destroy((err) => {
+      if (err) {
+        console.error('Session destroy error:', err);
+        return res.status(500).json({ error: 'Session cleanup failed' });
+      }
+      
+      res.clearCookie('connect.sid');
+      console.log('Logout successful');
+      res.json({ message: 'Logged out successfully' });
+    });
   });
 });
 
