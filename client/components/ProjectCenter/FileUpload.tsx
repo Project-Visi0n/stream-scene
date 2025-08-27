@@ -214,7 +214,7 @@ const FileUpload: React.FC = () => {
 
   const uploadFile = async (file: File) => {
     if (!user) {
-      setError('Please log in to upload files.');
+      setError('You must be logged in to upload files');
       return;
     }
 
@@ -223,68 +223,77 @@ const FileUpload: React.FC = () => {
     setUploadProgress(0);
 
     try {
-      console.log('Starting upload for file:', file.name, 'Type:', file.type, 'Size:', file.size);
-
-      // Simulate progress for better UX
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90));
-      }, 200);
+      console.log(`Starting upload for file: ${file.name} Type: ${file.type} Size: ${file.size}`);
       
-      const { url, s3Key } = await handleS3Upload(file); // Waits for backend to finish conversion
-
-      clearInterval(progressInterval);
-      setUploadProgress(95);
-
-      // Always use the server proxy URL for previews if S3 key is available
-      const previewUrl = url; // Now this is always the backend's returned URL
-
-      console.log('Upload completed. Preview URL:', previewUrl, 'S3Key:', s3Key);
+      // Upload to S3
+      const { url, s3Key } = await handleS3Upload(file);
+      console.log(`Upload completed. Preview URL: ${url} S3Key: ${s3Key}`);
+      
+      // Check if file was converted
+      const response = await fetch('/api/s3/upload', {
+        method: 'POST',
+        body: new FormData()
+      });
+      
+      // Create a display name based on whether file was converted
+      const displayName = s3Key?.endsWith('.mp4') && !file.name.endsWith('.mp4') 
+        ? file.name.replace(/\.[^/.]+$/, '.mp4')
+        : file.name;
 
       // Create file record in database
-      const fileData: CreateFileRequest = {
-        name: url.endsWith('.mp4') ? file.name.replace(/\.[^/.]+$/, '.mp4') : file.name,
-        originalName: file.name,
-        type: url.endsWith('.mp4') ? 'video/mp4' : file.type,
+      const fileData = {
+        name: displayName, // Use the converted name if applicable
+        originalName: file.name, // Keep original name for reference
+        type: s3Key?.endsWith('.mp4') ? 'video/mp4' : file.type,
         size: file.size,
-        url: previewUrl,
-        s3Key,
-        tags: selectedTags.length > 0 ? [...selectedTags] : undefined
-};
+        url: url,
+        s3Key: s3Key,
+        tags: [],
+      };
 
-      const fileRecord = await fileService.createFile(fileData);
-      console.log('File record created:', fileRecord);
+      const response = await fetch('/api/files/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(fileData),
+      });
 
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to save file record');
+      }
+
+      const savedFile = await response.json();
+      console.log('File record created:', savedFile);
+
+      // Update local state with database record
       const newFile: UploadedFile = {
-        id: `db-${fileRecord.id}`,
-        name: fileRecord.name,
-        type: fileRecord.type,
-        size: fileRecord.size,
-        url: fileRecord.url,
-        s3Key: fileRecord.s3Key,
-        tags: fileRecord.tags,
-        uploadedAt: new Date(fileRecord.uploadedAt),
-        fileRecordId: fileRecord.id
+        id: `db-${savedFile.id}`,
+        name: savedFile.name,
+        type: savedFile.type,
+        size: savedFile.size,
+        url: savedFile.url,
+        s3Key: savedFile.s3Key,
+        tags: savedFile.tags || [],
+        uploadedAt: new Date(savedFile.uploadedAt),
+        fileRecordId: savedFile.id,
       };
 
       console.log('Adding file to state:', newFile);
       setUploadedFiles(prev => [...prev, newFile]);
       setUploadProgress(100);
       
-      // Refresh available tags if new tags were added
-      if (selectedTags.length > 0) {
-        loadUserTags();
-        setSelectedTags([]); // Clear selected tags after upload
-      }
-      
-      // Reset progress after a short delay
-      setTimeout(() => setUploadProgress(0), 1000);
+      // Reload files to ensure consistency
+      loadUserFiles();
       
     } catch (error) {
-      console.error('Upload failed:', error);
-      setError('Upload failed. Please try again.');
-      setUploadProgress(0);
+      console.error('Upload error:', error);
+      setError(error instanceof Error ? error.message : 'Upload failed');
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 

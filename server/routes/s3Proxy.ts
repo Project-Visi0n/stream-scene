@@ -233,59 +233,132 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       extension: fileExtension
     });
 
-    // Convert any video file that is not already mp4
-    if (file.mimetype.startsWith('video/') && file.mimetype !== 'video/mp4') {
-      console.log('[S3Proxy] Converting video to MP4');
+    // List of video formats that need conversion
+    const videoFormatsToConvert = ['mov', 'avi', 'wmv', 'flv', 'mkv', 'webm'];
+    const needsConversion = videoFormatsToConvert.includes(fileExtension || '') || 
+                           (file.mimetype.startsWith('video/') && file.mimetype !== 'video/mp4');
+
+    if (needsConversion) {
+      console.log('[S3Proxy] Video needs conversion to MP4');
       
-      const tempInputPath = path.join('/tmp', `${Date.now()}-${file.originalname}`);
-      const tempOutputPath = tempInputPath.replace(/\.[^.]+$/, '.mp4');
+      // Check if ffmpeg is available
+      try {
+        const ffmpegPath = await new Promise<string>((resolve, reject) => {
+          ffmpeg.getAvailableFormats((err, formats) => {
+            if (err) {
+              console.error('[S3Proxy] FFmpeg not available:', err);
+              reject(new Error('FFmpeg not installed or not accessible'));
+            } else {
+              console.log('[S3Proxy] FFmpeg is available');
+              resolve('ffmpeg');
+            }
+          });
+        });
+      } catch (ffmpegError) {
+        console.error('[S3Proxy] FFmpeg check failed:', ffmpegError);
+        // Upload original file if ffmpeg is not available
+        console.log('[S3Proxy] Falling back to original file upload due to missing ffmpeg');
+      }
+      
+      const tempDir = process.env.TEMP_DIR || '/tmp';
+      const tempInputPath = path.join(tempDir, `input-${Date.now()}-${file.originalname}`);
+      const tempOutputPath = path.join(tempDir, `output-${Date.now()}-${file.originalname.replace(/\.[^/.]+$/, '.mp4')}`);
       
       try {
+        // Write input file
+        console.log('[S3Proxy] Writing temp file to:', tempInputPath);
         fs.writeFileSync(tempInputPath, file.buffer);
+        console.log('[S3Proxy] Temp file written successfully, size:', fs.statSync(tempInputPath).size);
 
+        // Convert video with better error handling
         await new Promise<void>((resolve, reject) => {
-          ffmpeg(tempInputPath)
+          console.log('[S3Proxy] Starting ffmpeg conversion...');
+          
+          const command = ffmpeg(tempInputPath)
+            .outputOptions([
+              '-c:v libx264',      // Use H.264 codec
+              '-preset fast',       // Faster encoding
+              '-crf 23',           // Quality (lower = better, 23 is default)
+              '-c:a aac',          // AAC audio codec
+              '-b:a 128k',         // Audio bitrate
+              '-movflags +faststart', // Enable fast start for web playback
+              '-max_muxing_queue_size 9999' // Prevent muxing queue issues
+            ])
             .output(tempOutputPath)
-            .videoCodec('libx264')
-            .audioCodec('aac')
+            .on('start', (commandLine) => {
+              console.log('[S3Proxy] FFmpeg command:', commandLine);
+            })
+            .on('progress', (progress) => {
+              console.log('[S3Proxy] Conversion progress:', progress.percent?.toFixed(2) + '%');
+            })
             .on('end', () => {
-              console.log('[S3Proxy] Video conversion completed');
+              console.log('[S3Proxy] Video conversion completed successfully');
               resolve();
             })
-            .on('error', (err: any) => {
-              console.error('[S3Proxy] Video conversion failed:', err);
+            .on('error', (err: any, stdout: any, stderr: any) => {
+              console.error('[S3Proxy] FFmpeg conversion error:', err.message);
+              console.error('[S3Proxy] FFmpeg stderr:', stderr);
               reject(err);
-            })
-            .run();
+            });
+
+          command.run();
         });
 
+        // Check if output file exists and has content
+        if (!fs.existsSync(tempOutputPath)) {
+          throw new Error('Conversion output file not created');
+        }
+
+        const outputStats = fs.statSync(tempOutputPath);
+        console.log('[S3Proxy] Converted file size:', outputStats.size);
+
+        if (outputStats.size === 0) {
+          throw new Error('Conversion resulted in empty file');
+        }
+
+        // Read converted file
         const mp4Buffer = fs.readFileSync(tempOutputPath);
-        const mp4Key = `uploads/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.mp4`;
+        
+        // Generate MP4 filename maintaining original name but with .mp4 extension
+        const originalNameWithoutExt = file.originalname.replace(/\.[^/.]+$/, '');
+        const mp4Key = `uploads/${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${originalNameWithoutExt}.mp4`;
 
         const putCommand = new PutObjectCommand({
           Bucket: env.BUCKET_NAME,
           Key: mp4Key,
           Body: mp4Buffer,
           ContentType: 'video/mp4',
+          Metadata: {
+            'original-filename': file.originalname,
+            'converted': 'true'
+          }
         });
         
         await s3Client.send(putCommand);
 
         // Clean up temp files
         try {
-          fs.unlinkSync(tempInputPath);
-          fs.unlinkSync(tempOutputPath);
+          if (fs.existsSync(tempInputPath)) fs.unlinkSync(tempInputPath);
+          if (fs.existsSync(tempOutputPath)) fs.unlinkSync(tempOutputPath);
         } catch (cleanupErr) {
           console.warn('[S3Proxy] Temp file cleanup warning:', cleanupErr);
         }
 
-        // Return proxy URL instead of direct S3 URL
+        // Return proxy URL for the MP4 file
         const proxyUrl = `/api/s3/proxy/${mp4Key}`;
-        console.log('[S3Proxy] Video upload successful, proxy URL:', proxyUrl);
-        return res.json({ url: proxyUrl, key: mp4Key, converted: true });
+        console.log('[S3Proxy] Video conversion and upload successful, proxy URL:', proxyUrl);
         
-      } catch (conversionError) {
-        console.error('[S3Proxy] Video conversion error:', conversionError);
+        return res.json({ 
+          url: proxyUrl, 
+          key: mp4Key, 
+          converted: true,
+          originalName: file.originalname,
+          convertedName: originalNameWithoutExt + '.mp4'
+        });
+        
+      } catch (conversionError: any) {
+        console.error('[S3Proxy] Video conversion failed:', conversionError.message);
+        
         // Clean up temp files on error
         try {
           if (fs.existsSync(tempInputPath)) fs.unlinkSync(tempInputPath);
@@ -293,30 +366,40 @@ router.post('/upload', upload.single('file'), async (req, res) => {
         } catch (cleanupErr) {
           console.warn('[S3Proxy] Temp file cleanup error:', cleanupErr);
         }
+        
         // Fall back to uploading original file
         console.log('[S3Proxy] Falling back to original file upload');
       }
     }
 
-    // If already mp4 or not a video, upload as usual
-    const key = `uploads/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
+    // If already mp4 or not a video, or if conversion failed, upload as usual
+    const key = `uploads/${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${file.originalname}`;
     
-    console.log('[S3Proxy] Uploading to S3 with key:', key);
+    console.log('[S3Proxy] Uploading original file to S3 with key:', key);
     
     const putCommand = new PutObjectCommand({
       Bucket: env.BUCKET_NAME,
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
+      Metadata: {
+        'original-filename': file.originalname,
+        'converted': 'false'
+      }
     });
     
     await s3Client.send(putCommand);
     
-    // Return proxy URL instead of direct S3 URL
+    // Return proxy URL
     const proxyUrl = `/api/s3/proxy/${key}`;
     
     console.log('[S3Proxy] Upload successful, proxy URL:', proxyUrl);
-    res.json({ url: proxyUrl, key, converted: false });
+    res.json({ 
+      url: proxyUrl, 
+      key, 
+      converted: false,
+      originalName: file.originalname 
+    });
     
   } catch (error: any) {
     console.error('[S3Proxy] Upload error:', error);
