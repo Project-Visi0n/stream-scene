@@ -186,65 +186,133 @@ router.get('/proxy/:key(*)', async (req, res) => {
 // Direct file upload to S3
 router.post('/upload', upload.single('file'), async (req, res) => {
   try {
+    console.log('[S3Proxy] Upload request received');
+    
     if (!req.file) {
+      console.error('[S3Proxy] No file in request');
       return res.status(400).json({ error: 'No file uploaded' });
     }
+    
     const env = getEnvVars();
+    console.log('[S3Proxy] Environment check:', {
+      hasAccessKey: !!env.AWS_ACCESS_KEY_ID,
+      hasSecretKey: !!env.AWS_SECRET_ACCESS_KEY,
+      region: env.AWS_REGION,
+      bucket: env.BUCKET_NAME
+    });
+    
     if (!isS3Configured()) {
+      console.error('[S3Proxy] S3 not configured');
       return res.status(500).json({ error: 'S3 not configured', details: env });
     }
+
     const s3Client = getS3Client();
     const file = req.file;
     const fileExtension = file.originalname.split('.').pop()?.toLowerCase();
 
+    console.log('[S3Proxy] Processing file:', {
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+      extension: fileExtension
+    });
+
     // Convert any video file that is not already mp4
     if (file.mimetype.startsWith('video/') && file.mimetype !== 'video/mp4') {
+      console.log('[S3Proxy] Converting video to MP4');
+      
       const tempInputPath = path.join('/tmp', `${Date.now()}-${file.originalname}`);
       const tempOutputPath = tempInputPath.replace(/\.[^.]+$/, '.mp4');
-      fs.writeFileSync(tempInputPath, file.buffer);
+      
+      try {
+        fs.writeFileSync(tempInputPath, file.buffer);
 
-      await new Promise<void>((resolve, reject) => {
-        ffmpeg(tempInputPath)
-          .output(tempOutputPath)
-          .videoCodec('libx264')
-          .audioCodec('aac')
-          .on('end', () => resolve())
-          .on('error', (err: any) => reject(err))
-          .run();
-      });
+        await new Promise<void>((resolve, reject) => {
+          ffmpeg(tempInputPath)
+            .output(tempOutputPath)
+            .videoCodec('libx264')
+            .audioCodec('aac')
+            .on('end', () => {
+              console.log('[S3Proxy] Video conversion completed');
+              resolve();
+            })
+            .on('error', (err: any) => {
+              console.error('[S3Proxy] Video conversion failed:', err);
+              reject(err);
+            })
+            .run();
+        });
 
-      const mp4Buffer = fs.readFileSync(tempOutputPath);
-      const mp4Key = `uploads/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.mp4`;
+        const mp4Buffer = fs.readFileSync(tempOutputPath);
+        const mp4Key = `uploads/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.mp4`;
 
-      const putCommand = new PutObjectCommand({
-        Bucket: env.BUCKET_NAME,
-        Key: mp4Key,
-        Body: mp4Buffer,
-        ContentType: 'video/mp4',
-      });
-      await s3Client.send(putCommand);
+        const putCommand = new PutObjectCommand({
+          Bucket: env.BUCKET_NAME,
+          Key: mp4Key,
+          Body: mp4Buffer,
+          ContentType: 'video/mp4',
+        });
+        
+        await s3Client.send(putCommand);
 
-      fs.unlinkSync(tempInputPath);
-      fs.unlinkSync(tempOutputPath);
+        // Clean up temp files
+        try {
+          fs.unlinkSync(tempInputPath);
+          fs.unlinkSync(tempOutputPath);
+        } catch (cleanupErr) {
+          console.warn('[S3Proxy] Temp file cleanup warning:', cleanupErr);
+        }
 
-      const fileUrl = `https://${env.BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${mp4Key}`;
-      return res.json({ url: fileUrl, key: mp4Key, converted: true });
+        const fileUrl = `https://${env.BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${mp4Key}`;
+        console.log('[S3Proxy] Video upload successful:', fileUrl);
+        return res.json({ url: fileUrl, key: mp4Key, converted: true });
+        
+      } catch (conversionError) {
+        console.error('[S3Proxy] Video conversion error:', conversionError);
+        // Clean up temp files on error
+        try {
+          if (fs.existsSync(tempInputPath)) fs.unlinkSync(tempInputPath);
+          if (fs.existsSync(tempOutputPath)) fs.unlinkSync(tempOutputPath);
+        } catch (cleanupErr) {
+          console.warn('[S3Proxy] Temp file cleanup error:', cleanupErr);
+        }
+        // Fall back to uploading original file
+        console.log('[S3Proxy] Falling back to original file upload');
+      }
     }
 
     // If already mp4 or not a video, upload as usual
     const key = `uploads/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExtension}`;
+    
+    console.log('[S3Proxy] Uploading to S3 with key:', key);
+    
     const putCommand = new PutObjectCommand({
       Bucket: env.BUCKET_NAME,
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
     });
+    
     await s3Client.send(putCommand);
     const fileUrl = `https://${env.BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`;
+    
+    console.log('[S3Proxy] Upload successful:', fileUrl);
     res.json({ url: fileUrl, key, converted: false });
+    
   } catch (error: any) {
     console.error('[S3Proxy] Upload error:', error);
-    res.status(500).json({ error: 'Failed to upload file to S3', details: error?.message || error });
+    console.error('[S3Proxy] Error details:', {
+      message: error?.message,
+      code: error?.code,
+      statusCode: error?.$metadata?.httpStatusCode,
+      stack: error?.stack
+    });
+    
+    res.status(500).json({ 
+      error: 'Failed to upload file to S3', 
+      details: error?.message || error,
+      code: error?.code
+    });
   }
 });
 
@@ -541,6 +609,19 @@ router.post('/conversion-status', async (req, res) => {
     console.error('Error checking conversion status:', error);
     res.status(500).json({ error: 'Failed to check conversion status' });
   }
+});
+
+// Add this debug route temporarily
+router.get('/debug/config', (req, res) => {
+  const env = getEnvVars();
+  res.json({
+    configured: isS3Configured(),
+    hasAccessKey: !!env.AWS_ACCESS_KEY_ID,
+    hasSecretKey: !!env.AWS_SECRET_ACCESS_KEY,
+    region: env.AWS_REGION,
+    bucket: env.BUCKET_NAME,
+    accessKeyPrefix: env.AWS_ACCESS_KEY_ID?.substring(0, 6) + '...'
+  });
 });
 
 export default router;

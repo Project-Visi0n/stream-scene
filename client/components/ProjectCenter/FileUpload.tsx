@@ -169,31 +169,45 @@ const FileUpload: React.FC = () => {
     console.log('[FileUpload] handleS3Upload: Checking S3 config...');
     if (!isS3Configured()) {
       setError('AWS S3 not configured. Files are stored locally for preview only.');
-      console.warn('[FileUpload] S3 not configured. Env:', process.env);
+      console.warn('[FileUpload] S3 not configured');
       return { url: URL.createObjectURL(file) };
     }
 
     try {
-      console.log('[FileUpload] handleS3Upload: Uploading file:', file);
-      // Use your actual upload endpoint here:
+      console.log('[FileUpload] handleS3Upload: Uploading file:', file.name);
+      
       const formData = new FormData();
       formData.append('file', file);
 
       const response = await fetch('/api/s3/upload', {
         method: 'POST',
         body: formData,
+        credentials: 'include' // Add this for session handling
       });
 
+      console.log('[FileUpload] Upload response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorText = await response.text();
+        console.error('[FileUpload] Upload failed:', response.status, errorText);
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || `Upload failed: ${response.status}`);
+        } catch {
+          throw new Error(`Upload failed: ${response.status} ${errorText}`);
+        }
       }
 
       const data = await response.json();
+      console.log('[FileUpload] Upload successful:', data);
+      
       // Use the backend's returned URL and key (which will be .mp4 if converted)
       return { url: data.url, s3Key: data.key };
+      
     } catch (s3Error) {
-      console.warn('[FileUpload] S3 upload failed, using local preview:', s3Error);
-      setError('S3 upload failed. Using local preview.');
+      console.error('[FileUpload] S3 upload failed:', s3Error);
+      setError(`S3 upload failed: ${s3Error instanceof Error ? s3Error.message : 'Unknown error'}`);
       return { url: URL.createObjectURL(file) };
     }
   };
