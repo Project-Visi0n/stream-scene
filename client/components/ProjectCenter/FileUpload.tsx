@@ -229,12 +229,6 @@ const FileUpload: React.FC = () => {
       const { url, s3Key } = await handleS3Upload(file);
       console.log(`Upload completed. Preview URL: ${url} S3Key: ${s3Key}`);
       
-      // Check if file was converted
-      const response = await fetch('/api/s3/upload', {
-        method: 'POST',
-        body: new FormData()
-      });
-      
       // Create a display name based on whether file was converted
       const displayName = s3Key?.endsWith('.mp4') && !file.name.endsWith('.mp4') 
         ? file.name.replace(/\.[^/.]+$/, '.mp4')
@@ -251,7 +245,7 @@ const FileUpload: React.FC = () => {
         tags: [],
       };
 
-      const response = await fetch('/api/files/upload', {
+      const fileResponse = await fetch('/api/files/upload', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -260,12 +254,12 @@ const FileUpload: React.FC = () => {
         body: JSON.stringify(fileData),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
+      if (!fileResponse.ok) {
+        const errorData = await fileResponse.json();
         throw new Error(errorData.error || 'Failed to save file record');
       }
 
-      const savedFile = await response.json();
+      const savedFile = await fileResponse.json();
       console.log('File record created:', savedFile);
 
       // Update local state with database record
