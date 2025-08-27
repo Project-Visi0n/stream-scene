@@ -22,11 +22,15 @@ router.use((req: Request, res: Response, next: NextFunction) => {
 router.get(
   '/google',
   (req: Request, res: Response, next: NextFunction) => {
-    console.log('=== Google OAuth Initiation ===');
-    console.log('Full URL:', req.originalUrl);
+    console.log('=== Google OAuth Debug ===');
     console.log('Host:', req.get('host'));
-    console.log('Session ID:', req.sessionID);
-    console.log('Starting Passport Google OAuth...');
+    console.log('Protocol:', req.protocol);
+    console.log('Original URL:', req.originalUrl);
+    console.log('Full URL:', `${req.protocol}://${req.get('host')}${req.originalUrl}`);
+    // Remove these sensitive logs in production:
+    // console.log('Client ID:', process.env.GOOGLE_CLIENT_ID?.substring(0, 10) + '...');
+    // console.log('Callback URL:', process.env.GOOGLE_CALLBACK_URL);
+    console.log('OAuth initiation started...');
     next();
   },
   passport.authenticate('google', { scope: ['profile', 'email'] })
