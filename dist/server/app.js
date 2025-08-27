@@ -49,7 +49,6 @@ const isProd = process.env.NODE_ENV === 'production';
 // CORS configuration - comprehensive for both development and production
 app.use(cors({
     origin: function (origin, callback) {
-        var _a;
         // Allow requests with no origin (like mobile apps or curl requests)
         if (!origin)
             return callback(null, true);
@@ -58,8 +57,7 @@ app.use(cors({
             process.env.CLIENT_URL,
             process.env.FRONTEND_URL,
             'https://streamscene.net',
-            'https://www.streamscene.net',
-            ...(((_a = process.env.ADDITIONAL_ALLOWED_ORIGINS) === null || _a === void 0 ? void 0 : _a.split(',')) || [])
+            'https://www.streamscene.net'
         ].filter(Boolean); // Remove undefined/empty values
         // Allow localhost on any port for development
         if (!isProd && origin && (origin.includes('localhost') ||
