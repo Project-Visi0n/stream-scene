@@ -37,35 +37,61 @@ app.set('trust proxy', 1);
 // Environment check
 const isProd = process.env.NODE_ENV === 'production';
 
-// CORS configuration - comprehensive for both development and production
+// Replace your existing CORS configuration with this enhanced version
 app.use(cors({
   origin: function (origin, callback) {
+    const timestamp = new Date().toISOString();
+    console.log(`🔍 [${timestamp}] CORS check for origin:`, origin);
+    
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('✅ No origin - allowing');
+      return callback(null, true);
+    }
     
     // Allow localhost on any port for development
     if (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('0.0.0.0')) {
+      console.log('✅ Origin allowed (localhost):', origin);
       return callback(null, true);
     }
     
     // Allow EC2 instance IP
     if (origin.includes('3.20.172.151')) {
+      console.log('✅ Origin allowed (EC2):', origin);
       return callback(null, true);
     }
     
     // Allow streamscene.net WITH and WITHOUT www
     if (origin.includes('streamscene.net')) {
+      console.log('✅ Origin allowed (streamscene):', origin);
       return callback(null, true);
     }
     
-    // Log blocked origins for debugging
-    console.log('CORS blocked origin:', origin);
+    // Log blocked origins for debugging with more context
+    console.log(`❌ [${timestamp}] CORS BLOCKED origin:`, origin);
+    console.log('❌ STACK TRACE FOR BLOCKED REQUEST:');
+    console.trace();
+    console.log('❌ This is the "Not allowed by CORS" error you\'re seeing');
+    
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With']
 }));
+
+// Enhanced request logging middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`📡 ${timestamp} - ${req.method} ${req.path}`, {
+    origin: req.headers.origin || 'NO_ORIGIN',
+    userAgent: req.headers['user-agent']?.substring(0, 50) + '...',
+    referer: req.headers.referer || 'NO_REFERER',
+    host: req.headers.host,
+    user: req.user ? 'authenticated' : 'not authenticated'
+  });
+  next();
+});
 
 // Basic middleware
 app.use(express.json());
