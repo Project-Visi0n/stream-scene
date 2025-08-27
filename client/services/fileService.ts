@@ -23,7 +23,7 @@ export interface CreateFileRequest {
   tags?: string[];
 }
 
-const API_BASE = 'http://localhost:8000/api/files';
+const API_BASE = '/api/files';
 
 export const fileService = {
   // Get all files for the authenticated user
