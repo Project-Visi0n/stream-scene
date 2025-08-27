@@ -16,11 +16,15 @@ router.use((req, res, next) => {
 });
 // Initiate Google OAuth
 router.get('/google', (req, res, next) => {
-    console.log('=== Google OAuth Initiation ===');
-    console.log('Full URL:', req.originalUrl);
+    console.log('=== Google OAuth Debug ===');
     console.log('Host:', req.get('host'));
-    console.log('Session ID:', req.sessionID);
-    console.log('Starting Passport Google OAuth...');
+    console.log('Protocol:', req.protocol);
+    console.log('Original URL:', req.originalUrl);
+    console.log('Full URL:', `${req.protocol}://${req.get('host')}${req.originalUrl}`);
+    // Remove these sensitive logs in production:
+    // console.log('Client ID:', process.env.GOOGLE_CLIENT_ID?.substring(0, 10) + '...');
+    // console.log('Callback URL:', process.env.GOOGLE_CALLBACK_URL);
+    console.log('OAuth initiation started...');
     next();
 }, passport.authenticate('google', { scope: ['profile', 'email'] }));
 // Google OAuth callback - Enhanced debugging
@@ -67,7 +71,7 @@ router.get('/google/callback', (req, res, next) => {
                     return res.redirect('/?error=session_failed');
                 }
                 console.log('Session saved, redirecting to client...');
-                const redirectUrl = process.env.CLIENT_URL || `http://${req.get('host')}`;
+                const redirectUrl = process.env.CLIENT_URL || `https://${req.get('host')}`;
                 console.log('Redirecting to:', redirectUrl);
                 res.redirect(redirectUrl);
             });
@@ -76,30 +80,41 @@ router.get('/google/callback', (req, res, next) => {
 });
 // Get current authenticated user
 router.get('/user', (req, res) => {
-    console.log('Auth check - Session ID:', req.sessionID);
-    console.log('Auth check - User:', req.user);
-    console.log('Auth check - Session:', req.session);
-    if (req.user) {
-        res.json({
-            authenticated: true,
-            user: req.user
-        });
-    }
-    else {
-        res.json({
-            authenticated: false,
-            user: null
-        });
-    }
+    var _a;
+    console.log('=== AUTH CHECK DEBUG ===');
+    console.log('Session ID:', req.sessionID);
+    console.log('Session data:', req.session);
+    console.log('User object:', req.user);
+    console.log('Is authenticated:', (_a = req.isAuthenticated) === null || _a === void 0 ? void 0 : _a.call(req));
+    console.log('Cookies:', req.headers.cookie);
+    res.json({
+        authenticated: !!req.user,
+        user: req.user || null,
+        debug: {
+            sessionId: req.sessionID,
+            hasSession: !!req.session,
+            hasUser: !!req.user
+        }
+    });
 });
 // Logout endpoint
 router.post('/logout', (req, res) => {
+    console.log('=== Logout Debug ===');
+    console.log('User before logout:', req.user);
     req.logout((err) => {
         if (err) {
             console.error('Logout error:', err);
-            return res.status(500).json({ error: 'Failed to logout' });
+            return res.status(500).json({ error: 'Logout failed' });
         }
-        res.json({ message: 'Logged out successfully' });
+        req.session.destroy((err) => {
+            if (err) {
+                console.error('Session destroy error:', err);
+                return res.status(500).json({ error: 'Session cleanup failed' });
+            }
+            res.clearCookie('connect.sid');
+            console.log('Logout successful');
+            res.json({ message: 'Logged out successfully' });
+        });
     });
 });
 export default router;

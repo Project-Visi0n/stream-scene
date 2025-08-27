@@ -1,5 +1,5 @@
 // server/services/ThreadsService.ts
-import axios from 'axios';
+import fetch from 'node-fetch';
 
 export interface ThreadsConfig {
   appId: string;
@@ -41,23 +41,35 @@ export class ThreadsService {
    */
   async getAccessToken(code: string, redirectUri: string): Promise<{ access_token: string; user_id: string }> {
     try {
-      const response = await axios.post(`${this.baseURL}/oauth/access_token`, {
-        client_id: this.config.appId,
-        client_secret: this.config.appSecret,
-        grant_type: 'authorization_code',
-        redirect_uri: redirectUri,
-        code: code
+      const response = await fetch(`${this.baseURL}/oauth/access_token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: new URLSearchParams({
+          client_id: this.config.appId,
+          client_secret: this.config.appSecret,
+          grant_type: 'authorization_code',
+          redirect_uri: redirectUri,
+          code: code
+        })
       });
 
-      this.config.accessToken = response.data.access_token;
-      this.config.userId = response.data.user_id;
+      const data = await response.json() as any;
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${data.error_description || data.error || 'Unknown error'}`);
+      }
+
+      this.config.accessToken = data.access_token;
+      this.config.userId = data.user_id;
 
       return {
-        access_token: response.data.access_token,
-        user_id: response.data.user_id
+        access_token: data.access_token,
+        user_id: data.user_id
       };
     } catch (error: any) {
-      throw new Error(`Failed to get access token: ${error.response?.data?.error_description || error.message}`);
+      throw new Error(`Failed to get access token: ${error.message}`);
     }
   }
 
@@ -73,51 +85,65 @@ export class ThreadsService {
 
     try {
       // Create media container
-      const containerParams = {
+      const containerParams: any = {
         media_type: 'TEXT',
         text: text,
         access_token: this.config.accessToken
       };
 
       if (options?.reply_control) {
-        (containerParams as any).reply_control = options.reply_control;
+        containerParams.reply_control = options.reply_control;
       }
 
-      const containerResponse = await axios.post(
+      const containerResponse = await fetch(
         `${this.baseURL}/${this.config.userId}/threads`,
-        containerParams,
         {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
-          }
+          },
+          body: new URLSearchParams(containerParams)
         }
       );
+
+      const containerData = await containerResponse.json() as any;
+
+      if (!containerResponse.ok) {
+        throw new Error(`Container creation failed: ${containerData.error?.message || 'Unknown error'}`);
+      }
 
       // Wait a moment for processing
       await new Promise(resolve => setTimeout(resolve, 1000));
 
       // Publish the post
       const publishParams = new URLSearchParams({
-        creation_id: containerResponse.data.id,
+        creation_id: containerData.id,
         access_token: this.config.accessToken
       });
 
-      const publishResponse = await axios.post(
+      const publishResponse = await fetch(
         `${this.baseURL}/${this.config.userId}/threads_publish`,
-        publishParams,
         {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
-          }
+          },
+          body: publishParams
         }
       );
 
+      const publishData = await publishResponse.json() as any;
+
+      if (!publishResponse.ok) {
+        throw new Error(`Publish failed: ${publishData.error?.message || 'Unknown error'}`);
+      }
+
       return {
-        id: publishResponse.data.id,
-        permalink: `https://threads.net/post/${publishResponse.data.id}`
+        id: publishData.id,
+        permalink: `https://threads.net/post/${publishData.id}`
       };
     } catch (error: any) {
-      throw new Error(`Failed to post text: ${error.response?.data?.error?.message || error.message}`);
+      throw new Error(`Failed to post text: ${error.message}`);
     }
   }
 
@@ -142,41 +168,55 @@ export class ThreadsService {
       if (caption) containerParams.text = caption;
       if (options?.reply_control) containerParams.reply_control = options.reply_control;
 
-      const containerResponse = await axios.post(
+      const containerResponse = await fetch(
         `${this.baseURL}/${this.config.userId}/threads`,
-        containerParams,
         {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
-          }
+          },
+          body: new URLSearchParams(containerParams)
         }
       );
+
+      const containerData = await containerResponse.json() as any;
+
+      if (!containerResponse.ok) {
+        throw new Error(`Container creation failed: ${containerData.error?.message || 'Unknown error'}`);
+      }
 
       // Wait for processing
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Publish the post
       const publishParams = new URLSearchParams({
-        creation_id: containerResponse.data.id,
+        creation_id: containerData.id,
         access_token: this.config.accessToken
       });
 
-      const publishResponse = await axios.post(
+      const publishResponse = await fetch(
         `${this.baseURL}/${this.config.userId}/threads_publish`,
-        publishParams,
         {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/x-www-form-urlencoded'
-          }
+          },
+          body: publishParams
         }
       );
 
+      const publishData = await publishResponse.json() as any;
+
+      if (!publishResponse.ok) {
+        throw new Error(`Publish failed: ${publishData.error?.message || 'Unknown error'}`);
+      }
+
       return {
-        id: publishResponse.data.id,
-        permalink: `https://threads.net/post/${publishResponse.data.id}`
+        id: publishData.id,
+        permalink: `https://threads.net/post/${publishData.id}`
       };
     } catch (error: any) {
-      throw new Error(`Failed to post image: ${error.response?.data?.error?.message || error.message}`);
+      throw new Error(`Failed to post image: ${error.message}`);
     }
   }
 
@@ -196,13 +236,19 @@ export class ThreadsService {
         access_token: this.config.accessToken
       });
 
-      const response = await axios.get(
+      const response = await fetch(
         `${this.baseURL}/${targetUserId}?${params.toString()}`
       );
 
-      return response.data;
+      const data = await response.json() as any;
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${data.error?.message || 'Unknown error'}`);
+      }
+
+      return data;
     } catch (error: any) {
-      throw new Error(`Failed to get user profile: ${error.response?.data?.error?.message || error.message}`);
+      throw new Error(`Failed to get user profile: ${error.message}`);
     }
   }
 

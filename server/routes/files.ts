@@ -90,9 +90,59 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
         : []
     };
 
-    res.status(201).json({ file: response });
+    res.status(201).json(response);
   } catch (error) {
     console.error('Error creating file record:', error);
+    res.status(500).json({ error: 'Failed to create file record' });
+  }
+});
+
+// Create a new file record via upload endpoint (alias for POST /)
+router.post('/upload', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any).id;
+    const { name, originalName, type, size, s3Key, url, tags } = req.body;
+
+    console.log('[Files] Upload endpoint called with:', { name, type, size, s3Key, userId });
+
+    if (!name || !type || !size || !url) {
+      return res.status(400).json({ error: 'Missing required file information' });
+    }
+
+    // Process tags - ensure they're lowercase and unique
+    let processedTags: string[] = [];
+    if (tags && Array.isArray(tags)) {
+      processedTags = tags
+        .map(tag => tag.toString().toLowerCase().trim())
+        .filter(tag => tag.length > 0)
+        .filter((tag, index, array) => array.indexOf(tag) === index);
+    }
+
+    const file = await File.create({
+      userId,
+      name,
+      originalName: originalName || name,
+      type,
+      size,
+      s3Key,
+      url,
+      tags: processedTags.length > 0 ? processedTags.join(',') : undefined,
+      uploadedAt: new Date(),
+      updatedAt: new Date()
+    });
+
+    // Convert tags back to array for response
+    const response = {
+      ...file.toJSON(),
+      tags: (file.tags && typeof file.tags === 'string') 
+        ? file.tags.split(',').map(tag => tag.trim()) 
+        : []
+    };
+
+    console.log('[Files] File record created successfully:', { id: file.id, name: file.name });
+    res.status(201).json(response);
+  } catch (error) {
+    console.error('Error creating file record via upload:', error);
     res.status(500).json({ error: 'Failed to create file record' });
   }
 });

@@ -21,7 +21,7 @@ router.post('/posts', async (req, res) => {
     var _a, _b;
     try {
         console.log('[Save Post] Request:', req.body);
-        const post = Object.assign(Object.assign({}, req.body), { userId: ((_a = req.user) === null || _a === void 0 ? void 0 : _a.id) || ((_b = req.session) === null || _b === void 0 ? void 0 : _b.id) || 'anonymous' });
+        const post = Object.assign(Object.assign({}, req.body), { userId: String((_a = req.user) === null || _a === void 0 ? void 0 : _a.id) || ((_b = req.session) === null || _b === void 0 ? void 0 : _b.id) || 'anonymous' });
         scheduledPosts.set(post.id, post);
         // If scheduled, set up cron job
         if (post.scheduledDate && post.status === 'scheduled') {
@@ -89,7 +89,7 @@ router.post('/post-now', async (req, res) => {
 router.get('/posts', (req, res) => {
     var _a, _b;
     try {
-        const userId = ((_a = req.user) === null || _a === void 0 ? void 0 : _a.id) || ((_b = req.session) === null || _b === void 0 ? void 0 : _b.id) || 'anonymous';
+        const userId = String((_a = req.user) === null || _a === void 0 ? void 0 : _a.id) || ((_b = req.session) === null || _b === void 0 ? void 0 : _b.id) || 'anonymous';
         const userPosts = Array.from(scheduledPosts.values())
             .filter(post => post.userId === userId);
         console.log('[Get Posts] Found:', userPosts.length);
