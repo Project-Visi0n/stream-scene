@@ -163,15 +163,31 @@ router.get('/proxy/:key(*)', async (req, res) => {
     // Use mime-types to determine the correct Content-Type
     const mimeType = mime.lookup(key) || response.ContentType || 'application/octet-stream';
 
-    // Set appropriate headers
+    // Set appropriate headers with better video support
     res.set({
       'Content-Type': mimeType,
       'Content-Length': response.ContentLength?.toString() || '',
       'Cache-Control': 'public, max-age=3600',
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET',
-      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Range',
+      'Accept-Ranges': 'bytes', // Important for video seeking
     });
+
+    // Handle range requests for video streaming
+    const range = req.headers.range;
+    if (range && response.ContentLength) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      const start = parseInt(parts[0], 10);
+      const end = parts[1] ? parseInt(parts[1], 10) : response.ContentLength - 1;
+      const chunksize = (end - start) + 1;
+      
+      res.status(206);
+      res.set({
+        'Content-Range': `bytes ${start}-${end}/${response.ContentLength}`,
+        'Content-Length': chunksize.toString(),
+      });
+    }
 
     // Stream the file
     const stream = response.Body as NodeJS.ReadableStream;
@@ -263,9 +279,10 @@ router.post('/upload', upload.single('file'), async (req, res) => {
           console.warn('[S3Proxy] Temp file cleanup warning:', cleanupErr);
         }
 
-        const fileUrl = `https://${env.BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${mp4Key}`;
-        console.log('[S3Proxy] Video upload successful:', fileUrl);
-        return res.json({ url: fileUrl, key: mp4Key, converted: true });
+        // Return proxy URL instead of direct S3 URL
+        const proxyUrl = `/api/s3/proxy/${mp4Key}`;
+        console.log('[S3Proxy] Video upload successful, proxy URL:', proxyUrl);
+        return res.json({ url: proxyUrl, key: mp4Key, converted: true });
         
       } catch (conversionError) {
         console.error('[S3Proxy] Video conversion error:', conversionError);
@@ -294,10 +311,12 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     });
     
     await s3Client.send(putCommand);
-    const fileUrl = `https://${env.BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`;
     
-    console.log('[S3Proxy] Upload successful:', fileUrl);
-    res.json({ url: fileUrl, key, converted: false });
+    // Return proxy URL instead of direct S3 URL
+    const proxyUrl = `/api/s3/proxy/${key}`;
+    
+    console.log('[S3Proxy] Upload successful, proxy URL:', proxyUrl);
+    res.json({ url: proxyUrl, key, converted: false });
     
   } catch (error: any) {
     console.error('[S3Proxy] Upload error:', error);

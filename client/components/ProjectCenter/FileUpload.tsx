@@ -499,19 +499,27 @@ const FileUpload: React.FC = () => {
   const renderFilePreview = (file: UploadedFile) => {
   const { type, url, name, s3Key } = file;
 
-    console.log('Rendering preview for file:', { name, type, url: url.substring(0, 50) + '...' });
+  console.log('Rendering preview for file:', { name, type, url: url.substring(0, 50) + '...' });
 
-    // For uploaded files, ensure we use the server proxy URL for preview
-    let previewUrl = url;
-    if (s3Key && url.startsWith('blob:')) {
-      previewUrl = getFileUrl(s3Key);
-    }
-    if (isVideoFile(type)) return <VideoPreview url={previewUrl} type={type} />;
-    if (isAudioFile(type)) return <AudioPreview url={previewUrl} type={type} name={name} />;
-    if (isImageFile(type)) return <ImagePreview url={url} name={name} />;
-    if (isTextFile(type) || isPDFFile(type)) return <TextPreview url={url} name={name} />;
-    return <DefaultFilePreview type={type} name={name} />;
-  };
+  // For uploaded files, ensure we use the server proxy URL for preview
+  let previewUrl = url;
+  
+  // If we have an S3 key and the URL is a direct S3 URL, use proxy instead
+  if (s3Key && (url.includes('s3.') || url.includes('amazonaws.com'))) {
+    previewUrl = `/api/s3/proxy/${s3Key}`;
+    console.log('Using proxy URL for preview:', previewUrl);
+  }
+  
+  if (url.startsWith('blob:')) {
+    previewUrl = url; // Keep blob URLs as-is for local previews
+  }
+
+  if (isVideoFile(type)) return <VideoPreview url={previewUrl} type={type} />;
+  if (isAudioFile(type)) return <AudioPreview url={previewUrl} type={type} name={name} />;
+  if (isImageFile(type)) return <ImagePreview url={previewUrl} name={name} />;
+  if (isTextFile(type) || isPDFFile(type)) return <TextPreview url={previewUrl} name={name} />;
+  return <DefaultFilePreview type={type} name={name} />;
+};
 
   // Helper: Clean up local blob URL
   const cleanupLocalUrl = (url: string) => {
