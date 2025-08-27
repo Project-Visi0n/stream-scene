@@ -27,6 +27,7 @@ import threadsRoutes from './routes/threads.js';
 import { syncDB } from "./db/index.js";
 import captionRouter from './routes/caption.js';
 import taskRoutes from './routes/tasks.js';
+import contentSchedulerRoutes from './routes/contentScheduler.js';
 
 const app = express();
 
@@ -36,43 +37,30 @@ app.set('trust proxy', 1);
 // Environment check
 const isProd = process.env.NODE_ENV === 'production';
 
-// CORS configuration - fixed to be more specific
-const allowedOrigins = [
-  'http://localhost:3000',
-  'http://localhost:8000',
-  'http://localhost:8080',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:8000',
-  'http://127.0.0.1:8080',
-  'http://0.0.0.0:3000',
-  'http://0.0.0.0:8000',
-  'http://0.0.0.0:8080',
-  // Production domains
-  'http://streamscene.net',
-  'https://streamscene.net',
-  'http://streamscene.net:8000',
-  'https://streamscene.net:8000'
-];
-
-// Add production origins if they exist
-if (process.env.FRONTEND_URL) {
-  allowedOrigins.push(process.env.FRONTEND_URL);
-}
-if (process.env.PRODUCTION_URL) {
-  allowedOrigins.push(process.env.PRODUCTION_URL);
-}
-
+// CORS configuration - comprehensive for both development and production
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.log('CORS blocked origin:', origin);
-      callback(new Error('Not allowed by CORS'));
+    // Allow localhost on any port for development
+    if (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('0.0.0.0')) {
+      return callback(null, true);
     }
+    
+    // Allow EC2 instance IP
+    if (origin.includes('3.20.172.151')) {
+      return callback(null, true);
+    }
+    
+    // Allow streamscene.net WITH and WITHOUT www
+    if (origin.includes('streamscene.net')) {
+      return callback(null, true);
+    }
+    
+    // Log blocked origins for debugging
+    console.log('CORS blocked origin:', origin);
+    callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
@@ -83,7 +71,7 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session middleware - production-ready configuration
+// Session middleware - environment-aware configuration
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production',
   resave: false,
@@ -111,19 +99,13 @@ if (!isProd) {
   });
 }
 
-// Serve static files from public directory
-const publicPath = __dirname.includes('dist/server')
-  ? path.join(__dirname, '../../public') 
-  : path.join(__dirname, '../public');
-    
-app.use(express.static(publicPath));
-
-// Routes
+// API routes MUST come before static file serving
 app.use('/auth', authRoutes);
-app.use('/auth', socialAuthRoutes);
+app.use('/social', socialAuthRoutes);
 app.use('/', routes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/schedule', scheduleRoutes);
+app.use('/api/content-scheduler', contentSchedulerRoutes);
 app.use('/api/tasks', taskRoutes);
 app.use('/api/s3', s3ProxyRoutes);
 app.use('/api/files', filesRoutes);
@@ -132,6 +114,13 @@ app.use('/api/budget', budgetRoutes);
 app.use('/api/threads', threadsRoutes);
 app.use('/api/caption', captionRouter);
 
+// Serve static files from public directory
+const publicPath = __dirname.includes('dist/server')
+  ? path.join(__dirname, '../../public') 
+  : path.join(__dirname, '../public');
+    
+app.use(express.static(publicPath));
+
 // API test route
 app.get('/test-server', (req, res) => {
   res.json({ message: 'Server is working!' });
@@ -139,7 +128,7 @@ app.get('/test-server', (req, res) => {
 
 // Catch-all: serve frontend app unless it's an API route
 app.get('*', (req, res) => {
-  if (req.path.startsWith('/api/') || req.path.startsWith('/auth/')) {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/auth/') || req.path.startsWith('/social/')) {
     return res.status(404).json({ error: 'Route not found' });
   }
   
@@ -164,7 +153,6 @@ syncDB().then(() => {
     console.log(`Server is running at http://localhost:${PORT}`);
     console.log(`External access: http://${HOST}:${PORT}`);
     console.log(`Environment: ${isProd ? 'production' : 'development'}`);
-    console.log(`Allowed CORS origins:`, allowedOrigins);
   });
 }).catch((error) => {
   console.error('Failed to initialize database:', error);

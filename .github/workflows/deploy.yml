@@ -25,6 +25,8 @@ jobs:
         npm ci
       
     - name: Build application
+      env:
+        REACT_APP_API_URL: http://streamscene.net:8000
       run: |
         npm run build
         
@@ -38,20 +40,26 @@ jobs:
         cp -r public/ deploy/
         
         # Copy configuration files
-        cp ecosystem.config.js deploy/
+        cp ecosystem.config.cjs deploy/
         cp package-server.json deploy/package.json
         
         # Create environment file template (will be populated with secrets)
         cat > deploy/.env << EOF
         PORT=8000
+        CLIENT_URL=http://streamscene.net:8000
+        REACT_APP_API_URL=http://streamscene.net:8000
         SESSION_SECRET=${{ secrets.SESSION_SECRET }}
         GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
         GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-        GOOGLE_CALLBACK_URL=http://${{ secrets.SERVER_HOST }}:8000/auth/google/callback
+        GOOGLE_CALLBACK_URL=http://streamscene.net:8000/auth/google/callback
         AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_REGION=${{ secrets.AWS_REGION }}
         AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+        DB_HOST=localhost
+        DB_NAME=stream_scene_db
+        DB_USER=root
+        DB_PASS=StreamRoot2024!
         EOF
 
     - name: Setup server directory
@@ -102,6 +110,7 @@ jobs:
           pm2 stop stream-scene || true
           pm2 delete stream-scene || true
           
-          # Start with PM2 using ecosystem config
-          pm2 start ecosystem.config.js --env production
+          # Start with PM2 using ecosystem config (will use .env file)
+          pm2 start ecosystem.config.cjs
+          pm2 save
           pm2 save

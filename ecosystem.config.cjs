@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   apps: [{
     name: 'stream-scene',
     script: 'dist/server/app.js',
@@ -6,6 +6,7 @@ export default {
     autorestart: true,
     watch: false,
     max_memory_restart: '1G',
+    env_file: '.env', // Use .env file for all environments
     env: {
       NODE_ENV: 'development',
       PORT: 8000

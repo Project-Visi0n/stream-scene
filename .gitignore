@@ -1,48 +1,33 @@
-
-
-# Node modules (both client and server)
+# Node modules
 node_modules/
 server/node_modules/
 
 # TypeScript build info
 *.tsbuildinfo
 
-
-# Build output (dist, build)
+# Build output
 dist/
 build/
 server/dist/
 public/bundle.js
 public/bundle.js.LICENSE.txt
 public/index.html
+public/
 
-
-# Environment files (all variations)
+# Environment files
 .env
 .env.*
+.env.local
+.env.production
 server/.env
 
-# OS-specific junk
+# OS-specific files
 .DS_Store
 Thumbs.db
-
-.env.production
 
 # SSH Keys
 *.pem
 *.ppk
 
-node_modules/
-
-# Ignore backend build output and secrets
-server/dist/
-server/node_modules/
-server/.env
-
 # GitHub Actions secrets
 secrets/
-public/bundle.js
-dist/
-.env.local
-.envpublic/bundle.js
-public/

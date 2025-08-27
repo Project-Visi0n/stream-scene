@@ -1,76 +1,63 @@
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import dotenv from 'dotenv';
 import path from 'path';
+import { User } from '../db/index.js'; // Fix the import - remove the .js extension and import from the db index
 
 // Load environment variables
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
-import passport from 'passport';
-import { Strategy as GoogleStrategy, Profile } from 'passport-google-oauth20';
-import { User } from '../models/User.js'; // Re-enable with minimal User model
-
-console.log('GOOGLE_CLIENT_ID loaded in passport.ts:', process.env.GOOGLE_CLIENT_ID);
-console.log('GOOGLE_CLIENT_SECRET loaded:', process.env.GOOGLE_CLIENT_SECRET ? 'EXISTS' : 'MISSING');
-console.log('GOOGLE_CALLBACK_URL loaded:', process.env.GOOGLE_CALLBACK_URL);
-console.log('SESSION_SECRET loaded:', process.env.SESSION_SECRET ? 'EXISTS' : 'MISSING');
-
-// Set up Google OAuth strategy
 passport.use(
   new GoogleStrategy(
     {
       clientID: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL!,
+      callbackURL: process.env.GOOGLE_CALLBACK_URL || '/auth/google/callback',
+      passReqToCallback: true,
     },
-    async (accessToken: string, refreshToken: string, profile: Profile, done) => {
+    async (req: any, accessToken: string, refreshToken: string, profile: any, done: Function) => {
       try {
-        const email = profile.emails?.[0]?.value;
-        const photo = profile.photos?.[0]?.value || undefined;
+        console.log('=== Google Strategy Callback ===');
+        console.log('Profile ID:', profile.id);
+        console.log('Profile Email:', profile.emails?.[0]?.value);
+        console.log('Profile Name:', profile.displayName);
 
-        if (!email) {
-          return done(new Error('No email found in Google profile'), false);
-        }
-
+        // Find or create user
         let user = await User.findOne({ where: { googleId: profile.id } });
 
         if (!user) {
-          let firstName = '';
-          let lastName = '';
-
-          if (profile.displayName) {
-            const nameParts = profile.displayName.split(' ');
-            firstName = nameParts[0];
-            lastName = nameParts[1] || '';
-          }
-
           user = await User.create({
             googleId: profile.id,
-            firstName,
-            lastName,
-            email,
-            profilePic: photo,
+            email: profile.emails?.[0]?.value,
+            firstName: profile.name?.givenName || '',
+            lastName: profile.name?.familyName || '',
+            profilePicture: profile.photos?.[0]?.value,
           });
+          console.log('New user created:', user.id);
+        } else {
+          console.log('Existing user found:', user.id);
         }
 
         return done(null, user);
-      } catch (err) {
-        console.error('Error in Google OAuth strategy:', err);
-        return done(err as Error, false);
+      } catch (error) {
+        console.error('Error in Google strategy:', error);
+        return done(error, null);
       }
     }
   )
 );
 
-// Save user ID into the session
 passport.serializeUser((user: any, done) => {
+  console.log('Serializing user:', user.id);
   done(null, user.id);
 });
 
 passport.deserializeUser(async (id: number, done) => {
+  console.log('Deserializing user:', id);
   try {
-    const user = await User.findByPk(id);
+    const user = await User.findByPk(id); 
     done(null, user);
-  } catch (err) {
-    console.error('Error deserializing user:', err);
-    done(err, null);
+  } catch (error) {
+    done(error, null);
   }
 });
