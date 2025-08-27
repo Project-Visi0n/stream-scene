@@ -26,6 +26,7 @@ import socialAuthRoutes from './routes/socialAuth.js';
 import threadsRoutes from './routes/threads.js';
 import { syncDB } from "./db/index.js";
 import captionRouter from './routes/caption.js';
+import contentSchedulerRoutes from './routes/contentScheduler.js'; // ADD THIS LINE
 
 
 const app = express();
@@ -85,6 +86,7 @@ console.log('Auth routes loaded at /auth');
 app.use('/social', socialAuthRoutes);  // Threads OAuth routes - CHANGED PATH
 app.use('/api', aiRoutes);
 app.use('/api/schedule', scheduleRoutes);
+app.use('/api/content-scheduler', contentSchedulerRoutes); // ADD THIS LINE
 app.use('/api/s3', s3ProxyRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/shares', sharesRoutes);

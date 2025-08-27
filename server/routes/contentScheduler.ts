@@ -1,6 +1,7 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import { TwitterApi } from 'twitter-api-v2';
 import cron from 'node-cron';
+import { requireAuth } from '../middleware/authMiddleWare.js';
 
 const router = Router();
 
@@ -432,6 +433,70 @@ router.post('/test-threads', async (req, res) => {
       error: 'Failed to test Threads post',
       details: error instanceof Error ? error.message : 'Unknown error'
     });
+  }
+});
+
+// Schedule a post
+router.post('/schedule', requireAuth, async (req: Request, res: Response) => {
+  try {
+    // Type assert the request to AuthenticatedRequest
+    const userId = (req as AuthenticatedRequest).user.id;
+    
+    const { text, media, platforms, scheduledDate } = req.body;
+    
+    if (!text || !text.trim()) {
+      return res.status(400).json({ error: 'Text content is required' });
+    }
+    
+    if (!platforms || platforms.length === 0) {
+      return res.status(400).json({ error: 'At least one platform must be selected' });
+    }
+    
+    if (!scheduledDate) {
+      return res.status(400).json({ error: 'Scheduled date is required' });
+    }
+    
+    // Create a unique ID for the post
+    const postId = `post_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    
+    const post: ScheduledPost = {
+      id: postId,
+      text,
+      media: media || [],
+      platforms,
+      scheduledDate: new Date(scheduledDate),
+      status: 'scheduled',
+      userId
+    };
+    
+    scheduledPosts.set(postId, post);
+    console.log('[Schedule Post] Post scheduled:', postId);
+    
+    // Schedule the post
+    schedulePost(post);
+    
+    res.json({ success: true, post });
+  } catch (error) {
+    console.error('[Schedule Post] Error:', error);
+    res.status(500).json({ 
+      error: 'Failed to schedule post',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Get scheduled posts
+router.get('/scheduled', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = (req as AuthenticatedRequest).user.id;
+    const userPosts = Array.from(scheduledPosts.values())
+      .filter(post => post.userId === userId);
+    
+    console.log('[Get Scheduled Posts] Found:', userPosts.length);
+    res.json(userPosts);
+  } catch (error) {
+    console.error('[Get Scheduled Posts] Error:', error);
+    res.status(500).json({ error: 'Failed to fetch scheduled posts' });
   }
 });
 

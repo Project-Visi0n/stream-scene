@@ -1,12 +1,11 @@
+import passport from 'passport';
+import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import dotenv from 'dotenv';
 import path from 'path';
+import { User } from '../db/index.js'; // Fix the import - remove the .js extension and import from the db index
 
 // Load environment variables
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
-
-import passport from 'passport';
-import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
-import { User } from '../db/models/User.js'; // Adjust path as needed
 
 passport.use(
   new GoogleStrategy(
