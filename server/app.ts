@@ -139,4 +139,6 @@ syncDB().then(() => {
   process.exit(1);
 });
 
+console.log('Deployment update with');
+
 export default app;
