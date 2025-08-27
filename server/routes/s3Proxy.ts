@@ -493,5 +493,54 @@ router.get('/proxy/uploads/:filename', async (req, res) => {
   }
 });
 
+// Add this AFTER your existing routes, before the export
+
+// Check conversion status route
+router.post('/conversion-status', async (req, res) => {
+  try {
+    const { s3Key } = req.body;
+    
+    if (!s3Key) {
+      return res.status(400).json({ error: 'S3 key required' });
+    }
+
+    const env = getEnvVars();
+    if (!isS3Configured()) {
+      return res.status(500).json({ error: 'S3 not configured' });
+    }
+
+    const s3Client = getS3Client();
+    
+    // Check if MP4 version exists
+    const mp4Key = s3Key.replace(/\.[^/.]+$/, '.mp4'); // Replace extension with .mp4
+    
+    try {
+      const command = new HeadObjectCommand({
+        Bucket: env.BUCKET_NAME,
+        Key: mp4Key
+      });
+
+      await s3Client.send(command);
+
+      // MP4 exists, return converted URL
+      const mp4Url = `https://${env.BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${mp4Key}`;
+      
+      res.json({
+        converted: true,
+        mp4Url,
+        mp4Key
+      });
+    } catch (error) {
+      // MP4 doesn't exist yet or other error
+      res.json({
+        converted: false,
+        message: 'Conversion in progress or failed'
+      });
+    }
+  } catch (error) {
+    console.error('Error checking conversion status:', error);
+    res.status(500).json({ error: 'Failed to check conversion status' });
+  }
+});
 
 export default router;
