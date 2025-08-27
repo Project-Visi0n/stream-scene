@@ -29,6 +29,8 @@ import { User } from '../models/User.js';
 const File = initFileModel(sequelizeInstance);
 initSocialAccountTokenModel(sequelizeInstance);
 initScheduledPostModel(sequelizeInstance);
+// Task model should already be initialized in its own file
+// Just make sure it's using the same sequelize instance
 // (Associations are set inside initScheduledPostModel via belongsTo)
 export const associate = () => {
     console.log('Database associations set up');
@@ -43,11 +45,11 @@ export const testConnection = async () => {
         console.log('Continuing with in-memory storage fallback...');
     }
 };
-// Sync EVERYTHING (not just File)
+// Sync EVERYTHING including Task
 export const syncDB = async (force = false) => {
     try {
         await sequelizeInstance.sync({ force });
-        console.log('Database sync complete (File, SocialAccountToken, ScheduledPost)');
+        console.log('Database sync complete (File, SocialAccountToken, ScheduledPost, Task)');
     }
     catch (error) {
         console.error('Database sync failed:', error);

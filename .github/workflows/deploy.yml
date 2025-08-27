@@ -2,7 +2,25 @@ name: Deploy to Personal Server
 
 on:
   push:
-    branches: [ polish-branch ]  # Deploy from your branch
+        # Create environment file template (will be populated with secrets)
+        cat > deploy/.env << EOF
+        PORT=8000
+        CLIENT_URL=https://streamscene.net
+        REACT_APP_API_URL=https://streamscene.net
+        BASE_URL=https://streamscene.net
+        SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+        GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+        GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+        GOOGLE_CALLBACK_URL=https://streamscene.net/auth/google/callback
+        AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION=${{ secrets.AWS_REGION }}
+        AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+        DB_HOST=localhost
+        DB_NAME=stream_scene_db
+        DB_USER=root
+        DB_PASS=StreamRoot2024!
+        EOFlish-branch ]  # Deploy from your branch
   workflow_dispatch: # Allow manual trigger
 
 jobs:
@@ -26,7 +44,7 @@ jobs:
       
     - name: Build application
       env:
-        REACT_APP_API_URL: http://streamscene.net:8000
+        REACT_APP_API_URL: https://streamscene.net
       run: |
         npm run build
         
@@ -46,12 +64,12 @@ jobs:
         # Create environment file template (will be populated with secrets)
         cat > deploy/.env << EOF
         PORT=8000
-        CLIENT_URL=http://streamscene.net:8000
-        REACT_APP_API_URL=http://streamscene.net:8000
+        CLIENT_URL=https://streamscene.net
+        REACT_APP_API_URL=https://streamscene.net
         SESSION_SECRET=${{ secrets.SESSION_SECRET }}
         GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
         GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-        GOOGLE_CALLBACK_URL=http://streamscene.net:8000/auth/google/callback
+        GOOGLE_CALLBACK_URL=https://streamscene.net/auth/google/callback
         AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_REGION=${{ secrets.AWS_REGION }}

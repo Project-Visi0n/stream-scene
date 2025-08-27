@@ -1,5 +1,5 @@
 import { DataTypes, Model, Op } from 'sequelize';
-import db from '../db/index.js';
+import { getSequelize } from '../db/index.js';
 // Define the Task model class
 export class Task extends Model {
     // Static methods for common queries
@@ -63,7 +63,7 @@ Task.init({
     },
     deadline: {
         type: DataTypes.DATE,
-        allowNull: false,
+        allowNull: true, // Changed from false to true
     },
     estimated_hours: {
         type: DataTypes.INTEGER,
@@ -91,7 +91,7 @@ Task.init({
         field: 'updated_at',
     },
 }, {
-    sequelize: db.sequelize,
+    sequelize: getSequelize(),
     modelName: 'Task',
     tableName: 'tasks',
     timestamps: true,
