@@ -43,14 +43,13 @@ async function graphPost(
   for (const [k, v] of Object.entries(body)) {
     if (v === undefined || v === null) continue;
     if (Array.isArray(v)) {
-      // Graph expects arrays as JSON strings for some fields
       form.append(k, JSON.stringify(v));
     } else {
       form.append(k, String(v));
     }
   }
 
-  // Fix the type issues by using 'as any' for the fetch options
+  // Fix the fetch type issues with type assertions
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' } as any,
@@ -58,7 +57,6 @@ async function graphPost(
     ...init,
   } as any);
 
-  // Quick fix - cast all json responses to any
   const json: any = await res.json();
   if (!res.ok) {
     const errMsg = json?.error?.message || JSON.stringify(json);
@@ -139,7 +137,7 @@ export async function createMediaContainer(params: CreateContainerParams): Promi
 
   const response = await graphPost(`/${encodeURIComponent(userId)}/threads`, payload);
   // Example response: { id: "<creation_id>" }
-  const json = await response.json() as ThreadsContainerResponse;
+  const json: any = await response.json();
   if (!json?.id) throw new Error('No container id returned from Threads API.');
   return { id: json.id };
 }

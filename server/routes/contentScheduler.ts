@@ -3,6 +3,13 @@ import { TwitterApi } from 'twitter-api-v2';
 import cron from 'node-cron';
 import { requireAuth } from '../middleware/authMiddleWare.js';
 
+interface AuthenticatedRequest extends Request {
+  user: {
+    id: string;
+    email: string;
+  };
+}
+
 const router = Router();
 
 // Debug logging middleware
@@ -15,13 +22,6 @@ router.use((req, res, next) => {
   });
   next();
 });
-
-interface AuthenticatedRequest extends Request {
-  user: {
-    id: string;  // Change from number to string
-    email: string;
-  };
-}
 
 interface ScheduledPost {
   id: string;
@@ -43,7 +43,7 @@ router.post('/posts', async (req, res) => {
     
     const post: ScheduledPost = {
       ...req.body,
-      userId: (req.user as any)?.id || req.session?.id || 'anonymous'
+      userId: String((req.user as any)?.id) || req.session?.id || 'anonymous'
     };
     
     scheduledPosts.set(post.id, post);
@@ -118,7 +118,7 @@ router.post('/post-now', async (req, res) => {
 // Get scheduled posts
 router.get('/posts', (req, res) => {
   try {
-    const userId = (req.user as any)?.id || req.session?.id || 'anonymous';
+    const userId = String((req.user as any)?.id) || req.session?.id || 'anonymous';
     const userPosts = Array.from(scheduledPosts.values())
       .filter(post => post.userId === userId);
     
