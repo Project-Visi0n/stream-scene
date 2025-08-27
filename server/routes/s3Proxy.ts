@@ -244,7 +244,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       // Check if ffmpeg is available
       try {
         const ffmpegPath = await new Promise<string>((resolve, reject) => {
-          ffmpeg.getAvailableFormats((err, formats) => {
+          ffmpeg.getAvailableFormats((err: any, formats: any) => {
             if (err) {
               console.error('[S3Proxy] FFmpeg not available:', err);
               reject(new Error('FFmpeg not installed or not accessible'));
@@ -285,10 +285,10 @@ router.post('/upload', upload.single('file'), async (req, res) => {
               '-max_muxing_queue_size 9999' // Prevent muxing queue issues
             ])
             .output(tempOutputPath)
-            .on('start', (commandLine) => {
+            .on('start', (commandLine: string) => {
               console.log('[S3Proxy] FFmpeg command:', commandLine);
             })
-            .on('progress', (progress) => {
+            .on('progress', (progress: any) => {
               console.log('[S3Proxy] Conversion progress:', progress.percent?.toFixed(2) + '%');
             })
             .on('end', () => {
@@ -724,6 +724,38 @@ router.get('/debug/config', (req, res) => {
     bucket: env.BUCKET_NAME,
     accessKeyPrefix: env.AWS_ACCESS_KEY_ID?.substring(0, 6) + '...'
   });
+});
+
+// Debug route to check ffmpeg
+router.get('/debug/ffmpeg', async (req, res) => {
+  try {
+    const ffmpegAvailable = await new Promise((resolve) => {
+      ffmpeg.getAvailableFormats((err: any, formats: any) => {
+        if (err) {
+          resolve(false);
+        } else {
+          resolve(true);
+        }
+      });
+    });
+
+    const tempDir = process.env.TEMP_DIR || '/tmp';
+    const tempDirExists = fs.existsSync(tempDir);
+    const tempDirWritable = tempDirExists ? fs.accessSync(tempDir, fs.constants.W_OK) === undefined : false;
+
+    res.json({
+      ffmpegAvailable,
+      tempDir,
+      tempDirExists,
+      tempDirWritable,
+      message: ffmpegAvailable ? 'FFmpeg is available' : 'FFmpeg is not available'
+    });
+  } catch (error: any) {
+    res.json({
+      ffmpegAvailable: false,
+      error: error.message
+    });
+  }
 });
 
 export default router;
