@@ -42,7 +42,7 @@ export interface SharedFileAccess {
 const getApiBaseUrl = (): string => {
   // If we're on localhost, use localhost backend
   if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-    return 'http://localhost:8000/api/shares';
+    return '/api/shares';
   }
   
   // For deployed environments, use same domain with /api/shares
