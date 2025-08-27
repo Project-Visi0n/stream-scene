@@ -45,6 +45,7 @@ jobs:
         
         # Create environment file template (will be populated with secrets)
         cat > deploy/.env << EOF
+        NODE_ENV=production
         PORT=8000
         CLIENT_URL=https://streamscene.net
         REACT_APP_API_URL=https://streamscene.net
