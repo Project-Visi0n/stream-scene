@@ -2,7 +2,7 @@ name: Deploy to Personal Server
 
 on:
   push:
-    branches: [ deployment-strikes-back-revenge-of-the-dist ]  # Deploy from your branch
+    branches: [ polish-branch ]  # Deploy from your branch
   workflow_dispatch: # Allow manual trigger
 
 jobs:
