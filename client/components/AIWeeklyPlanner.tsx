@@ -105,14 +105,22 @@ const AIWeeklyPlanner: React.FC = () => {
       });
 
       if (response.ok) {
-        const tasksData = await response.json();
-        // Ensure tasksData is an array before setting state
-        if (Array.isArray(tasksData)) {
-          setTasks(tasksData);
+        const responseData = await response.json();
+        
+        // Handle different API response formats
+        let tasksData;
+        if (Array.isArray(responseData)) {
+          // Direct array response
+          tasksData = responseData;
+        } else if (responseData && Array.isArray(responseData.tasks)) {
+          // Object with tasks property
+          tasksData = responseData.tasks;
         } else {
-          console.error('API returned non-array tasks data:', tasksData);
-          setTasks([]); // Fallback to empty array
+          console.error('API returned unexpected data format:', responseData);
+          tasksData = [];
         }
+        
+        setTasks(tasksData);
       } else {
         console.error('Failed to load tasks');
         setTasks([]); // Fallback to empty array on error
