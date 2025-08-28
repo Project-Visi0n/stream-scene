@@ -142,9 +142,9 @@ router.post('/test-task', async (req: Request, res: Response) => {
       user_id: testUser.id,
       title: 'Test Task from API',
       description: 'This is a test task created via API',
-      priority: 'medium',
-      task_type: 'creative',
-      status: 'pending',
+      priority: 'medium' as const,
+      task_type: 'creative' as const,
+      status: 'pending' as const,
       deadline: futureDate, // Fixed: providing a valid date instead of null
       estimated_hours: 2
     };
@@ -296,12 +296,12 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     const taskData = {
       user_id: userId,
       title: title.trim(),
-      description: description?.trim() || null,
+      description: description?.trim() || undefined,
       priority,
       task_type,
-      status: 'pending',
-      deadline: parsedDeadline,
-      estimated_hours: estimated_hours || null
+      status: 'pending' as const,
+      deadline: parsedDeadline || undefined,
+      estimated_hours: estimated_hours || undefined
     };
 
     console.log('Creating task with data:', taskData);
