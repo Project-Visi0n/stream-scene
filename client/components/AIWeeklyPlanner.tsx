@@ -66,19 +66,22 @@ const AIWeeklyPlanner: React.FC = () => {
 
   // Filter tasks based on current filter
   const getFilteredTasks = () => {
+    // Ensure tasks is always an array before filtering
+    const safeTasksArray = Array.isArray(tasks) ? tasks : [];
+    
     switch (taskFilter) {
       case 'pending':
-        return tasks.filter(t => t.status === 'pending');
+        return safeTasksArray.filter(t => t.status === 'pending');
       case 'in_progress':
-        return tasks.filter(t => t.status === 'in_progress');
+        return safeTasksArray.filter(t => t.status === 'in_progress');
       case 'completed':
-        return tasks.filter(t => t.status === 'completed');
+        return safeTasksArray.filter(t => t.status === 'completed');
       case 'creative':
-        return tasks.filter(t => t.task_type === 'creative');
+        return safeTasksArray.filter(t => t.task_type === 'creative');
       case 'admin':
-        return tasks.filter(t => t.task_type === 'admin');
+        return safeTasksArray.filter(t => t.task_type === 'admin');
       default:
-        return tasks;
+        return safeTasksArray;
     }
   };
 
@@ -103,12 +106,20 @@ const AIWeeklyPlanner: React.FC = () => {
 
       if (response.ok) {
         const tasksData = await response.json();
-        setTasks(tasksData);
+        // Ensure tasksData is an array before setting state
+        if (Array.isArray(tasksData)) {
+          setTasks(tasksData);
+        } else {
+          console.error('API returned non-array tasks data:', tasksData);
+          setTasks([]); // Fallback to empty array
+        }
       } else {
         console.error('Failed to load tasks');
+        setTasks([]); // Fallback to empty array on error
       }
     } catch (error) {
       console.error('Error loading tasks:', error);
+      setTasks([]); // Fallback to empty array on error
     } finally {
       setIsLoadingTasks(false);
     }
@@ -274,7 +285,9 @@ const AIWeeklyPlanner: React.FC = () => {
   };
 
   const generateAISchedule = async () => {
-    if (tasks.length === 0) {
+    // Ensure tasks is always an array before checking length
+    const safeTasksArray = Array.isArray(tasks) ? tasks : [];
+    if (safeTasksArray.length === 0) {
       alert('Please add some tasks first before generating a schedule!');
       return;
     }
@@ -288,7 +301,7 @@ const AIWeeklyPlanner: React.FC = () => {
         },
         credentials: 'include',
         body: JSON.stringify({
-          tasks: tasks.filter(task => task.status !== 'completed'),
+          tasks: safeTasksArray.filter(task => task.status !== 'completed'),
           preferences: {
             workHoursPerDay: 8,
             workDaysPerWeek: 5,
@@ -354,8 +367,10 @@ const AIWeeklyPlanner: React.FC = () => {
     const timestamp = Date.now();
     
     // Generate fresh suggestions every time
-    const creativeTasks = tasks.filter(t => t.task_type === 'creative' && t.status !== 'completed');
-    const adminTasks = tasks.filter(t => t.task_type === 'admin' && t.status !== 'completed');
+    // Ensure tasks is always an array before filtering
+    const safeTasksArray = Array.isArray(tasks) ? tasks : [];
+    const creativeTasks = safeTasksArray.filter(t => t.task_type === 'creative' && t.status !== 'completed');
+    const adminTasks = safeTasksArray.filter(t => t.task_type === 'admin' && t.status !== 'completed');
     
     // 1. Planning and organization suggestions
     suggestions.push({
@@ -431,7 +446,7 @@ const AIWeeklyPlanner: React.FC = () => {
       if (response.ok) {
         const newTask = await response.json();
         setTasks(prev => [...prev, newTask]);
-        setAiSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
+        setAiSuggestions(prev => Array.isArray(prev) ? prev.filter(s => s.id !== suggestion.id) : []);
         alert(`Task "${suggestion.title}" added successfully!`);
       } else if (response.status === 401) {
         alert('Please log in to create tasks. You need to be authenticated to use this feature.');
@@ -504,19 +519,23 @@ const AIWeeklyPlanner: React.FC = () => {
 
   const getEventsForDay = (date: Date | null) => {
     if (!date) return [];
+    // Ensure calendarEvents is always an array before filtering
+    const safeCalendarEvents = Array.isArray(calendarEvents) ? calendarEvents : [];
     const dayStr = date.toISOString().split('T')[0];
-    return calendarEvents.filter(event => {
+    return safeCalendarEvents.filter(event => {
       const eventDate = new Date(event.start).toISOString().split('T')[0];
       return eventDate === dayStr;
     });
   };
 
   const getTaskStats = () => {
-    const pending = tasks.filter(t => t.status === 'pending').length;
-    const inProgress = tasks.filter(t => t.status === 'in_progress').length;
-    const completed = tasks.filter(t => t.status === 'completed').length;
-    const creative = tasks.filter(t => t.task_type === 'creative').length;
-    const admin = tasks.filter(t => t.task_type === 'admin').length;
+    // Ensure tasks is always an array before filtering
+    const safeTasksArray = Array.isArray(tasks) ? tasks : [];
+    const pending = safeTasksArray.filter(t => t.status === 'pending').length;
+    const inProgress = safeTasksArray.filter(t => t.status === 'in_progress').length;
+    const completed = safeTasksArray.filter(t => t.status === 'completed').length;
+    const creative = safeTasksArray.filter(t => t.task_type === 'creative').length;
+    const admin = safeTasksArray.filter(t => t.task_type === 'admin').length;
     
     return { pending, inProgress, completed, creative, admin, total: tasks.length };
   };
@@ -846,8 +865,10 @@ const AIWeeklyPlanner: React.FC = () => {
   };
 
   const renderSuggestionsView = () => {
-    const actionableSuggestions = aiSuggestions.filter(s => s.type === 'task');
-    const insights = aiSuggestions.filter(s => s.type === 'optimization' || s.type === 'calendar_block');
+    // Ensure aiSuggestions is always an array before filtering
+    const safeAiSuggestions = Array.isArray(aiSuggestions) ? aiSuggestions : [];
+    const actionableSuggestions = safeAiSuggestions.filter(s => s.type === 'task');
+    const insights = safeAiSuggestions.filter(s => s.type === 'optimization' || s.type === 'calendar_block');
 
     return (
       <div className="space-y-8">
