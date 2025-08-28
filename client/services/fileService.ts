@@ -23,7 +23,7 @@ export interface CreateFileRequest {
   tags?: string[];
 }
 
-const API_BASE = 'http://localhost:8000/api/files';
+const API_BASE = '/api/files';
 
 export const fileService = {
   // Get all files for the authenticated user
@@ -156,5 +156,107 @@ export const fileService = {
       console.error('Error fetching tags:', error);
       throw error;
     }
+  }
+};
+
+// File upload and handling service
+export const uploadFile = async (file: File): Promise<{ file: FileRecord; preview?: string }> => {
+  try {
+    console.log('Starting upload for file:', file.name, 'Type:', file.type, 'Size:', file.size);
+
+    // For video files, use the conversion-enabled upload
+    if (file.type.startsWith('video/')) {
+      return await handleVideoUpload(file);
+    } else {
+      return await handleRegularUpload(file);
+    }
+  } catch (error) {
+    console.error('Upload failed:', error);
+    throw error;
+  }
+};
+
+const handleVideoUpload = async (file: File): Promise<{ file: FileRecord; preview?: string }> => {
+  console.log('[VideoUpload] Starting video processing for:', file.name);
+  
+  // Your S3 upload route already handles conversion!
+  const uploadResult = await uploadToS3(file);
+  
+  if (!uploadResult.success || !uploadResult.url) {
+    throw new Error('Video upload to S3 failed');
+  }
+
+  console.log('[VideoUpload] Upload successful. Converted:', uploadResult.converted);
+
+  // Create file record in database with S3 URL (already converted if needed)
+  const fileRecord = await createFileRecord({
+    name: file.name,
+    originalName: file.name,
+    type: uploadResult.converted ? 'video/mp4' : file.type,
+    size: file.size,
+    s3Key: uploadResult.s3Key,
+    url: uploadResult.url, // This is already the converted MP4 URL
+    tags: []
+  });
+
+  console.log('[VideoUpload] File record created:', fileRecord.id);
+
+  return {
+    file: fileRecord,
+    preview: uploadResult.url // Use S3 URL for preview
+  };
+};
+
+const handleRegularUpload = async (file: File): Promise<{ file: FileRecord; preview?: string }> => {
+  // Handle non-video files
+  const uploadResult = await uploadToS3(file);
+  
+  if (!uploadResult.success || !uploadResult.url) {
+    throw new Error('Upload to S3 failed');
+  }
+
+  const fileRecord = await createFileRecord({
+    name: file.name,
+    originalName: file.name,
+    type: file.type,
+    size: file.size,
+    s3Key: uploadResult.s3Key,
+    url: uploadResult.url,
+    tags: []
+  });
+
+  return {
+    file: fileRecord,
+    preview: uploadResult.url
+  };
+};
+
+// Update your uploadToS3 function to use the correct endpoint
+const uploadToS3 = async (file: File): Promise<{ success: boolean; url?: string; s3Key?: string; converted?: boolean }> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    // Use your conversion-enabled S3 upload endpoint
+    const response = await fetch('/api/s3/upload', {
+      method: 'POST',
+      credentials: 'include',
+      body: formData
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upload failed: ${response.status}`);
+    }
+
+    const result = await response.json();
+    return {
+      success: true,
+      url: result.url,
+      s3Key: result.key,
+      converted: result.converted || false
+    };
+  } catch (error) {
+    console.error('S3 upload error:', error);
+    return { success: false };
   }
 };

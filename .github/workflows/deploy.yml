@@ -1,94 +1,154 @@
-name: Deploy to EC2 (Development)
+name: Deploy to Personal Server
 
 on:
+  schedule:
+    - cron: '*/5 * * * *'  # Check every 5 minutes
   push:
-    branches: [ main ]  # Deploy when pushing to main or typescript-deployment-branch
-  pull_request:
-    branches: [ main ]
+    branches: [ main ]  # Deploy from your main branch too
+  workflow_dispatch: # Allow manual trigger
 
 jobs:
-  deploy:
+  check-and-deploy:
     runs-on: ubuntu-latest
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history to compare with upstream
+        
+    - name: Add upstream remote
+      run: |
+        git remote add upstream https://github.com/Project-Visi0n/stream-scene.git || true
+        git fetch upstream
+        
+    - name: Check for upstream changes
+      id: check_changes
+      run: |
+        # Get the latest commit hash from upstream main
+        UPSTREAM_HASH=$(git rev-parse upstream/main)
+        
+        # Get the latest commit hash from our main branch
+        LOCAL_HASH=$(git rev-parse origin/main)
+        
+        echo "Upstream main: $UPSTREAM_HASH"
+        echo "Local main: $LOCAL_HASH"
+        
+        if [ "$UPSTREAM_HASH" != "$LOCAL_HASH" ]; then
+          echo "Changes detected in upstream!"
+          echo "should_deploy=true" >> $GITHUB_OUTPUT
+          
+          # Merge upstream changes
+          git checkout main
+          git merge upstream/main --no-edit
+          git push origin main
+        else
+          echo "No new changes in upstream"
+          echo "should_deploy=false" >> $GITHUB_OUTPUT
+        fi
       
     - name: Setup Node.js
+      if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       uses: actions/setup-node@v4
       with:
-        node-version: '24.5.0'
+        node-version: '18'
         cache: 'npm'
-        
-    - name: Install dependencies
-      run: npm ci
+
+    - name: Clean install dependencies
+      if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      run: |
+        rm -rf node_modules
+        npm ci
       
     - name: Build application
+      if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      env:
+        REACT_APP_API_URL: https://streamscene.net
       run: |
         npm run build
+        
+    - name: Create deployment package
+      run: |
+        # Create a deployment directory
+        mkdir -p deploy
+        
+        # Copy built files
+        cp -r dist/ deploy/
+        cp -r public/ deploy/
+        
+        # Copy configuration files
+        cp ecosystem.config.cjs deploy/
+        cp package-server.json deploy/package.json
+        
+        # Create environment file template (will be populated with secrets)
+        cat > deploy/.env << EOF
+        NODE_ENV=production
+        PORT=8000
+        CLIENT_URL=https://streamscene.net
+        REACT_APP_API_URL=https://streamscene.net
+        BASE_URL=https://streamscene.net
+        SESSION_SECRET=${{ secrets.SESSION_SECRET }}
+        GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
+        GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
+        GOOGLE_CALLBACK_URL=https://streamscene.net/auth/google/callback
+        AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_REGION=${{ secrets.AWS_REGION }}
+        AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+        DB_HOST=localhost
+        DB_NAME=stream_scene_db
+        DB_USER=root
+        DB_PASS=StreamRoot2024!
+        EOF
 
-    - name: Test SSH Connection
+    - name: Setup server directory
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USERNAME }}
-        key: ${{ secrets.EC2_SSH_KEY }}
-        port: 22
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
         script: |
-          echo "SSH connection successful!"
-          whoami
-          pwd
-          ls -la
-
-    - name: Deploy to EC2 (Development Mode)
-      uses: appleboy/ssh-action@v1.0.3
-      with:
-        host: ${{ secrets.EC2_HOST }}
-        username: ${{ secrets.EC2_USERNAME }}
-        key: ${{ secrets.EC2_SSH_KEY }}
-        port: 22
-        script: |
-          # Navigate to app directory
-          cd /home/ubuntu
-          
-          # Clone or update repository from upstream Project Vision
-          if [ ! -d "stream-scene" ]; then
-            git clone https://github.com/Project-Visi0n/stream-scene.git
-            cd stream-scene
-            git checkout main
-          else
-            cd stream-scene
-            git fetch upstream
-            git checkout main
-            git pull upstream main
-          fi
-          
-          # Install dependencies
-          npm ci
-          
-          # Build with increased memory
-          NODE_OPTIONS="--max-old-space-size=2048" npm run build
-          
-          # Create environment file if it doesn't exist
-          if [ ! -f ".env" ]; then
-            cat > .env << EOF
-          PORT=8000
-          SESSION_SECRET=${{ secrets.SESSION_SECRET }}
-          GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GOOGLE_CALLBACK_URL=http://${{ secrets.EC2_HOST }}:8000/auth/google/callback
-          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION=${{ secrets.AWS_REGION }}
-          AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
-          EOF
-          fi
+          # Create app directory if it doesn't exist
+          sudo mkdir -p /var/www/stream-scene
+          sudo chown $USER:$USER /var/www/stream-scene
           
           # Install PM2 globally if not installed
-          sudo npm install -g pm2 || true
+          if ! command -v pm2 &> /dev/null; then
+            sudo npm install -g pm2
+          fi
           
-          # Deploy with PM2 - use direct start instead of ecosystem file
+          # Create logs directory
+          mkdir -p /var/www/stream-scene/logs
+
+    - name: Copy files to server
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        source: "deploy/*"
+        target: "/var/www/stream-scene/"
+        strip_components: 1
+        
+    - name: Deploy application
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        script: |
+          cd /var/www/stream-scene
+          
+          # Install production dependencies
+          npm install --production
+          
+          # Stop existing PM2 process
           pm2 stop stream-scene || true
           pm2 delete stream-scene || true
-          pm2 start dist/server/app.js --name stream-scene --env production
+          
+          # Start with PM2 using ecosystem config (will use .env file)
+          pm2 start ecosystem.config.cjs
           pm2 save

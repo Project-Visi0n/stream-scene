@@ -43,21 +43,21 @@ async function graphPost(
   for (const [k, v] of Object.entries(body)) {
     if (v === undefined || v === null) continue;
     if (Array.isArray(v)) {
-      // Graph expects arrays as JSON strings for some fields
       form.append(k, JSON.stringify(v));
     } else {
       form.append(k, String(v));
     }
   }
 
+  // Fix the fetch type issues with type assertions
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: form.toString(),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' } as any,
+    body: form.toString() as any,
     ...init,
-  });
+  } as any);
 
-  const json = await res.json().catch(() => ({}));
+  const json: any = await res.json();
   if (!res.ok) {
     const errMsg = json?.error?.message || JSON.stringify(json);
     throw new Error(`Graph POST ${path} ${res.status}: ${errMsg}`);
@@ -77,7 +77,8 @@ async function graphGet(path: string, params: Record<string, any>) {
   const url = `${THREADS_GRAPH_BASE}/${THREADS_API_VERSION}${path}?${usp.toString()}`;
 
   const res = await fetch(url);
-  const json = await res.json().catch(() => ({}));
+  // Quick fix - cast all json responses to any
+  const json: any = await res.json();
   if (!res.ok) {
     const errMsg = json?.error?.message || JSON.stringify(json);
     throw new Error(`Graph GET ${path} ${res.status}: ${errMsg}`);
@@ -134,8 +135,9 @@ export async function createMediaContainer(params: CreateContainerParams): Promi
     }
   }
 
-  const json = await graphPost(`/${encodeURIComponent(userId)}/threads`, payload);
+  const response = await graphPost(`/${encodeURIComponent(userId)}/threads`, payload);
   // Example response: { id: "<creation_id>" }
+  const json: any = await response.json();
   if (!json?.id) throw new Error('No container id returned from Threads API.');
   return { id: json.id };
 }
@@ -185,7 +187,7 @@ export async function publishContainer(params: PublishParams): Promise<{ id?: st
     creation_id: creationId,
   });
  
-  return json;
+  return json as { id?: string };
 }
 
 /**
@@ -201,4 +203,21 @@ export async function createAndPublish(params: CreateAndPublishParams): Promise<
 
   const published = await publishContainer({ userId, accessToken, creationId });
   return { ...published, creationId };
+}
+
+// Add these interfaces at the top of the file
+interface ThreadsTokenResponse {
+  access_token?: string;
+  error?: {
+    message: string;
+  };
+}
+
+interface ThreadsContainerResponse {
+  id?: string;
+  status?: string;
+  error_message?: string;
+  error?: {
+    message: string;
+  };
 }

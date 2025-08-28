@@ -3,7 +3,7 @@
     "target": "es2017",
     "module": "ES2022",
     "lib": ["esnext"],
-    "outDir": "./dist",
+    "outDir": "../dist/server",
     "rootDir": ".",
     "strict": true,
     "esModuleInterop": true,
@@ -18,19 +18,13 @@
     "baseUrl": ".",
     "paths": {
       "@models/*": ["models/*"]
-    }
+    },
+    "typeRoots": ["./node_modules/@types", "./types"],
+    "types": ["node", "express"]
   },
   "include": [
-    "src/**/*",
-    "server/types",  
-    "types",
-    "routes",
-    "models",
-    "middleware",
-    "db",
-    "config",
-    "app.ts",
-    "server.ts"
+    "**/*.ts",
+    "types/**/*.d.ts"
   ],
   "exclude": ["node_modules", "dist"]
 }

@@ -5,6 +5,8 @@ import { fileService, FileRecord, CreateFileRequest } from '../../services/fileS
 import { ShareRecord } from '../../services/shareService';
 import useAuth from '../../hooks/useAuth';
 import ShareModal from '../ShareModal';
+import LoadingScreen from '../LoadingScreen';
+import InlineLoading from '../InlineLoading';
 
 interface UploadedFile {
   id: string;
@@ -169,38 +171,52 @@ const FileUpload: React.FC = () => {
     console.log('[FileUpload] handleS3Upload: Checking S3 config...');
     if (!isS3Configured()) {
       setError('AWS S3 not configured. Files are stored locally for preview only.');
-      console.warn('[FileUpload] S3 not configured. Env:', process.env);
+      console.warn('[FileUpload] S3 not configured');
       return { url: URL.createObjectURL(file) };
     }
 
     try {
-      console.log('[FileUpload] handleS3Upload: Uploading file:', file);
-      // Use your actual upload endpoint here:
+      console.log('[FileUpload] handleS3Upload: Uploading file:', file.name);
+      
       const formData = new FormData();
       formData.append('file', file);
 
       const response = await fetch('/api/s3/upload', {
         method: 'POST',
         body: formData,
+        credentials: 'include' // Add this for session handling
       });
 
+      console.log('[FileUpload] Upload response status:', response.status);
+
       if (!response.ok) {
-        throw new Error('Upload failed');
+        const errorText = await response.text();
+        console.error('[FileUpload] Upload failed:', response.status, errorText);
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          throw new Error(errorJson.error || `Upload failed: ${response.status}`);
+        } catch {
+          throw new Error(`Upload failed: ${response.status} ${errorText}`);
+        }
       }
 
       const data = await response.json();
+      console.log('[FileUpload] Upload successful:', data);
+      
       // Use the backend's returned URL and key (which will be .mp4 if converted)
       return { url: data.url, s3Key: data.key };
+      
     } catch (s3Error) {
-      console.warn('[FileUpload] S3 upload failed, using local preview:', s3Error);
-      setError('S3 upload failed. Using local preview.');
+      console.error('[FileUpload] S3 upload failed:', s3Error);
+      setError(`S3 upload failed: ${s3Error instanceof Error ? s3Error.message : 'Unknown error'}`);
       return { url: URL.createObjectURL(file) };
     }
   };
 
   const uploadFile = async (file: File) => {
     if (!user) {
-      setError('Please log in to upload files.');
+      setError('You must be logged in to upload files');
       return;
     }
 
@@ -209,68 +225,71 @@ const FileUpload: React.FC = () => {
     setUploadProgress(0);
 
     try {
-      console.log('Starting upload for file:', file.name, 'Type:', file.type, 'Size:', file.size);
-
-      // Simulate progress for better UX
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => Math.min(prev + 10, 90));
-      }, 200);
+      console.log(`Starting upload for file: ${file.name} Type: ${file.type} Size: ${file.size}`);
       
-      const { url, s3Key } = await handleS3Upload(file); // Waits for backend to finish conversion
-
-      clearInterval(progressInterval);
-      setUploadProgress(95);
-
-      // Always use the server proxy URL for previews if S3 key is available
-      const previewUrl = url; // Now this is always the backend's returned URL
-
-      console.log('Upload completed. Preview URL:', previewUrl, 'S3Key:', s3Key);
+      // Upload to S3
+      const { url, s3Key } = await handleS3Upload(file);
+      console.log(`Upload completed. Preview URL: ${url} S3Key: ${s3Key}`);
+      
+      // Create a display name based on whether file was converted
+      const displayName = s3Key?.endsWith('.mp4') && !file.name.endsWith('.mp4') 
+        ? file.name.replace(/\.[^/.]+$/, '.mp4')
+        : file.name;
 
       // Create file record in database
-      const fileData: CreateFileRequest = {
-        name: url.endsWith('.mp4') ? file.name.replace(/\.[^/.]+$/, '.mp4') : file.name,
-        originalName: file.name,
-        type: url.endsWith('.mp4') ? 'video/mp4' : file.type,
+      const fileData = {
+        name: displayName, // Use the converted name if applicable
+        originalName: file.name, // Keep original name for reference
+        type: s3Key?.endsWith('.mp4') ? 'video/mp4' : file.type,
         size: file.size,
-        url: previewUrl,
-        s3Key,
-        tags: selectedTags.length > 0 ? [...selectedTags] : undefined
-};
+        url: url,
+        s3Key: s3Key,
+        tags: [],
+      };
 
-      const fileRecord = await fileService.createFile(fileData);
-      console.log('File record created:', fileRecord);
+      const fileResponse = await fetch('/api/files/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify(fileData),
+      });
 
+      if (!fileResponse.ok) {
+        const errorData = await fileResponse.json();
+        throw new Error(errorData.error || 'Failed to save file record');
+      }
+
+      const savedFile = await fileResponse.json();
+      console.log('File record created:', savedFile);
+
+      // Update local state with database record
       const newFile: UploadedFile = {
-        id: `db-${fileRecord.id}`,
-        name: fileRecord.name,
-        type: fileRecord.type,
-        size: fileRecord.size,
-        url: fileRecord.url,
-        s3Key: fileRecord.s3Key,
-        tags: fileRecord.tags,
-        uploadedAt: new Date(fileRecord.uploadedAt),
-        fileRecordId: fileRecord.id
+        id: `db-${savedFile.id}`,
+        name: savedFile.name,
+        type: savedFile.type,
+        size: savedFile.size,
+        url: savedFile.url,
+        s3Key: savedFile.s3Key,
+        tags: savedFile.tags || [],
+        uploadedAt: new Date(savedFile.uploadedAt),
+        fileRecordId: savedFile.id,
       };
 
       console.log('Adding file to state:', newFile);
       setUploadedFiles(prev => [...prev, newFile]);
       setUploadProgress(100);
       
-      // Refresh available tags if new tags were added
-      if (selectedTags.length > 0) {
-        loadUserTags();
-        setSelectedTags([]); // Clear selected tags after upload
-      }
-      
-      // Reset progress after a short delay
-      setTimeout(() => setUploadProgress(0), 1000);
+      // Reload files to ensure consistency
+      loadUserFiles();
       
     } catch (error) {
-      console.error('Upload failed:', error);
-      setError('Upload failed. Please try again.');
-      setUploadProgress(0);
+      console.error('Upload error:', error);
+      setError(error instanceof Error ? error.message : 'Upload failed');
     } finally {
       setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -485,19 +504,27 @@ const FileUpload: React.FC = () => {
   const renderFilePreview = (file: UploadedFile) => {
   const { type, url, name, s3Key } = file;
 
-    console.log('Rendering preview for file:', { name, type, url: url.substring(0, 50) + '...' });
+  console.log('Rendering preview for file:', { name, type, url: url.substring(0, 50) + '...' });
 
-    // For uploaded files, ensure we use the server proxy URL for preview
-    let previewUrl = url;
-    if (s3Key && url.startsWith('blob:')) {
-      previewUrl = getFileUrl(s3Key);
-    }
-    if (isVideoFile(type)) return <VideoPreview url={previewUrl} type={type} />;
-    if (isAudioFile(type)) return <AudioPreview url={previewUrl} type={type} name={name} />;
-    if (isImageFile(type)) return <ImagePreview url={url} name={name} />;
-    if (isTextFile(type) || isPDFFile(type)) return <TextPreview url={url} name={name} />;
-    return <DefaultFilePreview type={type} name={name} />;
-  };
+  // For uploaded files, ensure we use the server proxy URL for preview
+  let previewUrl = url;
+  
+  // If we have an S3 key and the URL is a direct S3 URL, use proxy instead
+  if (s3Key && (url.includes('s3.') || url.includes('amazonaws.com'))) {
+    previewUrl = `/api/s3/proxy/${s3Key}`;
+    console.log('Using proxy URL for preview:', previewUrl);
+  }
+  
+  if (url.startsWith('blob:')) {
+    previewUrl = url; // Keep blob URLs as-is for local previews
+  }
+
+  if (isVideoFile(type)) return <VideoPreview url={previewUrl} type={type} />;
+  if (isAudioFile(type)) return <AudioPreview url={previewUrl} type={type} name={name} />;
+  if (isImageFile(type)) return <ImagePreview url={previewUrl} name={name} />;
+  if (isTextFile(type) || isPDFFile(type)) return <TextPreview url={previewUrl} name={name} />;
+  return <DefaultFilePreview type={type} name={name} />;
+};
 
   // Helper: Clean up local blob URL
   const cleanupLocalUrl = (url: string) => {
@@ -672,27 +699,30 @@ const FileUpload: React.FC = () => {
 
       {/* Loading State */}
       {loading && user && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex items-center justify-center py-8"
-        >
-          <div className="text-gray-400">Loading your files...</div>
-        </motion.div>
+        <LoadingScreen 
+          message="Loading your files..."
+          size="md"
+          speed="normal"
+          overlay={false}
+          className="py-16"
+        />
       )}
 
       {/* Upload Area - Only show if user is logged in */}
       {user && !loading && (
         <motion.div
-          className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 ${
+          className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 backdrop-blur-sm ${
             isDragging 
-              ? 'border-purple-400 bg-purple-400/10' 
-              : 'border-gray-600 hover:border-purple-500 bg-slate-800/30'
+              ? 'border-purple-400 bg-purple-400/10 shadow-lg' 
+              : 'border-gray-600 hover:border-purple-500 bg-slate-800/30 hover:bg-slate-800/50'
           }`}
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          whileHover={{ scale: 1.02 }}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          whileHover={{ scale: 1.02, y: -2 }}
           whileTap={{ scale: 0.98 }}
         >
         <input
@@ -705,39 +735,62 @@ const FileUpload: React.FC = () => {
         />
         
         <div className="space-y-4">
-          <div className="text-4xl">📁</div>
-          <div>
+          <motion.div 
+            className="text-4xl"
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            📁
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+          >
             <h3 className="text-lg font-semibold text-white mb-2">
               Drop files here or click to upload
             </h3>
             <p className="text-sm text-gray-400">
               Supports video, audio, images, and documents
             </p>
-          </div>
+          </motion.div>
           
           <motion.button
             onClick={() => fileInputRef.current?.click()}
-            className="px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200"
+            className="px-6 py-3 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg transition-all duration-200 shadow-lg font-medium"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             disabled={isUploading}
           >
             {isUploading ? (
-              <div>Processing video, please wait...</div>
+              <InlineLoading 
+                size="sm" 
+                speed="fast" 
+                text="Processing video, please wait..." 
+              />
             ) : (
               'Select Files'
             )}
           </motion.button>
 
           {/* Upload Tags Input */}
-          <div className="max-w-md mx-auto space-y-2">
+          <motion.div 
+            className="max-w-md mx-auto space-y-2"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.4 }}
+          >
             <div className="flex gap-2">
               <input
                 type="text"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 placeholder="Add tags for uploads (press Enter)"
-                className="flex-1 px-3 py-2 bg-slate-700 text-white rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none text-sm"
+                className="flex-1 px-3 py-2 bg-slate-700 text-white rounded-lg border border-gray-600 focus:border-purple-500 focus:outline-none text-sm transition-all duration-200"
                 onKeyPress={(e) => {
                   if (e.key === 'Enter' && tagInput.trim()) {
                     const newTag = tagInput.trim().toLowerCase();
@@ -753,36 +806,56 @@ const FileUpload: React.FC = () => {
             {selectedTags.length > 0 && (
               <div className="flex flex-wrap gap-1 justify-center">
                 <span className="text-xs text-gray-400">Upload tags:</span>
-                {selectedTags.map(tag => (
-                  <span
+                {selectedTags.map((tag, index) => (
+                  <motion.span
                     key={tag}
                     className="inline-flex items-center px-2 py-1 text-xs bg-purple-600/30 text-purple-200 rounded-full"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
                   >
                     {tag}
-                    <button
+                    <motion.button
                       onClick={() => setSelectedTags(prev => prev.filter(t => t !== tag))}
-                      className="ml-1 text-purple-300 hover:text-white"
+                      className="ml-1 text-purple-300 hover:text-white transition-colors duration-200"
+                      whileHover={{ scale: 1.2 }}
+                      whileTap={{ scale: 0.8 }}
                     >
                       ×
-                    </button>
-                  </span>
+                    </motion.button>
+                  </motion.span>
                 ))}
               </div>
             )}
-          </div>
+          </motion.div>
           
           {/* Upload Progress Bar */}
           {isUploading && (
-            <div className="w-full max-w-xs mx-auto">
+            <motion.div 
+              className="w-full max-w-xs mx-auto space-y-4"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              {/* StreamScene Loading Animation */}
+              <div className="flex justify-center">
+                <InlineLoading 
+                  size="md" 
+                  speed="fast" 
+                  text={`Uploading... ${uploadProgress}%`}
+                />
+              </div>
+              
+              {/* Progress Bar */}
               <div className="bg-gray-700 rounded-full h-2 overflow-hidden">
                 <motion.div
-                  className="bg-purple-600 h-full rounded-full"
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 h-full rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${uploadProgress}%` }}
                   transition={{ duration: 0.3 }}
                 />
               </div>
-            </div>
+            </motion.div>
           )}
           
           {/* Error Message */}
@@ -819,8 +892,8 @@ const FileUpload: React.FC = () => {
             {availableTags.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 <span className="text-sm text-gray-400">Filter by tags:</span>
-                {availableTags.map(tag => (
-                  <button
+                {availableTags.map((tag, index) => (
+                  <motion.button
                     key={tag}
                     onClick={() => {
                       const newTags = selectedTags.includes(tag) 
@@ -828,56 +901,84 @@ const FileUpload: React.FC = () => {
                         : [...selectedTags, tag];
                       handleTagFilter(newTags);
                     }}
-                    className={`px-2 py-1 text-xs rounded-full transition-colors duration-200 ${
+                    className={`px-2 py-1 text-xs rounded-full transition-all duration-200 shadow-sm ${
                       selectedTags.includes(tag)
                         ? 'bg-purple-600 text-white'
                         : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                     }`}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3, delay: index * 0.05 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
                     {tag}
-                  </button>
+                  </motion.button>
                 ))}
                 {selectedTags.length > 0 && (
-                  <button
+                  <motion.button
                     onClick={() => handleTagFilter([])}
-                    className="px-2 py-1 text-xs rounded-full bg-red-600/20 text-red-400 hover:bg-red-600/30"
+                    className="px-2 py-1 text-xs rounded-full bg-red-600/20 text-red-400 hover:bg-red-600/30 transition-all duration-200 shadow-sm"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.3, delay: availableTags.length * 0.05 + 0.1 }}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
                   >
                     Clear
-                  </button>
+                  </motion.button>
                 )}
               </div>
             )}
           </div>
           
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {uploadedFiles.map((file) => (
+            {uploadedFiles.map((file, index) => (
               <motion.div
                 key={file.id}
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="relative bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-4 shadow-xl"
+                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                transition={{ 
+                  duration: 0.5, 
+                  delay: index * 0.1,
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 30
+                }}
+                whileHover={{ scale: 1.02, y: -5 }}
+                className="relative bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-4 shadow-xl hover:shadow-2xl transition-shadow duration-300"
               >
                 {/* Action buttons */}
                 <div className="absolute top-2 right-2 flex space-x-1 z-10">
                   {/* Share button */}
                   {file.fileRecordId && (
-                    <button
+                    <motion.button
                       onClick={() => handleShareFile(file)}
-                      className="w-6 h-6 bg-blue-600/80 hover:bg-blue-600 text-white text-xs rounded-full flex items-center justify-center transition-colors duration-200"
+                      className="w-6 h-6 bg-blue-600/80 hover:bg-blue-600 text-white text-xs rounded-full flex items-center justify-center transition-all duration-200 shadow-lg"
                       title="Share file"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.4, delay: 0.1 }}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
                     >
                       🔗
-                    </button>
+                    </motion.button>
                   )}
                   
                   {/* Remove button */}
-                  <button
+                  <motion.button
                     onClick={() => removeFile(file.id)}
-                    className="w-6 h-6 bg-red-600/80 hover:bg-red-600 text-white text-xs rounded-full flex items-center justify-center transition-colors duration-200"
+                    className="w-6 h-6 bg-red-600/80 hover:bg-red-600 text-white text-xs rounded-full flex items-center justify-center transition-all duration-200 shadow-lg"
                     title="Delete file"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 0.4, delay: 0.2 }}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                   >
                     ×
-                  </button>
+                  </motion.button>
                 </div>
 
                 {/* File preview */}
@@ -900,19 +1001,24 @@ const FileUpload: React.FC = () => {
                     {(file.tags || currentFileTags[file.id])?.length > 0 && (
                       <div className="flex flex-wrap gap-1 mb-2">
                         {((currentFileTags[file.id] || file.tags || []) as string[]).map((tag, index) => (
-                          <span
+                          <motion.span
                             key={index}
                             className="px-2 py-1 text-xs bg-blue-600 text-white rounded-full flex items-center gap-1"
+                            initial={{ opacity: 0, scale: 0.8 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.3, delay: index * 0.1 }}
                           >
                             {tag}
-                            <button
+                            <motion.button
                               onClick={() => handleRemoveTag(file.id, tag)}
-                              className="text-white hover:text-red-300 font-bold"
+                              className="text-white hover:text-red-300 font-bold transition-colors duration-200"
                               title="Remove tag"
+                              whileHover={{ scale: 1.2 }}
+                              whileTap={{ scale: 0.8 }}
                             >
                               ×
-                            </button>
-                          </span>
+                            </motion.button>
+                          </motion.span>
                         ))}
                       </div>
                     )}

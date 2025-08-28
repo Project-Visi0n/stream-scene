@@ -1,5 +1,5 @@
 import { DataTypes, Model, Optional, Op } from 'sequelize';
-import db from '../db/index.js';
+import { getSequelize } from '../db/index.js';
 
 // Define the Task attributes interface
 export interface TaskAttributes {
@@ -9,7 +9,7 @@ export interface TaskAttributes {
   priority: 'low' | 'medium' | 'high';
   task_type: 'creative' | 'admin';
   status: 'pending' | 'in_progress' | 'completed';
-  deadline: Date;
+  deadline?: Date;  // Made optional to match API usage
   estimated_hours?: number;
   user_id: number;
   created_at?: Date;
@@ -17,7 +17,7 @@ export interface TaskAttributes {
 }
 
 // Define the Task creation attributes (optional id and timestamps)
-export interface TaskCreationAttributes extends Optional<TaskAttributes, 'id' | 'created_at' | 'updated_at'> {}
+export interface TaskCreationAttributes extends Optional<TaskAttributes, 'id' | 'created_at' | 'updated_at' | 'deadline'> {}
 
 // Define the Task model class
 export class Task extends Model<TaskAttributes, TaskCreationAttributes> implements TaskAttributes {
@@ -27,7 +27,7 @@ export class Task extends Model<TaskAttributes, TaskCreationAttributes> implemen
   public priority!: 'low' | 'medium' | 'high';
   public task_type!: 'creative' | 'admin';
   public status!: 'pending' | 'in_progress' | 'completed';
-  public deadline!: Date;
+  public deadline?: Date;  // Made optional
   public estimated_hours?: number;
   public user_id!: number;
   public readonly created_at!: Date;
@@ -98,7 +98,7 @@ Task.init({
   },
   deadline: {
     type: DataTypes.DATE,
-    allowNull: false,
+    allowNull: true,  // Changed from false to true
   },
   estimated_hours: {
     type: DataTypes.INTEGER,
@@ -126,7 +126,7 @@ Task.init({
     field: 'updated_at',
   },
 }, {
-  sequelize: db.sequelize,
+  sequelize: getSequelize(),
   modelName: 'Task',
   tableName: 'tasks',
   timestamps: true,

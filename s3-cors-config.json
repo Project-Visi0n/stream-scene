@@ -1,0 +1,25 @@
+[
+    {
+        "AllowedHeaders": [
+            "*"
+        ],
+        "AllowedMethods": [
+            "GET",
+            "PUT",
+            "POST",
+            "DELETE",
+            "HEAD"
+        ],
+        "AllowedOrigins": [
+            "https://streamscene.net",
+            "https://www.streamscene.net",
+            "http://localhost:3000",
+            "http://localhost:8000"
+        ],
+        "ExposeHeaders": [
+            "ETag",
+            "Content-Length"
+        ],
+        "MaxAgeSeconds": 3000
+    }
+]

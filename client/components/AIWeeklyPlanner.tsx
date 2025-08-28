@@ -59,6 +59,10 @@ const AIWeeklyPlanner: React.FC = () => {
   // Confirmation dialogs
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Task details modal state
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showTaskDetails, setShowTaskDetails] = useState(false);
 
   // Filter tasks based on current filter
   const getFilteredTasks = () => {
@@ -133,7 +137,7 @@ const AIWeeklyPlanner: React.FC = () => {
         const newTask = await response.json();
         setTasks(prev => [...prev, newTask]);
         setShowTaskForm(false);
-        alert('Task created successfully! 🎉');
+        alert('Task created successfully!');
       } else if (response.status === 401) {
         alert('Please log in to create tasks. You need to be authenticated to use this feature.');
       } else {
@@ -166,7 +170,7 @@ const AIWeeklyPlanner: React.FC = () => {
       if (response.ok) {
         setTasks(prev => prev.filter(t => t.id !== taskToDelete.id));
         setTaskToDelete(null);
-        alert('Task deleted successfully! 🗑️');
+        alert('Task deleted successfully!');
       } else {
         const error = await response.json();
         alert(`Failed to delete task: ${error.message || error.error}`);
@@ -179,6 +183,18 @@ const AIWeeklyPlanner: React.FC = () => {
     }
   };
 
+  // Handle calendar event clicks
+  const handleEventClick = (event: CalendarEvent) => {
+    if (event.taskId) {
+      const task = tasks.find(t => String(t.id) === event.taskId);
+      if (task) {
+        setSelectedTask(task);
+        setShowTaskDetails(true);
+      }
+    }
+  };
+
+  // Generate consistent calendar events (fixed positioning)
   const generateCalendarEvents = () => {
     const events: CalendarEvent[] = [];
     
@@ -206,7 +222,7 @@ const AIWeeklyPlanner: React.FC = () => {
         if (deadlineDate >= startDate && deadlineDate <= endDate) {
           events.push({
             id: `deadline-${task.id}`,
-            title: `📅 ${task.title} (Due)`,
+            title: `Due: ${task.title}`,
             start: task.deadline,
             end: task.deadline,
             type: 'deadline',
@@ -216,24 +232,41 @@ const AIWeeklyPlanner: React.FC = () => {
         }
       }
 
-      // Add suggested work blocks for incomplete tasks
+      // Add suggested work blocks for incomplete tasks with consistent positioning
       if (task.estimated_hours && task.status !== 'completed') {
-        const workDate = new Date(startDate);
-        workDate.setDate(workDate.getDate() + Math.floor(Math.random() * 5));
-        workDate.setHours(9 + Math.floor(Math.random() * 6));
+        let workDate: Date;
+        
+        if (task.deadline) {
+          // Schedule work time before deadline
+          workDate = new Date(task.deadline);
+          workDate.setDate(workDate.getDate() - Math.max(1, Math.ceil(task.estimated_hours / 4)));
+        } else {
+          // Use consistent day based on task ID
+          const dayOffset = (parseInt(String(task.id)) % 7);
+          workDate = new Date(startDate);
+          workDate.setDate(startDate.getDate() + dayOffset);
+        }
+        
+        // Set consistent hour based on task type and priority
+        const baseHour = task.task_type === 'creative' ? 9 : 14; // Creative in AM, admin in PM
+        const priorityOffset = task.priority === 'high' ? 0 : task.priority === 'medium' ? 1 : 2;
+        workDate.setHours(baseHour + priorityOffset, 0, 0, 0);
         
         const endTime = new Date(workDate);
         endTime.setHours(endTime.getHours() + Math.min(task.estimated_hours, 3));
 
-        events.push({
-          id: `work-${task.id}`,
-          title: `${task.task_type === 'creative' ? '🎨' : '📋'} ${task.title}`,
-          start: workDate.toISOString(),
-          end: endTime.toISOString(),
-          type: 'task',
-          taskId: String(task.id),
-          priority: task.priority
-        });
+        // Only add if within current view range
+        if (workDate >= startDate && workDate <= endDate) {
+          events.push({
+            id: `work-${task.id}`,
+            title: `${task.task_type === 'creative' ? 'Creative' : 'Admin'}: ${task.title}`,
+            start: workDate.toISOString(),
+            end: endTime.toISOString(),
+            type: 'task',
+            taskId: String(task.id),
+            priority: task.priority
+          });
+        }
       }
     });
 
@@ -399,7 +432,7 @@ const AIWeeklyPlanner: React.FC = () => {
         const newTask = await response.json();
         setTasks(prev => [...prev, newTask]);
         setAiSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
-        alert(`✅ Task "${suggestion.title}" added successfully!`);
+        alert(`Task "${suggestion.title}" added successfully!`);
       } else if (response.status === 401) {
         alert('Please log in to create tasks. You need to be authenticated to use this feature.');
       } else {
@@ -539,12 +572,16 @@ const AIWeeklyPlanner: React.FC = () => {
                   {events.slice(0, 2).map(event => (
                     <div 
                       key={event.id}
-                      className={`text-xs p-1 rounded truncate ${
+                      className={`text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 ${
                         event.type === 'deadline' ? 'bg-red-500/60 text-white' :
                         event.type === 'task' ? 'bg-blue-500/60 text-white' :
                         'bg-purple-500/60 text-white'
                       }`}
                       title={event.title}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEventClick(event);
+                      }}
                     >
                       {event.title}
                     </div>
@@ -561,20 +598,206 @@ const AIWeeklyPlanner: React.FC = () => {
     );
   };
 
+  const renderWeeklyView = () => {
+    const weekDays = getWeekDays();
+    const today = new Date();
+    
+    return (
+      <div className="space-y-4">
+        <div className="text-center mb-6">
+          <h3 className="text-2xl font-bold text-white">
+            Week of {weekDays[0].toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - {weekDays[6].toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+          </h3>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+          {weekDays.map((day, index) => {
+            const events = getEventsForDay(day);
+            const isToday = day.toDateString() === today.toDateString();
+            
+            return (
+              <div key={index} className={`bg-white/5 rounded-lg p-4 min-h-[300px] ${
+                isToday ? 'ring-2 ring-blue-400 bg-blue-500/10' : ''
+              }`}>
+                <div className={`text-center mb-4 ${
+                  isToday ? 'text-blue-300 font-bold' : 'text-white'
+                }`}>
+                  <div className="text-sm font-medium">
+                    {day.toLocaleDateString('en-US', { weekday: 'short' })}
+                  </div>
+                  <div className="text-lg font-bold">
+                    {day.getDate()}
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  {events.map(event => (
+                    <div 
+                      key={event.id}
+                      className={`text-xs p-2 rounded cursor-pointer hover:opacity-80 ${
+                        event.type === 'deadline' ? 'bg-red-500/60 text-white' :
+                        event.type === 'task' ? 'bg-blue-500/60 text-white' :
+                        'bg-purple-500/60 text-white'
+                      }`}
+                      title={event.title}
+                      onClick={() => handleEventClick(event)}
+                    >
+                      <div className="font-medium truncate">{event.title}</div>
+                      {event.start && (
+                        <div className="text-xs opacity-75">
+                          {new Date(event.start).toLocaleTimeString('en-US', { 
+                            hour: 'numeric', 
+                            minute: '2-digit',
+                            hour12: true 
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                  {events.length === 0 && (
+                    <div className="text-gray-400 text-xs text-center py-4">
+                      No events
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderDailyView = () => {
+    const events = getEventsForDay(currentDate);
+    const today = new Date();
+    const isToday = currentDate.toDateString() === today.toDateString();
+    
+    const hours = Array.from({ length: 12 }, (_, i) => i + 8); // 8 AM to 7 PM
+    
+    return (
+      <div className="space-y-4">
+        <div className="text-center mb-6">
+          <h3 className="text-2xl font-bold text-white">
+            {currentDate.toLocaleDateString('en-US', { 
+              weekday: 'long', 
+              month: 'long', 
+              day: 'numeric', 
+              year: 'numeric' 
+            })}
+            {isToday && <span className="text-blue-300 ml-2">(Today)</span>}
+          </h3>
+        </div>
+        
+        <div className="bg-white/5 rounded-lg p-6">
+          <div className="space-y-1">
+            {hours.map(hour => {
+              const hourEvents = events.filter(event => {
+                if (!event.start) return false;
+                const eventHour = new Date(event.start).getHours();
+                return eventHour === hour;
+              });
+              
+              return (
+                <div key={hour} className="flex items-start gap-4 py-2 border-b border-white/10 last:border-b-0">
+                  <div className="w-16 text-sm text-gray-400 font-medium">
+                    {hour === 0 ? '12 AM' : 
+                     hour < 12 ? `${hour} AM` : 
+                     hour === 12 ? '12 PM' : 
+                     `${hour - 12} PM`}
+                  </div>
+                  
+                  <div className="flex-1 min-h-[40px]">
+                    {hourEvents.length > 0 ? (
+                      <div className="space-y-1">
+                        {hourEvents.map(event => (
+                          <div 
+                            key={event.id}
+                            className={`p-2 rounded text-sm cursor-pointer hover:opacity-80 ${
+                              event.type === 'deadline' ? 'bg-red-500/60 text-white' :
+                              event.type === 'task' ? 'bg-blue-500/60 text-white' :
+                              'bg-purple-500/60 text-white'
+                            }`}
+                            onClick={() => handleEventClick(event)}
+                          >
+                            <div className="font-medium">{event.title}</div>
+                            {event.start && event.end && (
+                              <div className="text-xs opacity-75">
+                                {new Date(event.start).toLocaleTimeString('en-US', { 
+                                  hour: 'numeric', 
+                                  minute: '2-digit',
+                                  hour12: true 
+                                })} - {new Date(event.end).toLocaleTimeString('en-US', { 
+                                  hour: 'numeric', 
+                                  minute: '2-digit',
+                                  hour12: true 
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-gray-500 text-xs py-2">Available</div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          {events.length === 0 && (
+            <div className="text-center py-12 text-gray-400">
+              <div className="text-4xl mb-4">📅</div>
+              <h4 className="text-lg font-medium text-white mb-2">No events today</h4>
+              <p className="text-sm">Your day is completely free!</p>
+            </div>
+          )}
+        </div>
+        
+        {events.length > 0 && (
+          <div className="bg-white/5 rounded-lg p-4">
+            <h4 className="font-medium text-white mb-3">Day Summary</h4>
+            <div className="grid grid-cols-3 gap-4 text-center text-sm">
+              <div className="bg-red-500/20 rounded-lg p-3">
+                <div className="text-red-300 font-medium">Deadlines</div>
+                <div className="text-xl font-bold text-white">
+                  {events.filter(e => e.type === 'deadline').length}
+                </div>
+              </div>
+              <div className="bg-blue-500/20 rounded-lg p-3">
+                <div className="text-blue-300 font-medium">Tasks</div>
+                <div className="text-xl font-bold text-white">
+                  {events.filter(e => e.type === 'task').length}
+                </div>
+              </div>
+              <div className="bg-purple-500/20 rounded-lg p-3">
+                <div className="text-purple-300 font-medium">Meetings</div>
+                <div className="text-xl font-bold text-white">
+                  {events.filter(e => e.type === 'meeting').length}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const renderCalendarView = () => {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            📅 Calendar View
+            Calendar View
           </h2>
           
           <div className="flex items-center gap-2">
             <div className="bg-white/10 rounded-lg p-1 flex">
               {[
-                { key: 'monthly', label: 'Month', icon: '📅' },
-                { key: 'weekly', label: 'Week', icon: '📊' },
-                { key: 'daily', label: 'Day', icon: '📋' }
+                { key: 'monthly', label: 'Month' },
+                { key: 'weekly', label: 'Week' },
+                { key: 'daily', label: 'Day' }
               ].map(view => (
                 <button
                   key={view.key}
@@ -585,7 +808,7 @@ const AIWeeklyPlanner: React.FC = () => {
                       : 'text-white hover:bg-white/10'
                   }`}
                 >
-                  {view.icon} {view.label}
+                  {view.label}
                 </button>
               ))}
             </div>
@@ -616,6 +839,8 @@ const AIWeeklyPlanner: React.FC = () => {
         </div>
 
         {calendarView === 'monthly' && renderMonthlyView()}
+        {calendarView === 'weekly' && renderWeeklyView()}
+        {calendarView === 'daily' && renderDailyView()}
       </div>
     );
   };
@@ -628,7 +853,7 @@ const AIWeeklyPlanner: React.FC = () => {
       <div className="space-y-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            🤖 AI Task Suggestions
+            AI Task Suggestions
           </h2>
           <button
             onClick={generateAISuggestions}
@@ -644,7 +869,7 @@ const AIWeeklyPlanner: React.FC = () => {
                 Analyzing...
               </span>
             ) : (
-              '🧠 Analyze & Suggest'
+              'Analyze & Suggest'
             )}
           </button>
         </div>
@@ -654,7 +879,7 @@ const AIWeeklyPlanner: React.FC = () => {
             {actionableSuggestions.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-4">
-                  <h3 className="text-xl font-bold text-white">✅ Suggested Tasks</h3>
+                  <h3 className="text-xl font-bold text-white">Suggested Tasks</h3>
                   <span className="text-sm text-gray-400">({actionableSuggestions.length} actionable items)</span>
                 </div>
                 <div className="space-y-4">
@@ -663,7 +888,6 @@ const AIWeeklyPlanner: React.FC = () => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="text-blue-400">📋</span>
                             <span className="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-300">
                               task
                             </span>
@@ -695,7 +919,7 @@ const AIWeeklyPlanner: React.FC = () => {
                           className="ml-4 px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50"
                           disabled={isCreatingTask}
                         >
-                          {isCreatingTask ? '⏳ Adding...' : '➕ Add Task'}
+                          {isCreatingTask ? 'Adding...' : 'Add Task'}
                         </button>
                       </div>
                     </div>
@@ -707,7 +931,7 @@ const AIWeeklyPlanner: React.FC = () => {
             {insights.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-4">
-                  <h3 className="text-xl font-bold text-white">💡 AI Insights</h3>
+                  <h3 className="text-xl font-bold text-white">AI Insights</h3>
                   <span className="text-sm text-gray-400">({insights.length} recommendations)</span>
                 </div>
                 <div className="space-y-4">
@@ -720,9 +944,6 @@ const AIWeeklyPlanner: React.FC = () => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className={insight.type === 'optimization' ? 'text-purple-400' : 'text-green-400'}>
-                              {insight.type === 'optimization' ? '⚡' : '📅'}
-                            </span>
                             <span className={`text-xs px-2 py-1 rounded ${
                               insight.type === 'optimization' 
                                 ? 'bg-purple-500/20 text-purple-300' 
@@ -740,7 +961,7 @@ const AIWeeklyPlanner: React.FC = () => {
                             ? 'bg-purple-600/20 text-purple-300'
                             : 'bg-green-600/20 text-green-300'
                         }`}>
-                          {insight.type === 'optimization' ? '💭 Consider This' : '📅 Manual Schedule'}
+                          {insight.type === 'optimization' ? 'Consider This' : 'Manual Schedule'}
                         </div>
                       </div>
                     </div>
@@ -755,7 +976,7 @@ const AIWeeklyPlanner: React.FC = () => {
                 disabled={isGeneratingSuggestions}
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50"
               >
-                {isGeneratingSuggestions ? '🔄 Generating...' : '🔄 Generate New Suggestions'}
+                {isGeneratingSuggestions ? 'Generating...' : 'Generate New Suggestions'}
               </button>
             </div>
           </div>
@@ -812,10 +1033,10 @@ const AIWeeklyPlanner: React.FC = () => {
                 )}
                 <div className="flex items-center gap-4 text-xs text-gray-400">
                   {task.deadline && (
-                    <span>📅 Due: {new Date(task.deadline).toLocaleDateString()}</span>
+                    <span>Due: {new Date(task.deadline).toLocaleDateString()}</span>
                   )}
                   {task.estimated_hours && (
-                    <span>⏱️ {task.estimated_hours}h estimated</span>
+                    <span>{task.estimated_hours}h estimated</span>
                   )}
                 </div>
               </div>
@@ -825,7 +1046,7 @@ const AIWeeklyPlanner: React.FC = () => {
                   className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
                   title="Delete task"
                 >
-                  🗑️
+                  Delete
                 </button>
               </div>
             </div>
@@ -838,24 +1059,35 @@ const AIWeeklyPlanner: React.FC = () => {
   const stats = getTaskStats();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-gray-900 to-black relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 bg-gradient-to-r from-purple-900/20 via-transparent to-pink-900/20"></div>
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl"></div>
+      
+      {/* Floating Animation Elements */}
+      <div className="absolute top-20 left-10 w-4 h-4 bg-purple-400/40 rounded-full animate-pulse"></div>
+      <div className="absolute top-40 right-20 w-6 h-6 bg-pink-400/40 rounded-full animate-bounce"></div>
+      <div className="absolute bottom-32 left-20 w-3 h-3 bg-purple-300/50 rounded-full animate-ping"></div>
+
+      <div className="relative z-10 max-w-7xl mx-auto p-6">
         {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-4">
-            🤖 AI Weekly Planner
+        <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
+          <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
+            <span className="mr-3 text-4xl">🤖</span>
+            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+              AI Weekly Planner
+            </span>
           </h1>
-          <p className="text-xl text-gray-300 mb-6">
-            Balance creative and admin work with AI-powered scheduling
-          </p>
+          <p className="text-gray-300">Balance creative and admin work with AI-powered scheduling</p>
           
           {/* Navigation Tabs */}
-          <div className="flex justify-center mb-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-lg p-1 flex">
+          <div className="flex justify-center mt-6">
+            <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-lg p-1 flex">
               {[
-                { key: 'overview', label: '📋 Overview', icon: '📋' },
-                { key: 'calendar', label: '📅 Calendar', icon: '📅' },
-                { key: 'suggestions', label: '🤖 AI Suggestions', icon: '🤖' }
+                { key: 'overview', label: 'Overview' },
+                { key: 'calendar', label: 'Calendar' },
+                { key: 'suggestions', label: 'AI Suggestions' }
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -863,7 +1095,7 @@ const AIWeeklyPlanner: React.FC = () => {
                   className={`px-4 py-2 rounded-md font-medium transition-colors ${
                     activeTab === tab.key
                       ? 'bg-white text-gray-900'
-                      : 'text-white hover:bg-white/10'
+                      : 'text-gray-300 hover:text-white hover:bg-white/10'
                   }`}
                 >
                   {tab.label}
@@ -871,13 +1103,13 @@ const AIWeeklyPlanner: React.FC = () => {
               ))}
             </div>
           </div>
-          
+
           {/* Quick Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mt-6">
             <div 
               onClick={() => setTaskFilter('all')}
-              className={`backdrop-blur-sm rounded-lg p-4 cursor-pointer transition-all hover:scale-105 hover:bg-white/20 ${
-                taskFilter === 'all' ? 'bg-white/20 ring-2 ring-white/50' : 'bg-white/10'
+              className={`bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-4 cursor-pointer transition-all hover:scale-105 hover:border-purple-400/40 ${
+                taskFilter === 'all' ? 'border-purple-400/50 shadow-lg shadow-purple-500/20' : ''
               }`}
             >
               <div className="text-2xl font-bold text-white">{stats.total}</div>
@@ -885,8 +1117,8 @@ const AIWeeklyPlanner: React.FC = () => {
             </div>
             <div 
               onClick={() => setTaskFilter('pending')}
-              className={`backdrop-blur-sm rounded-lg p-4 cursor-pointer transition-all hover:scale-105 hover:bg-yellow-500/30 ${
-                taskFilter === 'pending' ? 'bg-yellow-500/30 ring-2 ring-yellow-400/50' : 'bg-yellow-500/20'
+              className={`bg-gradient-to-br from-yellow-800/30 to-orange-900/30 border border-yellow-500/20 backdrop-blur-sm rounded-xl p-4 cursor-pointer transition-all hover:scale-105 hover:border-yellow-400/40 ${
+                taskFilter === 'pending' ? 'border-yellow-400/50 shadow-lg shadow-yellow-500/20' : ''
               }`}
             >
               <div className="text-2xl font-bold text-yellow-300">{stats.pending}</div>
@@ -894,8 +1126,8 @@ const AIWeeklyPlanner: React.FC = () => {
             </div>
             <div 
               onClick={() => setTaskFilter('in_progress')}
-              className={`backdrop-blur-sm rounded-lg p-4 cursor-pointer transition-all hover:scale-105 hover:bg-blue-500/30 ${
-                taskFilter === 'in_progress' ? 'bg-blue-500/30 ring-2 ring-blue-400/50' : 'bg-blue-500/20'
+              className={`bg-gradient-to-br from-blue-800/30 to-cyan-900/30 border border-blue-500/20 backdrop-blur-sm rounded-xl p-4 cursor-pointer transition-all hover:scale-105 hover:border-blue-400/40 ${
+                taskFilter === 'in_progress' ? 'border-blue-400/50 shadow-lg shadow-blue-500/20' : ''
               }`}
             >
               <div className="text-2xl font-bold text-blue-300">{stats.inProgress}</div>
@@ -903,8 +1135,8 @@ const AIWeeklyPlanner: React.FC = () => {
             </div>
             <div 
               onClick={() => setTaskFilter('creative')}
-              className={`backdrop-blur-sm rounded-lg p-4 cursor-pointer transition-all hover:scale-105 hover:bg-purple-500/30 ${
-                taskFilter === 'creative' ? 'bg-purple-500/30 ring-2 ring-purple-400/50' : 'bg-purple-500/20'
+              className={`bg-gradient-to-br from-purple-800/30 to-pink-900/30 border border-purple-500/20 backdrop-blur-sm rounded-xl p-4 cursor-pointer transition-all hover:scale-105 hover:border-purple-400/40 ${
+                taskFilter === 'creative' ? 'border-purple-400/50 shadow-lg shadow-purple-500/20' : ''
               }`}
             >
               <div className="text-2xl font-bold text-purple-300">{stats.creative}</div>
@@ -912,15 +1144,101 @@ const AIWeeklyPlanner: React.FC = () => {
             </div>
             <div 
               onClick={() => setTaskFilter('admin')}
-              className={`backdrop-blur-sm rounded-lg p-4 cursor-pointer transition-all hover:scale-105 hover:bg-green-500/30 ${
-                taskFilter === 'admin' ? 'bg-green-500/30 ring-2 ring-green-400/50' : 'bg-green-500/20'
+              className={`bg-gradient-to-br from-emerald-800/30 to-green-900/30 border border-emerald-500/20 backdrop-blur-sm rounded-xl p-4 cursor-pointer transition-all hover:scale-105 hover:border-emerald-400/40 ${
+                taskFilter === 'admin' ? 'border-emerald-400/50 shadow-lg shadow-emerald-500/20' : ''
               }`}
             >
-              <div className="text-2xl font-bold text-green-300">{stats.admin}</div>
+              <div className="text-2xl font-bold text-emerald-300">{stats.admin}</div>
               <div className="text-sm text-gray-300">Admin</div>
             </div>
           </div>
         </div>
+
+        {/* Task Details Modal */}
+        {selectedTask && showTaskDetails && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+              <div className="flex items-start justify-between mb-4">
+                <h3 className="text-lg font-bold text-white">Task Details</h3>
+                <button
+                  onClick={() => {
+                    setShowTaskDetails(false);
+                    setSelectedTask(null);
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-white mb-1">{selectedTask.title}</h4>
+                  {selectedTask.description && (
+                    <p className="text-sm text-gray-300">{selectedTask.description}</p>
+                  )}
+                </div>
+                
+                <div className="flex gap-2">
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    selectedTask.priority === 'high' ? 'bg-red-500/20 text-red-300' :
+                    selectedTask.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                    'bg-green-500/20 text-green-300'
+                  }`}>
+                    {selectedTask.priority} priority
+                  </span>
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    selectedTask.task_type === 'creative' ? 'bg-purple-500/20 text-purple-300' :
+                    'bg-blue-500/20 text-blue-300'
+                  }`}>
+                    {selectedTask.task_type}
+                  </span>
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    selectedTask.status === 'completed' ? 'bg-green-500/20 text-green-300' :
+                    selectedTask.status === 'in_progress' ? 'bg-blue-500/20 text-blue-300' :
+                    'bg-gray-500/20 text-gray-300'
+                  }`}>
+                    {selectedTask.status.replace('_', ' ')}
+                  </span>
+                </div>
+                
+                <div className="space-y-2 text-sm text-gray-400">
+                  {selectedTask.deadline && (
+                    <div>Deadline: {new Date(selectedTask.deadline).toLocaleDateString()}</div>
+                  )}
+                  {selectedTask.estimated_hours && (
+                    <div>Estimated time: {selectedTask.estimated_hours} hours</div>
+                  )}
+                  {selectedTask.created_at && (
+                    <div>Created: {new Date(selectedTask.created_at).toLocaleDateString()}</div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowTaskDetails(false);
+                    setSelectedTask(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    handleDeleteTask(selectedTask);
+                    setShowTaskDetails(false);
+                    setSelectedTask(null);
+                  }}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tab Content */}
         {activeTab === 'overview' && (
@@ -931,7 +1249,7 @@ const AIWeeklyPlanner: React.FC = () => {
                   onClick={() => setShowTaskForm(true)}
                   className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
                 >
-                  ➕ Add New Task
+                  Add New Task
                 </button>
                 <button
                   onClick={generateAISchedule}
@@ -947,7 +1265,7 @@ const AIWeeklyPlanner: React.FC = () => {
                       Generating...
                     </span>
                   ) : (
-                    '🚀 Generate AI Schedule'
+                    'Generate AI Schedule'
                   )}
                 </button>
               </div>
@@ -990,9 +1308,9 @@ const AIWeeklyPlanner: React.FC = () => {
                 </div>
               )}
 
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+              <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-bold text-white">📋 Your Tasks</h2>
+                  <h2 className="text-2xl font-bold text-white">Your Tasks</h2>
                   <div className="flex items-center gap-2">
                     {taskFilter !== 'all' && (
                       <div className="flex items-center gap-2">
@@ -1043,7 +1361,7 @@ const AIWeeklyPlanner: React.FC = () => {
                       onClick={() => setShowTaskForm(true)}
                       className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
                     >
-                      ➕ Add Your First Task
+                      Add Your First Task
                     </button>
                   </div>
                 )}
@@ -1051,13 +1369,13 @@ const AIWeeklyPlanner: React.FC = () => {
             </div>
 
             <div className="space-y-6">
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-                <h2 className="text-2xl font-bold text-white mb-4">🤖 AI Weekly Schedule</h2>
+              <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
+                <h2 className="text-2xl font-bold text-white mb-4">AI Weekly Schedule</h2>
                 
                 {weeklySchedule ? (
                   <div className="space-y-4">
                     <div className="text-green-300 font-medium">
-                      ✅ Schedule Generated!
+                      Schedule Generated!
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1073,7 +1391,7 @@ const AIWeeklyPlanner: React.FC = () => {
 
                     {weeklySchedule.aiSuggestions && (
                       <div className="bg-gray-800/50 rounded-lg p-4">
-                        <h4 className="font-medium text-white mb-2">💡 AI Suggestions:</h4>
+                        <h4 className="font-medium text-white mb-2">AI Suggestions:</h4>
                         <p className="text-gray-300 text-sm">{weeklySchedule.aiSuggestions}</p>
                       </div>
                     )}
@@ -1094,8 +1412,8 @@ const AIWeeklyPlanner: React.FC = () => {
                 )}
               </div>
 
-              <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
-                <h3 className="text-lg font-bold text-white mb-3">💡 Pro Tips</h3>
+              <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
+                <h3 className="text-lg font-bold text-white mb-3">Pro Tips</h3>
                 <ul className="space-y-2 text-sm text-gray-300">
                   <li>• Mix creative and admin tasks for better balance</li>
                   <li>• Set realistic deadlines for better AI scheduling</li>
@@ -1103,7 +1421,7 @@ const AIWeeklyPlanner: React.FC = () => {
                   <li>• High priority tasks get scheduled first</li>
                   <li>• Check the Calendar tab to see your week layout</li>
                   <li>• Use AI Suggestions to optimize your workflow</li>
-                  <li>• Click 🗑️ to delete tasks you no longer need</li>
+                  <li>• Click tasks in the calendar to view details</li>
                 </ul>
               </div>
             </div>
@@ -1111,13 +1429,13 @@ const AIWeeklyPlanner: React.FC = () => {
         )}
 
         {activeTab === 'calendar' && (
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+          <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
             {renderCalendarView()}
           </div>
         )}
 
         {activeTab === 'suggestions' && (
-          <div className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+          <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
             {renderSuggestionsView()}
           </div>
         )}

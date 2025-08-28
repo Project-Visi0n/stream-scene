@@ -26,18 +26,6 @@ const ProjectCenterTabs: React.FC = () => {
       icon: '📁',
       component: <FileUpload />
     },
-    {
-      id: 'notes',
-      label: 'Notes',
-      icon: '📝',
-      component: <div className="text-center text-gray-400 py-12">Notes feature coming soon...</div>
-    },
-    {
-      id: 'tasks',
-      label: 'Tasks',
-      icon: '✅',
-      component: <div className="text-center text-gray-400 py-12">Task management coming soon...</div>
-    }
   ];
 
   const activeTabData = tabs.find(tab => tab.id === activeTab);

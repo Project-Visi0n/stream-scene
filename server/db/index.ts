@@ -5,7 +5,6 @@ dotenv.config();
 
 import { Sequelize } from 'sequelize';
 
-
 let sequelize: Sequelize | null = null;
 export const getSequelize = () => {
   if (!sequelize) {
@@ -29,11 +28,16 @@ import { initFileModel } from '../models/initFileModel.js';
 import { Share } from '../models/Share.js';
 import { initSocialAccountTokenModel, SocialAccountToken } from '../models/initSocialAccountToken.js';
 import { initScheduledPostModel, ScheduledPost } from '../models/initScheduledPost.js';
+import { Task } from '../models/Task.js';
+import { User } from '../models/User.js';
 
 // Initialize models
 const File = initFileModel(sequelizeInstance);
 initSocialAccountTokenModel(sequelizeInstance);
 initScheduledPostModel(sequelizeInstance);
+
+// Task model should already be initialized in its own file
+// Just make sure it's using the same sequelize instance
 
 // (Associations are set inside initScheduledPostModel via belongsTo)
 export const associate = () => {
@@ -50,15 +54,23 @@ export const testConnection = async () => {
   }
 };
 
-// Sync EVERYTHING (not just File)
+// Sync EVERYTHING including Task
 export const syncDB = async (force = false) => {
   try {
     await sequelizeInstance.sync({ force });
-    console.log('Database sync complete (File, SocialAccountToken, ScheduledPost)');
+    console.log('Database sync complete (File, SocialAccountToken, ScheduledPost, Task)');
   } catch (error) {
     console.error('Database sync failed:', error);
     throw error;
   }
+};
+
+export {
+  User,
+  File,
+  Share,
+  SocialAccountToken,
+  ScheduledPost
 };
 
 export const db = {
@@ -67,6 +79,7 @@ export const db = {
   Share,
   SocialAccountToken,
   ScheduledPost,
+  User,
   associate,
 };
 

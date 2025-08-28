@@ -17,7 +17,7 @@ const ClosedCaptionButton: React.FC<ClosedCaptionButtonProps> = ({ fileId }) => 
       console.log('Generating captions for file:', fileId);
       
       // Start caption generation
-      const response = await fetch(`http://localhost:8000/api/caption/${fileId}`, {
+      const response = await fetch(`/api/caption/${fileId}`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
@@ -61,7 +61,7 @@ const ClosedCaptionButton: React.FC<ClosedCaptionButtonProps> = ({ fileId }) => 
       try {
         console.log('Checking status for job:', jobName);
 
-        const statusResponse = await fetch(`http://localhost:8000/api/caption/status/${jobName}`, {
+        const statusResponse = await fetch(`/api/caption/status/${jobName}`, {
           credentials: 'include',
         });
 
@@ -78,7 +78,7 @@ const ClosedCaptionButton: React.FC<ClosedCaptionButtonProps> = ({ fileId }) => 
           console.log('Job completed, fetching transcript...');
           
           // Get the final transcript
-          const transcriptResponse = await fetch(`http://localhost:8000/api/caption/transcript/${jobName}`, {
+          const transcriptResponse = await fetch(`/api/caption/transcript/${jobName}`, {
             credentials: 'include',
           });
           
