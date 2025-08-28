@@ -59,6 +59,10 @@ const AIWeeklyPlanner: React.FC = () => {
   // Confirmation dialogs
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Task details modal state
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [showTaskDetails, setShowTaskDetails] = useState(false);
 
   // Filter tasks based on current filter
   const getFilteredTasks = () => {
@@ -133,7 +137,7 @@ const AIWeeklyPlanner: React.FC = () => {
         const newTask = await response.json();
         setTasks(prev => [...prev, newTask]);
         setShowTaskForm(false);
-        alert('Task created successfully! 🎉');
+        alert('Task created successfully!');
       } else if (response.status === 401) {
         alert('Please log in to create tasks. You need to be authenticated to use this feature.');
       } else {
@@ -166,7 +170,7 @@ const AIWeeklyPlanner: React.FC = () => {
       if (response.ok) {
         setTasks(prev => prev.filter(t => t.id !== taskToDelete.id));
         setTaskToDelete(null);
-        alert('Task deleted successfully! 🗑️');
+        alert('Task deleted successfully!');
       } else {
         const error = await response.json();
         alert(`Failed to delete task: ${error.message || error.error}`);
@@ -179,6 +183,18 @@ const AIWeeklyPlanner: React.FC = () => {
     }
   };
 
+  // Handle calendar event clicks
+  const handleEventClick = (event: CalendarEvent) => {
+    if (event.taskId) {
+      const task = tasks.find(t => String(t.id) === event.taskId);
+      if (task) {
+        setSelectedTask(task);
+        setShowTaskDetails(true);
+      }
+    }
+  };
+
+  // Generate consistent calendar events (fixed positioning)
   const generateCalendarEvents = () => {
     const events: CalendarEvent[] = [];
     
@@ -206,7 +222,7 @@ const AIWeeklyPlanner: React.FC = () => {
         if (deadlineDate >= startDate && deadlineDate <= endDate) {
           events.push({
             id: `deadline-${task.id}`,
-            title: `📅 ${task.title} (Due)`,
+            title: `Due: ${task.title}`,
             start: task.deadline,
             end: task.deadline,
             type: 'deadline',
@@ -216,24 +232,41 @@ const AIWeeklyPlanner: React.FC = () => {
         }
       }
 
-      // Add suggested work blocks for incomplete tasks
+      // Add suggested work blocks for incomplete tasks with consistent positioning
       if (task.estimated_hours && task.status !== 'completed') {
-        const workDate = new Date(startDate);
-        workDate.setDate(workDate.getDate() + Math.floor(Math.random() * 5));
-        workDate.setHours(9 + Math.floor(Math.random() * 6));
+        let workDate: Date;
+        
+        if (task.deadline) {
+          // Schedule work time before deadline
+          workDate = new Date(task.deadline);
+          workDate.setDate(workDate.getDate() - Math.max(1, Math.ceil(task.estimated_hours / 4)));
+        } else {
+          // Use consistent day based on task ID
+          const dayOffset = (parseInt(String(task.id)) % 7);
+          workDate = new Date(startDate);
+          workDate.setDate(startDate.getDate() + dayOffset);
+        }
+        
+        // Set consistent hour based on task type and priority
+        const baseHour = task.task_type === 'creative' ? 9 : 14; // Creative in AM, admin in PM
+        const priorityOffset = task.priority === 'high' ? 0 : task.priority === 'medium' ? 1 : 2;
+        workDate.setHours(baseHour + priorityOffset, 0, 0, 0);
         
         const endTime = new Date(workDate);
         endTime.setHours(endTime.getHours() + Math.min(task.estimated_hours, 3));
 
-        events.push({
-          id: `work-${task.id}`,
-          title: `${task.task_type === 'creative' ? '🎨' : '📋'} ${task.title}`,
-          start: workDate.toISOString(),
-          end: endTime.toISOString(),
-          type: 'task',
-          taskId: String(task.id),
-          priority: task.priority
-        });
+        // Only add if within current view range
+        if (workDate >= startDate && workDate <= endDate) {
+          events.push({
+            id: `work-${task.id}`,
+            title: `${task.task_type === 'creative' ? 'Creative' : 'Admin'}: ${task.title}`,
+            start: workDate.toISOString(),
+            end: endTime.toISOString(),
+            type: 'task',
+            taskId: String(task.id),
+            priority: task.priority
+          });
+        }
       }
     });
 
@@ -399,7 +432,7 @@ const AIWeeklyPlanner: React.FC = () => {
         const newTask = await response.json();
         setTasks(prev => [...prev, newTask]);
         setAiSuggestions(prev => prev.filter(s => s.id !== suggestion.id));
-        alert(`✅ Task "${suggestion.title}" added successfully!`);
+        alert(`Task "${suggestion.title}" added successfully!`);
       } else if (response.status === 401) {
         alert('Please log in to create tasks. You need to be authenticated to use this feature.');
       } else {
@@ -539,12 +572,16 @@ const AIWeeklyPlanner: React.FC = () => {
                   {events.slice(0, 2).map(event => (
                     <div 
                       key={event.id}
-                      className={`text-xs p-1 rounded truncate ${
+                      className={`text-xs p-1 rounded truncate cursor-pointer hover:opacity-80 ${
                         event.type === 'deadline' ? 'bg-red-500/60 text-white' :
                         event.type === 'task' ? 'bg-blue-500/60 text-white' :
                         'bg-purple-500/60 text-white'
                       }`}
                       title={event.title}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEventClick(event);
+                      }}
                     >
                       {event.title}
                     </div>
@@ -597,12 +634,13 @@ const AIWeeklyPlanner: React.FC = () => {
                   {events.map(event => (
                     <div 
                       key={event.id}
-                      className={`text-xs p-2 rounded ${
+                      className={`text-xs p-2 rounded cursor-pointer hover:opacity-80 ${
                         event.type === 'deadline' ? 'bg-red-500/60 text-white' :
                         event.type === 'task' ? 'bg-blue-500/60 text-white' :
                         'bg-purple-500/60 text-white'
                       }`}
                       title={event.title}
+                      onClick={() => handleEventClick(event)}
                     >
                       <div className="font-medium truncate">{event.title}</div>
                       {event.start && (
@@ -675,11 +713,12 @@ const AIWeeklyPlanner: React.FC = () => {
                         {hourEvents.map(event => (
                           <div 
                             key={event.id}
-                            className={`p-2 rounded text-sm ${
+                            className={`p-2 rounded text-sm cursor-pointer hover:opacity-80 ${
                               event.type === 'deadline' ? 'bg-red-500/60 text-white' :
                               event.type === 'task' ? 'bg-blue-500/60 text-white' :
                               'bg-purple-500/60 text-white'
                             }`}
+                            onClick={() => handleEventClick(event)}
                           >
                             <div className="font-medium">{event.title}</div>
                             {event.start && event.end && (
@@ -718,7 +757,7 @@ const AIWeeklyPlanner: React.FC = () => {
         
         {events.length > 0 && (
           <div className="bg-white/5 rounded-lg p-4">
-            <h4 className="font-medium text-white mb-3">📋 Day Summary</h4>
+            <h4 className="font-medium text-white mb-3">Day Summary</h4>
             <div className="grid grid-cols-3 gap-4 text-center text-sm">
               <div className="bg-red-500/20 rounded-lg p-3">
                 <div className="text-red-300 font-medium">Deadlines</div>
@@ -750,15 +789,15 @@ const AIWeeklyPlanner: React.FC = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            📅 Calendar View
+            Calendar View
           </h2>
           
           <div className="flex items-center gap-2">
             <div className="bg-white/10 rounded-lg p-1 flex">
               {[
-                { key: 'monthly', label: 'Month', icon: '📅' },
-                { key: 'weekly', label: 'Week', icon: '📊' },
-                { key: 'daily', label: 'Day', icon: '📋' }
+                { key: 'monthly', label: 'Month' },
+                { key: 'weekly', label: 'Week' },
+                { key: 'daily', label: 'Day' }
               ].map(view => (
                 <button
                   key={view.key}
@@ -769,7 +808,7 @@ const AIWeeklyPlanner: React.FC = () => {
                       : 'text-white hover:bg-white/10'
                   }`}
                 >
-                  {view.icon} {view.label}
+                  {view.label}
                 </button>
               ))}
             </div>
@@ -814,7 +853,7 @@ const AIWeeklyPlanner: React.FC = () => {
       <div className="space-y-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-            🤖 AI Task Suggestions
+            AI Task Suggestions
           </h2>
           <button
             onClick={generateAISuggestions}
@@ -830,7 +869,7 @@ const AIWeeklyPlanner: React.FC = () => {
                 Analyzing...
               </span>
             ) : (
-              '🧠 Analyze & Suggest'
+              'Analyze & Suggest'
             )}
           </button>
         </div>
@@ -840,7 +879,7 @@ const AIWeeklyPlanner: React.FC = () => {
             {actionableSuggestions.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-4">
-                  <h3 className="text-xl font-bold text-white">✅ Suggested Tasks</h3>
+                  <h3 className="text-xl font-bold text-white">Suggested Tasks</h3>
                   <span className="text-sm text-gray-400">({actionableSuggestions.length} actionable items)</span>
                 </div>
                 <div className="space-y-4">
@@ -849,7 +888,6 @@ const AIWeeklyPlanner: React.FC = () => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="text-blue-400">📋</span>
                             <span className="text-xs px-2 py-1 rounded bg-blue-500/20 text-blue-300">
                               task
                             </span>
@@ -881,7 +919,7 @@ const AIWeeklyPlanner: React.FC = () => {
                           className="ml-4 px-3 py-1 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors disabled:opacity-50"
                           disabled={isCreatingTask}
                         >
-                          {isCreatingTask ? '⏳ Adding...' : '➕ Add Task'}
+                          {isCreatingTask ? 'Adding...' : 'Add Task'}
                         </button>
                       </div>
                     </div>
@@ -893,7 +931,7 @@ const AIWeeklyPlanner: React.FC = () => {
             {insights.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-4">
-                  <h3 className="text-xl font-bold text-white">💡 AI Insights</h3>
+                  <h3 className="text-xl font-bold text-white">AI Insights</h3>
                   <span className="text-sm text-gray-400">({insights.length} recommendations)</span>
                 </div>
                 <div className="space-y-4">
@@ -906,9 +944,6 @@ const AIWeeklyPlanner: React.FC = () => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className={insight.type === 'optimization' ? 'text-purple-400' : 'text-green-400'}>
-                              {insight.type === 'optimization' ? '⚡' : '📅'}
-                            </span>
                             <span className={`text-xs px-2 py-1 rounded ${
                               insight.type === 'optimization' 
                                 ? 'bg-purple-500/20 text-purple-300' 
@@ -926,7 +961,7 @@ const AIWeeklyPlanner: React.FC = () => {
                             ? 'bg-purple-600/20 text-purple-300'
                             : 'bg-green-600/20 text-green-300'
                         }`}>
-                          {insight.type === 'optimization' ? '💭 Consider This' : '📅 Manual Schedule'}
+                          {insight.type === 'optimization' ? 'Consider This' : 'Manual Schedule'}
                         </div>
                       </div>
                     </div>
@@ -941,7 +976,7 @@ const AIWeeklyPlanner: React.FC = () => {
                 disabled={isGeneratingSuggestions}
                 className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors disabled:opacity-50"
               >
-                {isGeneratingSuggestions ? '🔄 Generating...' : '🔄 Generate New Suggestions'}
+                {isGeneratingSuggestions ? 'Generating...' : 'Generate New Suggestions'}
               </button>
             </div>
           </div>
@@ -998,10 +1033,10 @@ const AIWeeklyPlanner: React.FC = () => {
                 )}
                 <div className="flex items-center gap-4 text-xs text-gray-400">
                   {task.deadline && (
-                    <span>📅 Due: {new Date(task.deadline).toLocaleDateString()}</span>
+                    <span>Due: {new Date(task.deadline).toLocaleDateString()}</span>
                   )}
                   {task.estimated_hours && (
-                    <span>⏱️ {task.estimated_hours}h estimated</span>
+                    <span>{task.estimated_hours}h estimated</span>
                   )}
                 </div>
               </div>
@@ -1011,7 +1046,7 @@ const AIWeeklyPlanner: React.FC = () => {
                   className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
                   title="Delete task"
                 >
-                  🗑️
+                  Delete
                 </button>
               </div>
             </div>
@@ -1050,9 +1085,9 @@ const AIWeeklyPlanner: React.FC = () => {
           <div className="flex justify-center mt-6">
             <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-lg p-1 flex">
               {[
-                { key: 'overview', label: '📋 Overview', icon: '📋' },
-                { key: 'calendar', label: '📅 Calendar', icon: '📅' },
-                { key: 'suggestions', label: '🤖 AI Suggestions', icon: '🤖' }
+                { key: 'overview', label: 'Overview' },
+                { key: 'calendar', label: 'Calendar' },
+                { key: 'suggestions', label: 'AI Suggestions' }
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -1119,6 +1154,92 @@ const AIWeeklyPlanner: React.FC = () => {
           </div>
         </div>
 
+        {/* Task Details Modal */}
+        {selectedTask && showTaskDetails && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
+              <div className="flex items-start justify-between mb-4">
+                <h3 className="text-lg font-bold text-white">Task Details</h3>
+                <button
+                  onClick={() => {
+                    setShowTaskDetails(false);
+                    setSelectedTask(null);
+                  }}
+                  className="text-gray-400 hover:text-white"
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-white mb-1">{selectedTask.title}</h4>
+                  {selectedTask.description && (
+                    <p className="text-sm text-gray-300">{selectedTask.description}</p>
+                  )}
+                </div>
+                
+                <div className="flex gap-2">
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    selectedTask.priority === 'high' ? 'bg-red-500/20 text-red-300' :
+                    selectedTask.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
+                    'bg-green-500/20 text-green-300'
+                  }`}>
+                    {selectedTask.priority} priority
+                  </span>
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    selectedTask.task_type === 'creative' ? 'bg-purple-500/20 text-purple-300' :
+                    'bg-blue-500/20 text-blue-300'
+                  }`}>
+                    {selectedTask.task_type}
+                  </span>
+                  <span className={`text-xs px-2 py-1 rounded ${
+                    selectedTask.status === 'completed' ? 'bg-green-500/20 text-green-300' :
+                    selectedTask.status === 'in_progress' ? 'bg-blue-500/20 text-blue-300' :
+                    'bg-gray-500/20 text-gray-300'
+                  }`}>
+                    {selectedTask.status.replace('_', ' ')}
+                  </span>
+                </div>
+                
+                <div className="space-y-2 text-sm text-gray-400">
+                  {selectedTask.deadline && (
+                    <div>Deadline: {new Date(selectedTask.deadline).toLocaleDateString()}</div>
+                  )}
+                  {selectedTask.estimated_hours && (
+                    <div>Estimated time: {selectedTask.estimated_hours} hours</div>
+                  )}
+                  {selectedTask.created_at && (
+                    <div>Created: {new Date(selectedTask.created_at).toLocaleDateString()}</div>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={() => {
+                    setShowTaskDetails(false);
+                    setSelectedTask(null);
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                >
+                  Close
+                </button>
+                <button
+                  onClick={() => {
+                    handleDeleteTask(selectedTask);
+                    setShowTaskDetails(false);
+                    setSelectedTask(null);
+                  }}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Tab Content */}
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1128,7 +1249,7 @@ const AIWeeklyPlanner: React.FC = () => {
                   onClick={() => setShowTaskForm(true)}
                   className="flex-1 sm:flex-none bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors"
                 >
-                  ➕ Add New Task
+                  Add New Task
                 </button>
                 <button
                   onClick={generateAISchedule}
@@ -1144,7 +1265,7 @@ const AIWeeklyPlanner: React.FC = () => {
                       Generating...
                     </span>
                   ) : (
-                    '🚀 Generate AI Schedule'
+                    'Generate AI Schedule'
                   )}
                 </button>
               </div>
@@ -1189,7 +1310,7 @@ const AIWeeklyPlanner: React.FC = () => {
 
               <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-bold text-white">📋 Your Tasks</h2>
+                  <h2 className="text-2xl font-bold text-white">Your Tasks</h2>
                   <div className="flex items-center gap-2">
                     {taskFilter !== 'all' && (
                       <div className="flex items-center gap-2">
@@ -1240,7 +1361,7 @@ const AIWeeklyPlanner: React.FC = () => {
                       onClick={() => setShowTaskForm(true)}
                       className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors"
                     >
-                      ➕ Add Your First Task
+                      Add Your First Task
                     </button>
                   </div>
                 )}
@@ -1249,12 +1370,12 @@ const AIWeeklyPlanner: React.FC = () => {
 
             <div className="space-y-6">
               <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
-                <h2 className="text-2xl font-bold text-white mb-4">🤖 AI Weekly Schedule</h2>
+                <h2 className="text-2xl font-bold text-white mb-4">AI Weekly Schedule</h2>
                 
                 {weeklySchedule ? (
                   <div className="space-y-4">
                     <div className="text-green-300 font-medium">
-                      ✅ Schedule Generated!
+                      Schedule Generated!
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4 text-sm">
@@ -1270,7 +1391,7 @@ const AIWeeklyPlanner: React.FC = () => {
 
                     {weeklySchedule.aiSuggestions && (
                       <div className="bg-gray-800/50 rounded-lg p-4">
-                        <h4 className="font-medium text-white mb-2">💡 AI Suggestions:</h4>
+                        <h4 className="font-medium text-white mb-2">AI Suggestions:</h4>
                         <p className="text-gray-300 text-sm">{weeklySchedule.aiSuggestions}</p>
                       </div>
                     )}
@@ -1292,7 +1413,7 @@ const AIWeeklyPlanner: React.FC = () => {
               </div>
 
               <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
-                <h3 className="text-lg font-bold text-white mb-3">💡 Pro Tips</h3>
+                <h3 className="text-lg font-bold text-white mb-3">Pro Tips</h3>
                 <ul className="space-y-2 text-sm text-gray-300">
                   <li>• Mix creative and admin tasks for better balance</li>
                   <li>• Set realistic deadlines for better AI scheduling</li>
@@ -1300,7 +1421,7 @@ const AIWeeklyPlanner: React.FC = () => {
                   <li>• High priority tasks get scheduled first</li>
                   <li>• Check the Calendar tab to see your week layout</li>
                   <li>• Use AI Suggestions to optimize your workflow</li>
-                  <li>• Click 🗑️ to delete tasks you no longer need</li>
+                  <li>• Click tasks in the calendar to view details</li>
                 </ul>
               </div>
             </div>

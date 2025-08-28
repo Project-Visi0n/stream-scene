@@ -1,6 +1,115 @@
 import { Router } from 'express';
 const router = Router();
 
+// Test endpoint for debugging - moved to top
+router.get('/test-simple', (req, res) => {
+  res.json({ message: 'Threads routes are working' });
+});
+
+// Debug environment variables
+router.get('/debug-env', (req, res) => {
+  res.json({
+    hasClientId: !!process.env.THREADS_CLIENT_ID,
+    hasClientSecret: !!process.env.THREADS_CLIENT_SECRET,
+    nodeEnv: process.env.NODE_ENV
+  });
+});
+
+// Initiate Threads OAuth
+router.get('/auth', (req, res) => {
+  const threadsClientId = process.env.THREADS_CLIENT_ID;
+  const redirectUri = 'https://streamscene.net/api/threads/callback';
+  
+  if (!threadsClientId) {
+    return res.status(500).json({ error: 'Threads Client ID not configured' });
+  }
+
+  const scopes = 'threads_basic,threads_content_publish';
+  const state = Math.random().toString(36).substring(2); // CSRF protection
+  
+  // Store state in session for verification
+  req.session.threadsState = state;
+
+  const authUrl = `https://threads.net/oauth/authorize?` + 
+    `client_id=${threadsClientId}&` +
+    `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+    `scope=${scopes}&` +
+    `response_type=code&` +
+    `state=${state}`;
+
+  console.log('[Threads Auth] Redirecting to:', authUrl);
+  res.redirect(authUrl);
+});
+
+// Handle OAuth callback
+router.get('/callback', async (req, res) => {
+  try {
+    const { code, state } = req.query;
+    
+    console.log('[Threads Callback] Received:', { code: !!code, state });
+
+    // Verify state parameter (CSRF protection)
+    if (state !== req.session.threadsState) {
+      return res.status(400).json({ error: 'Invalid state parameter' });
+    }
+
+    if (!code) {
+      return res.status(400).json({ error: 'Authorization code not provided' });
+    }
+
+    // Exchange code for access token
+    const tokenResponse = await fetch('https://graph.threads.net/oauth/access_token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        client_id: process.env.THREADS_CLIENT_ID!,
+        client_secret: process.env.THREADS_CLIENT_SECRET!,
+        grant_type: 'authorization_code',
+        redirect_uri: 'https://streamscene.net/api/threads/callback',
+        code: code as string
+      })
+    });
+
+    const tokenData = await tokenResponse.json() as any;
+    console.log('[Threads Callback] Token response:', { ok: tokenResponse.ok, hasToken: !!tokenData.access_token });
+
+    if (!tokenResponse.ok || !tokenData.access_token) {
+      console.error('[Threads Callback] Token exchange failed:', tokenData);
+      return res.status(400).json({ error: 'Failed to exchange code for token', details: tokenData });
+    }
+
+    // Get user info
+    const userResponse = await fetch(`https://graph.threads.net/v1.0/me?fields=id,username&access_token=${tokenData.access_token}`);
+    const userData = await userResponse.json() as any;
+    
+    console.log('[Threads Callback] User data:', { ok: userResponse.ok, username: userData.username });
+
+    if (!userResponse.ok) {
+      console.error('[Threads Callback] User info failed:', userData);
+      return res.status(400).json({ error: 'Failed to get user info', details: userData });
+    }
+
+    // Store in session
+    req.session.threadsAuth = {
+      userId: userData.id,
+      username: userData.username,
+      accessToken: tokenData.access_token
+    } as any;
+
+    // Clean up state
+    delete req.session.threadsState;
+
+    console.log('[Threads Callback] Successfully authenticated user:', userData.username);
+
+    // Redirect to frontend success page
+    res.redirect('/?threads=connected');
+
+  } catch (error) {
+    console.error('[Threads Callback] Error:', error);
+    res.status(500).json({ error: 'OAuth callback failed', details: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
 // Get Threads connection status
 router.get('/status', async (req, res) => {
   try {
@@ -153,15 +262,20 @@ router.post('/publish-now/:id', async (req, res) => {
 
     // Get access token from session
     const accessToken = req.session?.threadsAuth?.accessToken;
-    if (!accessToken) {
+    const accountId = req.session?.threadsAuth?.userId;
+    
+    if (!accessToken || !accountId) {
       return res.status(400).json({ error: 'Threads not connected - no access token found' });
     }
 
     // Publish the post
-    const publishResponse = await fetch(`https://graph.threads.net/v1.0/${id}/threads_publish`, {
+    const publishResponse = await fetch(`https://graph.threads.net/v1.0/${accountId}/threads_publish`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ access_token: accessToken })
+      body: JSON.stringify({ 
+        creation_id: id,
+        access_token: accessToken 
+      })
     });
 
     const publishData = await publishResponse.json() as any;
@@ -186,6 +300,17 @@ router.post('/publish-now/:id', async (req, res) => {
   } catch (error) {
     console.error('[Threads Publish] Error:', error);
     res.status(500).json({ error: 'Failed to publish post', details: error instanceof Error ? error.message : 'Unknown error' });
+  }
+});
+
+// Disconnect Threads
+router.post('/disconnect', (req, res) => {
+  try {
+    delete req.session.threadsAuth;
+    res.json({ success: true, disconnected: true });
+  } catch (error) {
+    console.error('[Threads Disconnect] Error:', error);
+    res.status(500).json({ error: 'Failed to disconnect' });
   }
 });
 
