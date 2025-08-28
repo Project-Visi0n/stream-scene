@@ -18,6 +18,7 @@ declare module 'express-session' {
       connectedAt?: string;
     };
     oauthState?: string;
+    threadsState?: string;
   }
 }
 import 'express';
