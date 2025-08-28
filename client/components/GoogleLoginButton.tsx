@@ -19,7 +19,6 @@ const GoogleLoginButton: React.FC = () => {
 
   const handleLogout = async (): Promise<void> => {
     try {
-      console.log('=== Logout Debug ===');
       const response = await fetch('/auth/logout', {
         method: 'POST',
         credentials: 'include',

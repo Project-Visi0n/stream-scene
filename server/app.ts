@@ -31,13 +31,29 @@ import contentSchedulerRoutes from './routes/contentScheduler.js';
 
 const app = express();
 
-// Trust proxy for secure cookies behind HTTPS load balancers (e.g., Render, Vercel)
+// Trust proxy for secure cookies behind HTTPS load balancers (e.g., Render, Vercel, Cloudflare)
 app.set('trust proxy', 1);
+
+// Handle Cloudflare headers for proper protocol detection
+app.use((req, res, next) => {
+  // If behind Cloudflare or other proxy that sets these headers
+  if (req.headers['cf-visitor']) {
+    try {
+      const cfVisitor = JSON.parse(req.headers['cf-visitor'] as string);
+      if (cfVisitor.scheme === 'https') {
+        req.headers['x-forwarded-proto'] = 'https';
+      }
+    } catch (e) {
+      // Ignore JSON parse errors
+    }
+  }
+  next();
+});
 
 // Environment check
 const isProd = process.env.NODE_ENV === 'production';
 
-// Replace your existing CORS configuration with this enhanced version
+// Enhanced CORS configuration
 app.use(cors({
   origin: function (origin, callback) {
     const timestamp = new Date().toISOString();
@@ -49,13 +65,25 @@ app.use(cors({
       return callback(null, true);
     }
     
+    // Get allowed origins from environment variables
+    const allowedOrigins = [
+      process.env.CLIENT_URL,
+      process.env.FRONTEND_URL,
+      'https://streamscene.net',
+      'https://www.streamscene.net'
+    ].filter(Boolean); // Remove undefined/empty values
+    
     // Allow localhost on any port for development
-    if (origin.includes('localhost') || origin.includes('127.0.0.1') || origin.includes('0.0.0.0')) {
+    if (!isProd && origin && (
+      origin.includes('localhost') || 
+      origin.includes('127.0.0.1') || 
+      origin.includes('0.0.0.0')
+    )) {
       console.log('✅ Origin allowed (localhost):', origin);
       return callback(null, true);
     }
     
-    // Allow EC2 instance IP
+    // Allow EC2 instance IP in production
     if (origin.includes('3.20.172.151')) {
       console.log('✅ Origin allowed (EC2):', origin);
       return callback(null, true);
@@ -67,11 +95,23 @@ app.use(cors({
       return callback(null, true);
     }
     
-    // Log blocked origins for debugging with more context
+    // Check if origin is in allowed list
+    if (origin && allowedOrigins.some(allowed => {
+      if (!allowed) return false;
+      return origin === allowed || 
+             origin.startsWith(allowed) ||
+             origin.includes(allowed.replace(/^https?:\/\//, ''));
+    })) {
+      console.log('✅ Origin allowed (environment):', origin);
+      return callback(null, true);
+    }
+    
+    // Log blocked origins for debugging
     console.log(`❌ [${timestamp}] CORS BLOCKED origin:`, origin);
-    console.log('❌ STACK TRACE FOR BLOCKED REQUEST:');
-    console.trace();
-    console.log('❌ This is the "Not allowed by CORS" error you\'re seeing');
+    if (!isProd) {
+      console.log('❌ Allowed origins:', allowedOrigins);
+      console.trace();
+    }
     
     callback(new Error('Not allowed by CORS'));
   },
@@ -176,8 +216,9 @@ const HOST = '0.0.0.0';
 // Initialize database and start server
 syncDB().then(() => {
   app.listen(PORT, HOST, () => {
-    console.log(`Server is running at http://localhost:${PORT}`);
-    console.log(`External access: http://${HOST}:${PORT}`);
+    const protocol = isProd ? 'https' : 'http';
+    console.log(`Server is running at ${protocol}://localhost:${PORT}`);
+    console.log(`External access: ${protocol}://${HOST}:${PORT}`);
     console.log(`Environment: ${isProd ? 'production' : 'development'}`);
   });
 }).catch((error) => {

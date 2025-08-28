@@ -71,7 +71,7 @@ router.get('/google/callback', (req, res, next) => {
                     return res.redirect('/?error=session_failed');
                 }
                 console.log('Session saved, redirecting to client...');
-                const redirectUrl = process.env.CLIENT_URL || `http://${req.get('host')}`;
+                const redirectUrl = process.env.CLIENT_URL || `https://${req.get('host')}`;
                 console.log('Redirecting to:', redirectUrl);
                 res.redirect(redirectUrl);
             });
