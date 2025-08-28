@@ -53,11 +53,17 @@ app.use((req, res, next) => {
 // Environment check
 const isProd = process.env.NODE_ENV === 'production';
 
-// CORS configuration - comprehensive for both development and production
+// Enhanced CORS configuration
 app.use(cors({
   origin: function (origin, callback) {
+    const timestamp = new Date().toISOString();
+    console.log(`🔍 [${timestamp}] CORS check for origin:`, origin);
+    
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      console.log('✅ No origin - allowing');
+      return callback(null, true);
+    }
     
     // Get allowed origins from environment variables
     const allowedOrigins = [
@@ -73,6 +79,19 @@ app.use(cors({
       origin.includes('127.0.0.1') || 
       origin.includes('0.0.0.0')
     )) {
+      console.log('✅ Origin allowed (localhost):', origin);
+      return callback(null, true);
+    }
+    
+    // Allow EC2 instance IP in production
+    if (origin.includes('3.20.172.151')) {
+      console.log('✅ Origin allowed (EC2):', origin);
+      return callback(null, true);
+    }
+    
+    // Allow streamscene.net WITH and WITHOUT www
+    if (origin.includes('streamscene.net')) {
+      console.log('✅ Origin allowed (streamscene):', origin);
       return callback(null, true);
     }
     
@@ -83,20 +102,36 @@ app.use(cors({
              origin.startsWith(allowed) ||
              origin.includes(allowed.replace(/^https?:\/\//, ''));
     })) {
+      console.log('✅ Origin allowed (environment):', origin);
       return callback(null, true);
     }
     
-    // Log blocked origins for debugging (only in development)
+    // Log blocked origins for debugging
+    console.log(`❌ [${timestamp}] CORS BLOCKED origin:`, origin);
     if (!isProd) {
-      console.log('CORS blocked origin:', origin);
-      console.log('Allowed origins:', allowedOrigins);
+      console.log('❌ Allowed origins:', allowedOrigins);
+      console.trace();
     }
+    
     callback(new Error('Not allowed by CORS'));
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'X-Requested-With']
 }));
+
+// Enhanced request logging middleware
+app.use((req, res, next) => {
+  const timestamp = new Date().toISOString();
+  console.log(`📡 ${timestamp} - ${req.method} ${req.path}`, {
+    origin: req.headers.origin || 'NO_ORIGIN',
+    userAgent: req.headers['user-agent']?.substring(0, 50) + '...',
+    referer: req.headers.referer || 'NO_REFERER',
+    host: req.headers.host,
+    user: req.user ? 'authenticated' : 'not authenticated'
+  });
+  next();
+});
 
 // Basic middleware
 app.use(express.json());
