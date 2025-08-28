@@ -17,22 +17,19 @@ const FilmReelLogo = () => {
             from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
           }
-          
           .spinning-reel {
             animation: spinReel 4s linear infinite;
           }
-          
           .spinning-reel:hover {
             animation-duration: 1s;
           }
         `
       }} />
-      
       <div
         className="relative w-32 h-32 rounded-full shadow-lg spinning-reel"
         style={{
-          backgroundColor: '#6b7280',   
-          border: '4px solid #4b5563',  
+          backgroundColor: '#6b7280',
+          border: '4px solid #4b5563',
         }}
       >
         {holePositions.map((pos, index) => (
@@ -42,13 +39,25 @@ const FilmReelLogo = () => {
             style={{
               width: '1.5rem',
               height: '1.5rem',
-              backgroundColor: '#1e293b', 
+              backgroundColor: '#1e293b',
               top: `calc(50% + ${pos.y}px)`,
               left: `calc(50% + ${pos.x}px)`,
               transform: 'translate(-50%, -50%)',
             }}
           />
         ))}
+        <div
+          className="absolute rounded-full"
+          style={{
+            width: '2rem',
+            height: '2rem',
+            backgroundColor: '#374151',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            border: '2px solid #4b5563'
+          }}
+        />
       </div>
     </div>
   );

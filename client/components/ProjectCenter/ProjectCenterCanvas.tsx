@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { ReactSketchCanvas, ReactSketchCanvasRef } from "react-sketch-canvas";
+import { ReactSketchCanvas } from "react-sketch-canvas";
+import type { ReactSketchCanvasRef } from "react-sketch-canvas";
 import { motion } from "framer-motion";
 
 const canvasStyles = {
@@ -33,7 +34,10 @@ const ProjectCenterCanvas: React.FC = () => {
   const [showSaveDialog, setShowSaveDialog] = useState<boolean>(false);
   const [showLoadDialog, setShowLoadDialog] = useState<boolean>(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const canvasRef = useRef<ReactSketchCanvasRef>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isExporting, setIsExporting] = useState<boolean>(false);
+  const canvasRef = React.useRef<ReactSketchCanvasRef>(null);
 
   // Load saved drawings from localStorage on component mount
   useEffect(() => {
@@ -69,9 +73,9 @@ const ProjectCenterCanvas: React.FC = () => {
   };
 
   // Initialize canvas settings
-  useEffect(() => {
+  // Initialize canvas settings
+  React.useEffect(() => {
     if (canvasRef.current) {
-      // Ensure the canvas is properly initialized
       try {
         canvasRef.current.eraseMode(false);
       } catch (error) {
@@ -99,7 +103,7 @@ const ProjectCenterCanvas: React.FC = () => {
 
   const saveDrawing = async () => {
     if (!canvasRef.current || !currentDrawingName.trim()) return;
-    
+    setIsSaving(true);
     try {
       const paths = await canvasRef.current.exportPaths();
       const newDrawing: SavedDrawing = {
@@ -108,35 +112,33 @@ const ProjectCenterCanvas: React.FC = () => {
         data: JSON.stringify(paths),
         timestamp: Date.now()
       };
-      
       const updatedDrawings = [...savedDrawings, newDrawing];
       setSavedDrawings(updatedDrawings);
       localStorage.setItem('canvas-drawings', JSON.stringify(updatedDrawings));
-      
       setCurrentDrawingName("");
       setShowSaveDialog(false);
-      
-      // Show success notification
       showNotification('success', `"${newDrawing.name}" saved successfully!`, '');
     } catch (error) {
       console.error('Failed to save drawing:', error);
       showNotification('error', 'Failed to save drawing. Please try again.', '');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const loadDrawing = async (drawing: SavedDrawing) => {
     if (!canvasRef.current) return;
-    
+    setIsLoading(true);
     try {
       const paths = JSON.parse(drawing.data);
       await canvasRef.current.loadPaths(paths);
       setShowLoadDialog(false);
-      
-      // Show success notification
       showNotification('success', `"${drawing.name}" loaded successfully!`, '');
     } catch (error) {
       console.error('Failed to load drawing:', error);
       showNotification('error', 'Failed to load drawing. Please try again.', '');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -153,19 +155,19 @@ const ProjectCenterCanvas: React.FC = () => {
 
   const exportAsImage = async () => {
     if (!canvasRef.current) return;
-    
+    setIsExporting(true);
     try {
       const imageData = await canvasRef.current.exportImage("png");
       const link = document.createElement('a');
       link.download = `canvas-drawing-${Date.now()}.png`;
       link.href = imageData;
       link.click();
-      
-      // Show success notification
       showNotification('success', 'Image exported successfully!', '');
     } catch (error) {
       console.error('Failed to export image:', error);
       showNotification('error', 'Failed to export image. Please try again.', '');
+    } finally {
+      setIsExporting(false);
     }
   };
 
@@ -268,11 +270,16 @@ const ProjectCenterCanvas: React.FC = () => {
           >
             <motion.button
               onClick={() => setShowSaveDialog(true)}
-              className="px-4 py-2 bg-green-600/80 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-lg"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              disabled={isSaving}
+              className="px-4 py-2 bg-green-600/80 hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-lg min-w-[80px] flex items-center justify-center"
+              whileHover={{ scale: isSaving ? 1 : 1.05 }}
+              whileTap={{ scale: isSaving ? 1 : 0.95 }}
             >
-              Save
+              {isSaving ? (
+                'Saving...'
+              ) : (
+                'Save'
+              )}
             </motion.button>
           </motion.div>
 
@@ -285,11 +292,16 @@ const ProjectCenterCanvas: React.FC = () => {
           >
             <motion.button
               onClick={() => setShowLoadDialog(true)}
-              className="px-4 py-2 bg-blue-600/80 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-lg"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              disabled={isLoading}
+              className="px-4 py-2 bg-blue-600/80 hover:bg-blue-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-lg min-w-[80px] flex items-center justify-center"
+              whileHover={{ scale: isLoading ? 1 : 1.05 }}
+              whileTap={{ scale: isLoading ? 1 : 0.95 }}
             >
-              Load
+              {isLoading ? (
+                'Loading...'
+              ) : (
+                'Load'
+              )}
             </motion.button>
           </motion.div>
 
@@ -302,11 +314,16 @@ const ProjectCenterCanvas: React.FC = () => {
           >
             <motion.button
               onClick={exportAsImage}
-              className="px-4 py-2 bg-purple-600/80 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-lg"
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              disabled={isExporting}
+              className="px-4 py-2 bg-purple-600/80 hover:bg-purple-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-sm font-medium rounded-lg transition-all duration-200 shadow-lg min-w-[100px] flex items-center justify-center"
+              whileHover={{ scale: isExporting ? 1 : 1.05 }}
+              whileTap={{ scale: isExporting ? 1 : 0.95 }}
             >
-              Export PNG
+              {isExporting ? (
+                'Exporting...'
+              ) : (
+                'Export PNG'
+              )}
             </motion.button>
           </motion.div>
         </div>
@@ -331,11 +348,29 @@ const ProjectCenterCanvas: React.FC = () => {
               strokeWidth={strokeWidth}
               strokeColor={strokeColor}
               canvasColor="transparent"
-              backgroundImage=""
-              preserveBackgroundImageAspectRatio="none"
               allowOnlyPointerType="all"
             />
           </div>
+          
+          {/* Loading Overlay for Canvas Operations */}
+          {(isSaving || isLoading || isExporting) && (
+            <motion.div
+              className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center rounded-2xl"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <motion.div
+                className="text-center text-purple-300 text-lg font-semibold"
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.4, delay: 0.1 }}
+              >
+                {isSaving ? "Saving drawing..." : isLoading ? "Loading drawing..." : "Exporting image..."}
+              </motion.div>
+            </motion.div>
+          )}
         </div>
       </motion.div>
 
@@ -378,10 +413,14 @@ const ProjectCenterCanvas: React.FC = () => {
               </button>
               <button
                 onClick={saveDrawing}
-                disabled={!currentDrawingName.trim()}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors"
+                disabled={!currentDrawingName.trim() || isSaving}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors min-w-[80px] flex items-center justify-center"
               >
-                Save
+                {isSaving ? (
+                  'Saving...'
+                ) : (
+                  'Save'
+                )}
               </button>
             </div>
           </motion.div>
@@ -421,9 +460,14 @@ const ProjectCenterCanvas: React.FC = () => {
                     <div className="flex gap-2 ml-4">
                       <button
                         onClick={() => loadDrawing(drawing)}
-                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded transition-colors"
+                        disabled={isLoading}
+                        className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-sm rounded transition-colors min-w-[60px] flex items-center justify-center"
                       >
-                        Load
+                        {isLoading ? (
+                          'Loading...'
+                        ) : (
+                          'Load'
+                        )}
                       </button>
                       <button
                         onClick={() => {
@@ -526,9 +570,11 @@ const ProjectCenterCanvas: React.FC = () => {
               >
                 {/* SVG icons instead of emojis */}
                 {notification.type === 'success' && (
-                  <svg className="w-6 h-6 text-emerald-300" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                  </svg>
+                  <div className="w-8 h-8 flex items-center justify-center">
+                    <svg className="w-7 h-7 text-green-500" fill="none" stroke="currentColor" strokeWidth="3" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
                 )}
                 {notification.type === 'error' && (
                   <svg className="w-6 h-6 text-red-300" fill="currentColor" viewBox="0 0 20 20">
