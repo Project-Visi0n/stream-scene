@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import GoogleLoginButton from './GoogleLoginButton';
 import FilmReelLogo from './FilmReelLogo';
+import useAuth from '../hooks/useAuth';
 
 // Define the CurrentView type to match App.tsx
 type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers' | 'content-scheduler';
@@ -59,14 +60,52 @@ const FEATURES: Feature[] = [
   }
 ] as const satisfies Feature[];
 
+// Login Prompt Popup Component
+const LoginPromptPopup: React.FC<{
+  isVisible: boolean;
+  onClose: () => void;
+}> = ({ isVisible, onClose }) => {
+  if (!isVisible) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+      <div className="bg-gradient-to-br from-slate-800 to-gray-900 border border-purple-500/30 rounded-xl p-6 max-w-sm w-full shadow-2xl shadow-purple-500/20">
+        <div className="text-center">
+          <div className="text-4xl mb-4">🔒</div>
+          <h3 className="text-lg font-semibold text-purple-300 mb-2">
+            Sign In Required
+          </h3>
+          <p className="text-gray-400 text-sm mb-6">
+            Please sign in with Google to access StreamScene features and start managing your creative projects.
+          </p>
+          <button
+            onClick={onClose}
+            className="w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors duration-200 font-medium"
+          >
+            Got it
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Feature Card Component - Using React Router navigation
 const FeatureCard: React.FC<{
   feature: Feature;
   onNavigate?: (destination: CurrentView) => void;
-}> = ({ feature, onNavigate }) => {
+  isAuthenticated: boolean;
+  onShowLoginPrompt: () => void;
+}> = ({ feature, onNavigate, isAuthenticated, onShowLoginPrompt }) => {
   const navigate = useNavigate();
 
   const handleClick = () => {
+    // Check if user is authenticated first
+    if (!isAuthenticated) {
+      onShowLoginPrompt();
+      return;
+    }
+
     console.log('🎯 NAVIGATING TO:', feature.destination);
     
     // Use React Router navigation
@@ -122,6 +161,16 @@ const FeatureCard: React.FC<{
 
 const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+
+  const handleShowLoginPrompt = () => {
+    setShowLoginPrompt(true);
+  };
+
+  const handleCloseLoginPrompt = () => {
+    setShowLoginPrompt(false);
+  };
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-gray-900 to-black relative overflow-hidden">
@@ -189,10 +238,18 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
             <FeatureCard 
               key={`feature-${index}`}
               feature={feature} 
-              onNavigate={onNavigate} 
+              onNavigate={onNavigate}
+              isAuthenticated={!!user}
+              onShowLoginPrompt={handleShowLoginPrompt}
             />
           ))}
         </div>
+
+        {/* Login Prompt Popup */}
+        <LoginPromptPopup 
+          isVisible={showLoginPrompt} 
+          onClose={handleCloseLoginPrompt} 
+        />
 
       </main>
     </div>
