@@ -8,3 +8,103 @@
 .bg-gradient-conic {
   background: conic-gradient(var(--tw-gradient-stops));
 }
+
+/* Mobile-specific optimizations */
+.touch-manipulation {
+  touch-action: manipulation;
+}
+
+/* Improve tap targets for mobile */
+.mobile-tap-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Better mobile scrolling */
+.mobile-scroll {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* Mobile modal improvements */
+.mobile-modal {
+  max-height: 90vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Responsive font sizes */
+.text-responsive-sm {
+  font-size: clamp(0.75rem, 3vw, 0.875rem);
+}
+
+.text-responsive-base {
+  font-size: clamp(0.875rem, 4vw, 1rem);
+}
+
+.text-responsive-lg {
+  font-size: clamp(1rem, 5vw, 1.125rem);
+}
+
+.text-responsive-xl {
+  font-size: clamp(1.125rem, 6vw, 1.25rem);
+}
+
+.text-responsive-2xl {
+  font-size: clamp(1.25rem, 8vw, 1.5rem);
+}
+
+/* Mobile grid improvements */
+.mobile-grid-responsive {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+/* Viewport height fix for mobile browsers */
+.min-h-screen-mobile {
+  min-height: 100vh;
+  min-height: calc(var(--vh, 1vh) * 100);
+}
+
+/* Reduced motion support */
+.reduce-motion * {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .bg-gradient-to-br,
+  .bg-gradient-to-r {
+    background: #1a1a1a !important;
+    border: 2px solid #ffffff !important;
+  }
+}
+
+/* Dark mode optimizations */
+@media (prefers-color-scheme: dark) {
+  .auto-dark {
+    background-color: #0f172a;
+    color: #e2e8f0;
+  }
+}
+
+@media (max-width: 640px) {
+  .mobile-grid-responsive {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Ensure proper spacing on small screens */
+  .mobile-padding {
+    padding: 1rem;
+  }
+  
+  /* Mobile-specific button improvements */
+  .mobile-button {
+    min-height: 48px;
+    padding: 12px 24px;
+    font-size: 16px;
+    border-radius: 8px;
+  }
+}

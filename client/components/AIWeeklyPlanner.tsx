@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import TaskForm from './TaskForm';
 import { Task, TaskFormData } from '../types/task';
 
@@ -64,6 +65,12 @@ const AIWeeklyPlanner: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskDetails, setShowTaskDetails] = useState(false);
 
+  // Notification state
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'error' | 'info';
+    message: string;
+  } | null>(null);
+
   // Filter tasks based on current filter
   const getFilteredTasks = () => {
     // Ensure tasks is always an array before filtering
@@ -87,6 +94,15 @@ const AIWeeklyPlanner: React.FC = () => {
 
   const filteredTasks = getFilteredTasks();
 
+  // Notification helper function
+  const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
+    setNotification({ type, message });
+    // Auto-hide notification after 5 seconds
+    setTimeout(() => {
+      setNotification(null);
+    }, 5000);
+  };
+
   // Load tasks on component mount
   useEffect(() => {
     loadTasks();
@@ -106,6 +122,7 @@ const AIWeeklyPlanner: React.FC = () => {
 
       if (response.ok) {
         const responseData = await response.json();
+        console.log('🎯 API response:', responseData);
         
         // Handle different API response formats
         let tasksData;
@@ -120,7 +137,28 @@ const AIWeeklyPlanner: React.FC = () => {
           tasksData = [];
         }
         
-        setTasks(tasksData);
+        // Validate and sanitize task data
+        const validTasks = tasksData.filter((task: any) => {
+          if (!task || typeof task !== 'object') {
+            console.warn('Invalid task object:', task);
+            return false;
+          }
+          
+          // Ensure required properties exist with defaults
+          const validatedTask = {
+            ...task,
+            priority: task.priority || 'medium',
+            task_type: task.task_type || 'admin', 
+            status: task.status || 'pending'
+          };
+          
+          // Replace original task with validated version
+          Object.assign(task, validatedTask);
+          return true;
+        });
+        
+        console.log('🎯 Validated tasks:', validTasks.length, 'of', tasksData.length);
+        setTasks(validTasks);
       } else {
         console.error('Failed to load tasks');
         setTasks([]); // Fallback to empty array on error
@@ -153,19 +191,38 @@ const AIWeeklyPlanner: React.FC = () => {
       });
 
       if (response.ok) {
-        const newTask = await response.json();
-        setTasks(prev => [...prev, newTask]);
+        const responseData = await response.json();
+        // Extract the task from the response (server returns {message, task})
+        const newTask = responseData.task || responseData;
+        
+        // Validate and sanitize the new task data
+        if (!newTask.title || !newTask.priority || !newTask.task_type) {
+          showNotification('error', 'Received invalid task data from server');
+          return;
+        }
+        
+        // Ensure all required fields are present with defaults
+        const validatedTask = {
+          ...newTask,
+          priority: newTask.priority || 'medium',
+          task_type: newTask.task_type || 'admin',
+          status: newTask.status || 'pending',
+          deadline: newTask.deadline || null,
+          description: newTask.description || '',
+        };
+        
+        setTasks(prev => [...prev, validatedTask]);
         setShowTaskForm(false);
-        alert('Task created successfully!');
+        showNotification('success', 'Task created successfully!');
       } else if (response.status === 401) {
-        alert('Please log in to create tasks. You need to be authenticated to use this feature.');
+        showNotification('error', 'Please log in to create tasks. You need to be authenticated to use this feature.');
       } else {
         const error = await response.json();
-        alert(`Failed to create task: ${error.message || error.error}`);
+        showNotification('error', `Failed to create task: ${error.message || error.error}`);
       }
     } catch (error) {
       console.error('Error creating task:', error);
-      alert('Failed to create task. Please check your connection and try again.');
+      showNotification('error', 'Failed to create task. Please check your connection and try again.');
     } finally {
       setIsCreatingTask(false);
     }
@@ -189,14 +246,14 @@ const AIWeeklyPlanner: React.FC = () => {
       if (response.ok) {
         setTasks(prev => prev.filter(t => t.id !== taskToDelete.id));
         setTaskToDelete(null);
-        alert('Task deleted successfully!');
+        showNotification('success', 'Task deleted successfully!');
       } else {
         const error = await response.json();
-        alert(`Failed to delete task: ${error.message || error.error}`);
+        showNotification('error', `Failed to delete task: ${error.message || error.error}`);
       }
     } catch (error) {
       console.error('Error deleting task:', error);
-      alert('Failed to delete task. Please try again.');
+      showNotification('error', 'Failed to delete task. Please try again.');
     } finally {
       setIsDeleting(false);
     }
@@ -236,6 +293,9 @@ const AIWeeklyPlanner: React.FC = () => {
 
     // Convert tasks to calendar events
     tasks.forEach(task => {
+      // Ensure task has required properties
+      if (!task || typeof task !== 'object') return;
+      
       if (task.deadline) {
         const deadlineDate = new Date(task.deadline);
         if (deadlineDate >= startDate && deadlineDate <= endDate) {
@@ -246,7 +306,7 @@ const AIWeeklyPlanner: React.FC = () => {
             end: task.deadline,
             type: 'deadline',
             taskId: String(task.id),
-            priority: task.priority
+            priority: task.priority || 'medium'
           });
         }
       }
@@ -267,8 +327,9 @@ const AIWeeklyPlanner: React.FC = () => {
         }
         
         // Set consistent hour based on task type and priority
-        const baseHour = task.task_type === 'creative' ? 9 : 14; // Creative in AM, admin in PM
-        const priorityOffset = task.priority === 'high' ? 0 : task.priority === 'medium' ? 1 : 2;
+        const baseHour = (task.task_type === 'creative') ? 9 : 14; // Creative in AM, admin in PM
+        const priority = task.priority || 'medium';
+        const priorityOffset = priority === 'high' ? 0 : priority === 'medium' ? 1 : 2;
         workDate.setHours(baseHour + priorityOffset, 0, 0, 0);
         
         const endTime = new Date(workDate);
@@ -278,12 +339,12 @@ const AIWeeklyPlanner: React.FC = () => {
         if (workDate >= startDate && workDate <= endDate) {
           events.push({
             id: `work-${task.id}`,
-            title: `${task.task_type === 'creative' ? 'Creative' : 'Admin'}: ${task.title}`,
+            title: `${(task.task_type === 'creative') ? 'Creative' : 'Admin'}: ${task.title}`,
             start: workDate.toISOString(),
             end: endTime.toISOString(),
             type: 'task',
             taskId: String(task.id),
-            priority: task.priority
+            priority: task.priority || 'medium'
           });
         }
       }
@@ -296,7 +357,7 @@ const AIWeeklyPlanner: React.FC = () => {
     // Ensure tasks is always an array before checking length
     const safeTasksArray = Array.isArray(tasks) ? tasks : [];
     if (safeTasksArray.length === 0) {
-      alert('Please add some tasks first before generating a schedule!');
+      showNotification('info', 'Please add some tasks first before generating a schedule!');
       return;
     }
 
@@ -323,11 +384,11 @@ const AIWeeklyPlanner: React.FC = () => {
         setWeeklySchedule(schedule);
       } else {
         const error = await response.json();
-        alert(`Failed to generate schedule: ${error.message || error.error}`);
+        showNotification('error', `Failed to generate schedule: ${error.message || error.error}`);
       }
     } catch (error) {
       console.error('Error generating schedule:', error);
-      alert('Failed to generate schedule. Please try again.');
+      showNotification('error', 'Failed to generate schedule. Please try again.');
     } finally {
       setIsGeneratingSchedule(false);
     }
@@ -452,20 +513,39 @@ const AIWeeklyPlanner: React.FC = () => {
       });
 
       if (response.ok) {
-        const newTask = await response.json();
-        setTasks(prev => [...prev, newTask]);
+        const responseData = await response.json();
+        // Extract the task from the response (server returns {message, task})
+        const newTask = responseData.task || responseData;
+        
+        // Validate and sanitize the new task data
+        if (!newTask.title || !newTask.priority || !newTask.task_type) {
+          showNotification('error', 'Received invalid task data from server');
+          return;
+        }
+        
+        // Ensure all required fields are present with defaults
+        const validatedTask = {
+          ...newTask,
+          priority: newTask.priority || 'medium',
+          task_type: newTask.task_type || 'admin',
+          status: newTask.status || 'pending',
+          deadline: newTask.deadline || null,
+          description: newTask.description || '',
+        };
+        
+        setTasks(prev => [...prev, validatedTask]);
         setAiSuggestions(prev => Array.isArray(prev) ? prev.filter(s => s.id !== suggestion.id) : []);
-        alert(`Task "${suggestion.title}" added successfully!`);
+        showNotification('success', `Task "${suggestion.title}" added successfully!`);
       } else if (response.status === 401) {
-        alert('Please log in to create tasks. You need to be authenticated to use this feature.');
+        showNotification('error', 'Please log in to create tasks. You need to be authenticated to use this feature.');
       } else {
         const error = await response.json();
-        alert(`Failed to create task: ${error.message || error.error}`);
+        showNotification('error', `Failed to create task: ${error.message || error.error}`);
         console.error('Task creation failed:', error);
       }
     } catch (error) {
       console.error('Failed to add task from suggestion:', error);
-      alert('Failed to create task. Please check your connection and try again.');
+      showNotification('error', 'Failed to create task. Please check your connection and try again.');
     }
   };
 
@@ -1040,20 +1120,20 @@ const AIWeeklyPlanner: React.FC = () => {
                     task.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
                     'bg-green-500/20 text-green-300'
                   }`}>
-                    {task.priority}
+                    {task.priority || 'Unknown'}
                   </span>
                   <span className={`text-xs px-2 py-1 rounded ${
                     task.task_type === 'creative' ? 'bg-purple-500/20 text-purple-300' :
                     'bg-blue-500/20 text-blue-300'
                   }`}>
-                    {task.task_type}
+                    {task.task_type || 'Unknown'}
                   </span>
                   <span className={`text-xs px-2 py-1 rounded ${
                     task.status === 'completed' ? 'bg-green-500/20 text-green-300' :
                     task.status === 'in_progress' ? 'bg-blue-500/20 text-blue-300' :
                     'bg-gray-500/20 text-gray-300'
                   }`}>
-                    {task.status.replace('_', ' ')}
+                    {task.status ? task.status.replace('_', ' ') : 'Unknown'}
                   </span>
                 </div>
                 <h3 className="font-medium text-white mb-1">{task.title}</h3>
@@ -1100,6 +1180,33 @@ const AIWeeklyPlanner: React.FC = () => {
       <div className="absolute bottom-32 left-20 w-3 h-3 bg-purple-300/50 rounded-full animate-ping"></div>
 
       <div className="relative z-10 max-w-7xl mx-auto p-6">
+        {/* Notification */}
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className={`mb-6 px-4 py-3 rounded-lg text-sm max-w-md mx-auto flex items-center justify-between ${
+              notification.type === 'success' 
+                ? 'bg-green-900/50 border border-green-500/50 text-green-200'
+                : notification.type === 'error'
+                ? 'bg-red-900/50 border border-red-500/50 text-red-200'
+                : 'bg-blue-900/50 border border-blue-500/50 text-blue-200'
+            }`}
+          >
+            <span>{notification.message}</span>
+            <button
+              onClick={() => setNotification(null)}
+              className={`ml-2 hover:opacity-70 ${
+                notification.type === 'success' ? 'text-green-400' :
+                notification.type === 'error' ? 'text-red-400' : 'text-blue-400'
+              }`}
+            >
+              ×
+            </button>
+          </motion.div>
+        )}
+
         {/* Header */}
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
           <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
@@ -1214,20 +1321,20 @@ const AIWeeklyPlanner: React.FC = () => {
                     selectedTask.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
                     'bg-green-500/20 text-green-300'
                   }`}>
-                    {selectedTask.priority} priority
+                    {selectedTask.priority || 'Unknown'} priority
                   </span>
                   <span className={`text-xs px-2 py-1 rounded ${
                     selectedTask.task_type === 'creative' ? 'bg-purple-500/20 text-purple-300' :
                     'bg-blue-500/20 text-blue-300'
                   }`}>
-                    {selectedTask.task_type}
+                    {selectedTask.task_type || 'Unknown'}
                   </span>
                   <span className={`text-xs px-2 py-1 rounded ${
                     selectedTask.status === 'completed' ? 'bg-green-500/20 text-green-300' :
                     selectedTask.status === 'in_progress' ? 'bg-blue-500/20 text-blue-300' :
                     'bg-gray-500/20 text-gray-300'
                   }`}>
-                    {selectedTask.status.replace('_', ' ')}
+                    {selectedTask.status ? selectedTask.status.replace('_', ' ') : 'Unknown'}
                   </span>
                 </div>
                 
@@ -1350,7 +1457,7 @@ const AIWeeklyPlanner: React.FC = () => {
                           taskFilter === 'creative' ? 'bg-purple-500/20 text-purple-300' :
                           'bg-green-500/20 text-green-300'
                         }`}>
-                          Showing: {taskFilter.replace('_', ' ')} ({filteredTasks.length})
+                          Showing: {taskFilter ? taskFilter.replace('_', ' ') : 'all'} ({filteredTasks.length})
                         </span>
                         <button
                           onClick={() => setTaskFilter('all')}
@@ -1372,7 +1479,7 @@ const AIWeeklyPlanner: React.FC = () => {
                 ) : taskFilter !== 'all' ? (
                   <div className="text-center py-12">
                     <div className="text-6xl mb-4">🔍</div>
-                    <h3 className="text-xl font-semibold text-white mb-2">No {taskFilter.replace('_', ' ')} tasks</h3>
+                    <h3 className="text-xl font-semibold text-white mb-2">No {taskFilter ? taskFilter.replace('_', ' ') : 'filtered'} tasks</h3>
                     <p className="text-gray-300 mb-6">You don't have any tasks in this category yet.</p>
                     <button
                       onClick={() => setTaskFilter('all')}

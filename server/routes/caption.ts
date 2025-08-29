@@ -284,7 +284,8 @@ router.get('/transcript/:jobName', async (req: Request, res: Response) => {
     });
     await s3Client.send(putCommand);
 
-    const vttUrl = `https://${BUCKET_NAME}.s3.${AWS_REGION}.amazonaws.com/${vttKey}`;
+    // Use proxy URL instead of direct S3 URL to avoid CORS issues
+    const vttUrl = `/api/s3/proxy/${vttKey}`;
 
     // Update File record with captionUrl (now VTT)
     await File.update({ captionUrl: vttUrl }, { where: { id: fileId } });

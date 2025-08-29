@@ -8,6 +8,7 @@ import Navbar from './NavBar';
 import ContentScheduler from '../ContentScheduler/ContentScheduler';
 import DemosTrailers from './DemosTrailers';
 import BudgetTracker from './BudgetTracker';
+import MobileOptimizations from './MobileOptimizations';
 
 export type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers' | 'content-scheduler';
 
@@ -54,6 +55,7 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen">
+      <MobileOptimizations />
       {showNavbar && (
         <Navbar
           currentComponent={currentView}
