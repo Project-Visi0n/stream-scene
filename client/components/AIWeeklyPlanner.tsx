@@ -118,12 +118,22 @@ const AIWeeklyPlanner: React.FC = () => {
     try {
       console.log('🔍 Loading tasks - starting request...');
       
+      // First, let's check our current authentication status
+      try {
+        const authResponse = await fetch('/api/tasks/debug/auth', {
+          credentials: 'include',
+        });
+        const authData = await authResponse.json();
+        console.log('🔐 Current user authentication:', authData);
+      } catch (authError) {
+        console.error('🔐 Auth check failed:', authError);
+      }
+      
       const response = await fetch('/api/tasks', {
         credentials: 'include',
       });
 
       console.log('🔍 Response status:', response.status);
-      console.log('🔍 Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (response.ok) {
         const responseData = await response.json();
@@ -158,6 +168,17 @@ const AIWeeklyPlanner: React.FC = () => {
             user_id: t.user_id,
             created_at: t.created_at
           })));
+          
+          // 🚨 SECURITY CHECK - Log ALL user_ids to identify the issue
+          const userIds = tasksData.map((t: any) => t.user_id);
+          const uniqueUserIds = [...new Set(userIds)];
+          console.log('🚨 ALL USER IDS in tasks:', userIds);
+          console.log('🚨 UNIQUE USER IDS:', uniqueUserIds);
+          console.log('🚨 Number of different users:', uniqueUserIds.length);
+          
+          if (uniqueUserIds.length > 1) {
+            console.error('🚨 SECURITY BREACH: Tasks from multiple users detected!', uniqueUserIds);
+          }
         }
 
         // Validate and sanitize task data
