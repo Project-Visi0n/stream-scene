@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import TaskForm from './TaskForm';
 import { Task, TaskFormData } from '../types/task';
 
@@ -64,6 +65,12 @@ const AIWeeklyPlanner: React.FC = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskDetails, setShowTaskDetails] = useState(false);
 
+  // Notification state
+  const [notification, setNotification] = useState<{
+    type: 'success' | 'error' | 'info';
+    message: string;
+  } | null>(null);
+
   // Filter tasks based on current filter
   const getFilteredTasks = () => {
     // Ensure tasks is always an array before filtering
@@ -86,6 +93,15 @@ const AIWeeklyPlanner: React.FC = () => {
   };
 
   const filteredTasks = getFilteredTasks();
+
+  // Notification helper function
+  const showNotification = (type: 'success' | 'error' | 'info', message: string) => {
+    setNotification({ type, message });
+    // Auto-hide notification after 5 seconds
+    setTimeout(() => {
+      setNotification(null);
+    }, 5000);
+  };
 
   // Load tasks on component mount
   useEffect(() => {
@@ -178,16 +194,16 @@ const AIWeeklyPlanner: React.FC = () => {
         const newTask = await response.json();
         setTasks(prev => [...prev, newTask]);
         setShowTaskForm(false);
-        alert('Task created successfully!');
+        showNotification('success', 'Task created successfully!');
       } else if (response.status === 401) {
-        alert('Please log in to create tasks. You need to be authenticated to use this feature.');
+        showNotification('error', 'Please log in to create tasks. You need to be authenticated to use this feature.');
       } else {
         const error = await response.json();
-        alert(`Failed to create task: ${error.message || error.error}`);
+        showNotification('error', `Failed to create task: ${error.message || error.error}`);
       }
     } catch (error) {
       console.error('Error creating task:', error);
-      alert('Failed to create task. Please check your connection and try again.');
+      showNotification('error', 'Failed to create task. Please check your connection and try again.');
     } finally {
       setIsCreatingTask(false);
     }
@@ -211,14 +227,14 @@ const AIWeeklyPlanner: React.FC = () => {
       if (response.ok) {
         setTasks(prev => prev.filter(t => t.id !== taskToDelete.id));
         setTaskToDelete(null);
-        alert('Task deleted successfully!');
+        showNotification('success', 'Task deleted successfully!');
       } else {
         const error = await response.json();
-        alert(`Failed to delete task: ${error.message || error.error}`);
+        showNotification('error', `Failed to delete task: ${error.message || error.error}`);
       }
     } catch (error) {
       console.error('Error deleting task:', error);
-      alert('Failed to delete task. Please try again.');
+      showNotification('error', 'Failed to delete task. Please try again.');
     } finally {
       setIsDeleting(false);
     }
@@ -322,7 +338,7 @@ const AIWeeklyPlanner: React.FC = () => {
     // Ensure tasks is always an array before checking length
     const safeTasksArray = Array.isArray(tasks) ? tasks : [];
     if (safeTasksArray.length === 0) {
-      alert('Please add some tasks first before generating a schedule!');
+      showNotification('info', 'Please add some tasks first before generating a schedule!');
       return;
     }
 
@@ -349,11 +365,11 @@ const AIWeeklyPlanner: React.FC = () => {
         setWeeklySchedule(schedule);
       } else {
         const error = await response.json();
-        alert(`Failed to generate schedule: ${error.message || error.error}`);
+        showNotification('error', `Failed to generate schedule: ${error.message || error.error}`);
       }
     } catch (error) {
       console.error('Error generating schedule:', error);
-      alert('Failed to generate schedule. Please try again.');
+      showNotification('error', 'Failed to generate schedule. Please try again.');
     } finally {
       setIsGeneratingSchedule(false);
     }
@@ -481,17 +497,17 @@ const AIWeeklyPlanner: React.FC = () => {
         const newTask = await response.json();
         setTasks(prev => [...prev, newTask]);
         setAiSuggestions(prev => Array.isArray(prev) ? prev.filter(s => s.id !== suggestion.id) : []);
-        alert(`Task "${suggestion.title}" added successfully!`);
+        showNotification('success', `Task "${suggestion.title}" added successfully!`);
       } else if (response.status === 401) {
-        alert('Please log in to create tasks. You need to be authenticated to use this feature.');
+        showNotification('error', 'Please log in to create tasks. You need to be authenticated to use this feature.');
       } else {
         const error = await response.json();
-        alert(`Failed to create task: ${error.message || error.error}`);
+        showNotification('error', `Failed to create task: ${error.message || error.error}`);
         console.error('Task creation failed:', error);
       }
     } catch (error) {
       console.error('Failed to add task from suggestion:', error);
-      alert('Failed to create task. Please check your connection and try again.');
+      showNotification('error', 'Failed to create task. Please check your connection and try again.');
     }
   };
 
@@ -1126,6 +1142,33 @@ const AIWeeklyPlanner: React.FC = () => {
       <div className="absolute bottom-32 left-20 w-3 h-3 bg-purple-300/50 rounded-full animate-ping"></div>
 
       <div className="relative z-10 max-w-7xl mx-auto p-6">
+        {/* Notification */}
+        {notification && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className={`mb-6 px-4 py-3 rounded-lg text-sm max-w-md mx-auto flex items-center justify-between ${
+              notification.type === 'success' 
+                ? 'bg-green-900/50 border border-green-500/50 text-green-200'
+                : notification.type === 'error'
+                ? 'bg-red-900/50 border border-red-500/50 text-red-200'
+                : 'bg-blue-900/50 border border-blue-500/50 text-blue-200'
+            }`}
+          >
+            <span>{notification.message}</span>
+            <button
+              onClick={() => setNotification(null)}
+              className={`ml-2 hover:opacity-70 ${
+                notification.type === 'success' ? 'text-green-400' :
+                notification.type === 'error' ? 'text-red-400' : 'text-blue-400'
+              }`}
+            >
+              ×
+            </button>
+          </motion.div>
+        )}
+
         {/* Header */}
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
           <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
