@@ -92,7 +92,7 @@ const FeatureCard: React.FC<{
 
   return (
     <div 
-      className="flex-shrink-0 w-48 sm:w-52 group p-3 sm:p-4 rounded-xl bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/20 cursor-pointer select-none"
+      className="group p-3 sm:p-4 rounded-xl bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/20 cursor-pointer select-none"
       onClick={handleClick}
       style={{ 
         opacity: feature.available ? 1 : 0.75,
@@ -183,8 +183,8 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           </p>
         </div>
 
-        {/* Feature Cards - True Side by Side Layout */}
-        <div className="flex justify-center items-start gap-3 sm:gap-4 w-full max-w-none px-4 mb-8 sm:mb-12 overflow-x-auto">
+        {/* Feature Cards - Responsive Grid Layout */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 w-full max-w-6xl px-4 mb-8 sm:mb-12">
           {FEATURES.map((feature, index) => (
             <FeatureCard 
               key={`feature-${index}`}
