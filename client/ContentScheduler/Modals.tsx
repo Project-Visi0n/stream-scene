@@ -154,28 +154,32 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({ isOpen, onClos
 
   return (
     <>
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-slate-800 rounded-lg max-w-4xl w-full max-h-[95vh] overflow-y-auto">
-          <div className="p-6 border-b border-slate-700 flex justify-between items-center">
-            <h2 className="text-xl font-bold text-purple-300">Create New Post</h2>
-            <button onClick={onClose} className="text-gray-400 hover:text-white text-xl">
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-2 sm:p-4 mobile-scroll">
+        <div className="bg-slate-800 rounded-lg w-full max-w-4xl mobile-modal border border-slate-700">
+          <div className="p-4 sm:p-6 border-b border-slate-700 flex justify-between items-center">
+            <h2 className="text-lg sm:text-xl font-bold text-purple-300">Create New Post</h2>
+            <button 
+              onClick={onClose} 
+              className="text-gray-400 hover:text-white text-xl touch-manipulation mobile-tap-target p-2 -m-2"
+              aria-label="Close modal"
+            >
               ✕
             </button>
           </div>
           
-          <div className="p-6 space-y-6">
-            {/* Quick Actions */}
-            <div className="flex gap-3">
+          <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+            {/* Quick Actions - Mobile Optimized */}
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
               <button
                 onClick={() => setShowTemplates(true)}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                className="w-full sm:w-auto touch-manipulation mobile-tap-target px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
               >
                 <span>📄</span>
                 Use Template
               </button>
               <button
                 onClick={() => setShowAssetPicker(true)}
-                className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors flex items-center gap-2"
+                className="w-full sm:w-auto touch-manipulation mobile-tap-target px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors flex items-center justify-center gap-2"
               >
                 <span>🖼️</span>
                 Add Media

@@ -207,10 +207,25 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       order: [['created_at', 'DESC']]
     });
 
+    // Serialize tasks to clean objects
+    const cleanTasks = tasks.map(task => ({
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      priority: task.priority,
+      task_type: task.task_type,
+      status: task.status,
+      deadline: task.deadline ? task.deadline.toISOString() : null,
+      estimated_hours: task.estimated_hours,
+      user_id: task.user_id,
+      created_at: task.created_at.toISOString(),
+      updated_at: task.updated_at.toISOString()
+    }));
+
     console.log(`Found ${tasks.length} tasks for user ${userId}`);
     res.json({
       message: `Found ${tasks.length} tasks`,
-      tasks: tasks,
+      tasks: cleanTasks,
       user_id: userId
     });
   } catch (error: any) {
@@ -309,9 +324,25 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     const task = await Task.create(taskData);
 
     console.log('Task created successfully:', task.id);
+    
+    // Return clean task data without Sequelize metadata
+    const cleanTask = {
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      priority: task.priority,
+      task_type: task.task_type,
+      status: task.status,
+      deadline: task.deadline ? task.deadline.toISOString() : null,
+      estimated_hours: task.estimated_hours,
+      user_id: task.user_id,
+      created_at: task.created_at.toISOString(),
+      updated_at: task.updated_at.toISOString()
+    };
+    
     res.status(201).json({
       message: 'Task created successfully',
-      task: task
+      task: cleanTask
     });
   } catch (error: any) {
     console.error('Error creating task:', error);

@@ -131,22 +131,23 @@ const FeatureCard: React.FC<{
 
   return (
     <div 
-      className="group p-3 sm:p-4 rounded-xl bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-300 hover:scale-105 hover:shadow-xl hover:shadow-purple-500/20 cursor-pointer select-none"
+      className="group p-4 sm:p-6 rounded-xl bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm hover:border-purple-400/40 transition-all duration-300 hover:scale-[1.02] sm:hover:scale-105 hover:shadow-xl hover:shadow-purple-500/20 cursor-pointer select-none touch-manipulation mobile-tap-target"
       onClick={handleClick}
       style={{ 
         opacity: feature.available ? 1 : 0.75,
-        WebkitTapHighlightColor: 'transparent'
+        WebkitTapHighlightColor: 'rgba(139, 92, 246, 0.1)',
+        minHeight: '120px'
       }}
     >
-      <div className="text-xl sm:text-2xl mb-2" style={{ pointerEvents: 'none' }}>{feature.icon}</div>
-      <h3 className="text-sm sm:text-base font-semibold text-purple-300 mb-2" style={{ pointerEvents: 'none' }}>
+      <div className="text-2xl sm:text-3xl mb-3 flex justify-center" style={{ pointerEvents: 'none' }}>{feature.icon}</div>
+      <h3 className="text-base sm:text-lg font-semibold text-purple-300 mb-2 text-center" style={{ pointerEvents: 'none' }}>
         {feature.title}
       </h3>
-      <p className="text-gray-400 text-xs leading-relaxed" style={{ pointerEvents: 'none' }}>
+      <p className="text-gray-400 text-sm sm:text-sm leading-relaxed text-center" style={{ pointerEvents: 'none' }}>
         {feature.desc}
       </p>
       <div 
-        className={`mt-2 text-xs font-medium transition-colors ${
+        className={`mt-3 text-xs font-medium transition-colors text-center ${
           feature.available 
             ? 'text-purple-400 group-hover:text-purple-300' 
             : 'text-gray-500'
@@ -232,8 +233,8 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           </p>
         </div>
 
-        {/* Feature Cards - Responsive Grid Layout */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4 w-full max-w-6xl px-4 mb-8 sm:mb-12">
+        {/* Feature Cards - Mobile-Optimized Grid Layout */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 w-full max-w-6xl px-4 mb-8 sm:mb-12">
           {FEATURES.map((feature, index) => (
             <FeatureCard 
               key={`feature-${index}`}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 interface NavbarProps {
   currentComponent: 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers' | 'content-scheduler';
@@ -10,71 +10,92 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) => {
-const navigationItems = [
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  const navigationItems = [
     {
       id: 'landing',
       label: '🏠 Home',
+      shortLabel: 'Home',
       description: 'Back to homepage'
     },
     {
       id: 'planner',
-      label: '🤖 AI Weekly Planner',
+      label: '🤖 AI Planner',
+      shortLabel: 'Planner',
       description: 'Smart task scheduling'
     },
     {
       id: 'budget-tracker',
-      label: '💰 Budget Tracker',
+      label: '💰 Budget',
+      shortLabel: 'Budget',
       description: 'Track expenses'
     },
     {
       id: 'content-scheduler',
-      label: '📅 Content Scheduler',
+      label: '📅 Content',
+      shortLabel: 'Content',
       description: 'Plan your content'
     },
     {
       id: 'demos-trailers',
-      label: '🎬 Demos & Trailers',
+      label: '🎬 Demos',
+      shortLabel: 'Demos',
       description: 'Showcase content'
     },
     {
       id: 'project-center',
-      label: '🎨 Project Center', 
+      label: '🎨 Projects',
+      shortLabel: 'Projects',
       description: 'Creative workspace'
     }
   ];
 
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
+  const handleMobileNavigate = (component: any) => {
+    onNavigate(component);
+    setIsMobileMenuOpen(false);
+  };
+
   return (
-    <nav className="sticky top-0 z-50 bg-gradient-to-r from-gray-900/90 via-blue-900/90 to-purple-900/90 backdrop-blur-xl border-b border-white/10">
-      <div className="max-w-7xl mx-auto px-6 py-4">
-        <div className="flex items-center justify-between">
-          {/* Logo/Brand */}
+    <nav className="sticky top-0 z-50 bg-gradient-to-r from-gray-900/95 via-blue-900/95 to-purple-900/95 backdrop-blur-xl border-b border-white/10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-16 sm:h-20">
+          {/* Logo/Brand - Mobile Optimized */}
           <div 
-            onClick={() => onNavigate('landing')}
-            className="flex items-center gap-3 cursor-pointer group transition-all duration-300 hover:scale-105"
+            onClick={() => handleMobileNavigate('landing')}
+            className="flex items-center gap-2 sm:gap-3 cursor-pointer group transition-all duration-300 hover:scale-105 touch-manipulation"
           >
             <div className="relative">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center group-hover:rotate-12 transition-transform duration-300">
-                <span className="text-xl">🚀</span>
+              <div className="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center group-hover:rotate-12 transition-transform duration-300">
+                <span className="text-lg sm:text-xl">🚀</span>
               </div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full animate-pulse"></div>
+              <div className="absolute -top-1 -right-1 w-3 h-3 sm:w-4 sm:h-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full animate-pulse"></div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-white group-hover:text-blue-300 transition-colors">
+            <div className="hidden sm:block">
+              <h1 className="text-lg sm:text-xl font-bold text-white group-hover:text-blue-300 transition-colors">
                 StreamScene
               </h1>
               <p className="text-xs text-gray-400 group-hover:text-gray-300 transition-colors">
                 Creative Workspace
               </p>
             </div>
+            {/* Mobile Logo Text */}
+            <div className="sm:hidden">
+              <h1 className="text-lg font-bold text-white">StreamScene</h1>
+            </div>
           </div>
 
-          {/* Navigation Items */}
+          {/* Desktop Navigation Items */}
           <div className="hidden lg:flex items-center gap-1">
             {navigationItems.map((item) => (
               <button
                 key={item.id}
                 onClick={() => onNavigate(item.id as any)}
-                className={`relative px-3 py-2 rounded-lg transition-all duration-300 group text-sm ${
+                className={`relative px-3 py-2 rounded-lg transition-all duration-300 group text-sm touch-manipulation ${
                   currentComponent === item.id || (item.id === 'landing' && currentComponent === 'landing')
                     ? 'bg-white/20 text-white shadow-lg'
                     : 'text-gray-300 hover:text-white hover:bg-white/10'
@@ -90,7 +111,7 @@ const navigationItems = [
                 )}
                 
                 {/* Hover tooltip */}
-                <div className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                <div className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
                   <div className="bg-gray-800 text-white text-xs px-3 py-1 rounded-lg whitespace-nowrap shadow-lg">
                     {item.description}
                     {item.id === 'content-scheduler' && (
@@ -103,8 +124,9 @@ const navigationItems = [
             ))}
           </div>
 
-          {/* User Profile */}
-          <div className="flex items-center gap-4">
+          {/* Right Side - User & Mobile Menu */}
+          <div className="flex items-center gap-2 sm:gap-4">
+            {/* User Profile - Desktop */}
             {user && (
               <div className="hidden sm:flex items-center gap-3 px-3 py-2 bg-white/10 rounded-lg backdrop-blur-sm">
                 <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
@@ -123,36 +145,62 @@ const navigationItems = [
               </div>
             )}
 
+            {/* Mobile User Avatar */}
+            {user && (
+              <div className="sm:hidden w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                {user.avatar ? (
+                  <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" />
+                ) : (
+                  <span className="text-sm font-bold text-white">
+                    {user.name.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Mobile menu button */}
-            <button className="lg:hidden p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors">
+            <button 
+              onClick={toggleMobileMenu}
+              className="lg:hidden p-2 text-gray-300 hover:text-white hover:bg-white/10 rounded-lg transition-colors touch-manipulation"
+              aria-label="Toggle mobile menu"
+            >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                {isMobileMenuOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
               </svg>
             </button>
           </div>
         </div>
 
-        {/* Mobile Navigation */}
-        <div className="lg:hidden mt-4 pt-4 border-t border-white/10">
-          <div className="grid grid-cols-2 gap-2">
-            {navigationItems.map((item) => (
-              <button
-                key={item.id}
-                onClick={() => onNavigate(item.id as any)}
-                className={`flex flex-col items-center p-3 rounded-lg transition-all duration-300 relative ${
-                  currentComponent === item.id || (item.id === 'landing' && currentComponent === 'landing')
-                    ? 'bg-white/20 text-white'
-                    : 'text-gray-300 hover:text-white hover:bg-white/10'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="font-medium text-sm">{item.label}</span>
-                </div>
-                <span className="text-xs text-gray-400 mt-1">{item.description}</span>
-              </button>
-            ))}
+        {/* Mobile Navigation Menu */}
+        {isMobileMenuOpen && (
+          <div className="lg:hidden pb-4 pt-2 border-t border-white/10">
+            <div className="grid grid-cols-3 sm:grid-cols-3 gap-2">
+              {navigationItems.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => handleMobileNavigate(item.id)}
+                  className={`flex flex-col items-center p-3 rounded-lg transition-all duration-300 relative touch-manipulation ${
+                    currentComponent === item.id || (item.id === 'landing' && currentComponent === 'landing')
+                      ? 'bg-white/20 text-white'
+                      : 'text-gray-300 hover:text-white hover:bg-white/10 active:bg-white/15'
+                  }`}
+                >
+                  <div className="flex flex-col items-center gap-1">
+                    <span className="text-lg sm:text-xl">{item.label.split(' ')[0]}</span>
+                    <span className="font-medium text-xs sm:text-sm">{item.shortLabel}</span>
+                  </div>
+                  {(currentComponent === item.id || (item.id === 'landing' && currentComponent === 'landing')) && (
+                    <div className="absolute bottom-1 left-1/2 transform -translate-x-1/2 w-4 h-0.5 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full"></div>
+                  )}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Animated background particles */}

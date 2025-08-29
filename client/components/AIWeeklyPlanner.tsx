@@ -194,7 +194,24 @@ const AIWeeklyPlanner: React.FC = () => {
         const responseData = await response.json();
         // Extract the task from the response (server returns {message, task})
         const newTask = responseData.task || responseData;
-        setTasks(prev => [...prev, newTask]);
+        
+        // Validate and sanitize the new task data
+        if (!newTask.title || !newTask.priority || !newTask.task_type) {
+          showNotification('error', 'Received invalid task data from server');
+          return;
+        }
+        
+        // Ensure all required fields are present with defaults
+        const validatedTask = {
+          ...newTask,
+          priority: newTask.priority || 'medium',
+          task_type: newTask.task_type || 'admin',
+          status: newTask.status || 'pending',
+          deadline: newTask.deadline || null,
+          description: newTask.description || '',
+        };
+        
+        setTasks(prev => [...prev, validatedTask]);
         setShowTaskForm(false);
         showNotification('success', 'Task created successfully!');
       } else if (response.status === 401) {
@@ -499,7 +516,24 @@ const AIWeeklyPlanner: React.FC = () => {
         const responseData = await response.json();
         // Extract the task from the response (server returns {message, task})
         const newTask = responseData.task || responseData;
-        setTasks(prev => [...prev, newTask]);
+        
+        // Validate and sanitize the new task data
+        if (!newTask.title || !newTask.priority || !newTask.task_type) {
+          showNotification('error', 'Received invalid task data from server');
+          return;
+        }
+        
+        // Ensure all required fields are present with defaults
+        const validatedTask = {
+          ...newTask,
+          priority: newTask.priority || 'medium',
+          task_type: newTask.task_type || 'admin',
+          status: newTask.status || 'pending',
+          deadline: newTask.deadline || null,
+          description: newTask.description || '',
+        };
+        
+        setTasks(prev => [...prev, validatedTask]);
         setAiSuggestions(prev => Array.isArray(prev) ? prev.filter(s => s.id !== suggestion.id) : []);
         showNotification('success', `Task "${suggestion.title}" added successfully!`);
       } else if (response.status === 401) {
