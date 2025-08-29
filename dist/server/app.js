@@ -25,7 +25,6 @@ import filesRoutes from "./routes/files.js";
 import sharesRoutes from "./routes/shares.js";
 import budgetRoutes from './routes/budget.js';
 import socialAuthRoutes from './routes/socialAuth.js';
-import threadsRoutes from './routes/threads.js';
 import { syncDB } from "./db/index.js";
 import captionRouter from './routes/caption.js';
 import taskRoutes from './routes/tasks.js';
@@ -161,7 +160,7 @@ app.use('/api/s3', s3ProxyRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/shares', sharesRoutes);
 app.use('/api/budget', budgetRoutes);
-app.use('/api/threads', threadsRoutes);
+// Note: threads routes are mounted in routes/index.ts at /api/threads
 app.use('/api/caption', captionRouter);
 // Serve static files from public directory
 const publicPath = __dirname.includes('dist/server')

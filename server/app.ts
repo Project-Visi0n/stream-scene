@@ -184,7 +184,7 @@ app.use('/api/s3', s3ProxyRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/shares', sharesRoutes);
 app.use('/api/budget', budgetRoutes);
-app.use('/api/threads', threadsRoutes);
+// Note: threads routes are mounted in routes/index.ts at /api/threads
 app.use('/api/caption', captionRouter);
 
 // Serve static files from public directory

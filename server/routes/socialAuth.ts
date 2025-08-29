@@ -16,7 +16,7 @@ router.get('/threads', (req, res) => {
   
   const authUrl = new URL('https://threads.net/oauth/authorize');
   authUrl.searchParams.set('client_id', process.env.THREADS_CLIENT_ID || '');
-  authUrl.searchParams.set('redirect_uri', `${process.env.BASE_URL}/auth/threads/callback`);
+  authUrl.searchParams.set('redirect_uri', `${process.env.BASE_URL}/api/threads/callback`);
   authUrl.searchParams.set('scope', scopes);
   authUrl.searchParams.set('response_type', 'code');
   authUrl.searchParams.set('state', state);
@@ -58,7 +58,7 @@ router.get('/threads/callback', async (req, res) => {
         client_id: process.env.THREADS_CLIENT_ID || '',
         client_secret: process.env.THREADS_CLIENT_SECRET || '',
         grant_type: 'authorization_code',
-        redirect_uri: `${process.env.BASE_URL}/auth/threads/callback`,
+        redirect_uri: `${process.env.BASE_URL}/api/threads/callback`,
         code: typeof code === 'string' ? code : ''
       })
     });

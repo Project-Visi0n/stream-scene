@@ -109,7 +109,7 @@ const loadProjectFiles = async () => {
   // Threads authentication
   const connectThreads = async () => {
     try {
-      window.location.href = '/auth/threads';
+      window.location.href = '/api/threads/auth';
     } catch (error: any) {
       console.error('[Auth] Failed to connect to Threads:', error);
       toast.error(`Failed to connect to Threads: ${error.message}`);
@@ -118,7 +118,7 @@ const loadProjectFiles = async () => {
 
   const disconnectThreads = async () => {
     try {
-      const response = await fetch('/auth/threads/disconnect', {
+      const response = await fetch('/api/threads/disconnect', {
         method: 'POST',
         credentials: 'include'
       });
