@@ -116,18 +116,49 @@ const AIWeeklyPlanner: React.FC = () => {
   const loadTasks = async () => {
     setIsLoadingTasks(true);
     try {
+      console.log('🔍 Loading tasks - starting request...');
+      
       const response = await fetch('/api/tasks', {
         credentials: 'include',
       });
 
+      console.log('🔍 Response status:', response.status);
+      console.log('🔍 Response headers:', Object.fromEntries(response.headers.entries()));
+
       if (response.ok) {
         const responseData = await response.json();
-        console.log('🎯 API response:', responseData);
+        console.log('🎯 Raw API response:', responseData);
+        console.log('🎯 Response type:', typeof responseData);
+        console.log('🎯 Is array:', Array.isArray(responseData));
         
         // Handle different API response formats
         let tasksData;
         if (Array.isArray(responseData)) {
           // Direct array response
+          tasksData = responseData;
+        } else if (responseData.tasks && Array.isArray(responseData.tasks)) {
+          // Wrapped in tasks property
+          tasksData = responseData.tasks;
+        } else if (responseData.data && Array.isArray(responseData.data)) {
+          // Wrapped in data property
+          tasksData = responseData.data;
+        } else {
+          console.error('🚨 Unexpected response format:', responseData);
+          tasksData = [];
+        }
+
+        console.log('🎯 Processed tasks data:', tasksData);
+        console.log('🎯 Number of tasks:', tasksData.length);
+        
+        // Log sample of tasks with user IDs for debugging
+        if (tasksData.length > 0) {
+          console.log('🎯 Sample tasks with user_id:', tasksData.slice(0, 3).map(t => ({
+            id: t.id,
+            title: t.title,
+            user_id: t.user_id,
+            created_at: t.created_at
+          })));
+        }
           tasksData = responseData;
         } else if (responseData && Array.isArray(responseData.tasks)) {
           // Object with tasks property
