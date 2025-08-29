@@ -18,18 +18,18 @@ export interface FileAttributes {
 export interface FileCreationAttributes extends Optional<FileAttributes, 'id' | 'tags' | 's3Key'> {}
 
 export class File extends Model<FileAttributes, FileCreationAttributes> implements FileAttributes {
-  public id!: number;
-  public userId!: number;
-  public name!: string;
-  public originalName!: string;
-  public type!: string;
-  public size!: number;
-  public s3Key?: string;
-  public url!: string;
-  public tags?: string;
-  public uploadedAt!: Date;
-  public updatedAt!: Date;
-  public captionUrl?: string; 
+  declare id: number;
+  declare userId: number;
+  declare name: string;
+  declare originalName: string;
+  declare type: string;
+  declare size: number;
+  declare s3Key?: string;
+  declare url: string;
+  declare tags?: string;
+  declare uploadedAt: Date;
+  declare updatedAt: Date;
+  declare captionUrl?: string;
 }
 
 export function initFileModel(sequelize: Sequelize) {

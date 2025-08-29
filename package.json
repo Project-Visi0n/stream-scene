@@ -13,9 +13,9 @@
     }
   },
   "scripts": {
-    "dev": "npm run build:client && npm run dev:server",
-    "dev:client": "webpack --config webpack.config.mjs --mode development",
-    "dev:server": "NODE_ENV=development nodemon --watch server --ext ts --exec \"tsx server/app.ts\"",
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "webpack --config webpack.config.mjs --mode development --watch",
+    "dev:server": "NODE_ENV=development nodemon --watch server --watch client --ext ts,tsx,js,jsx --exec \"tsx server/app.ts\"",
     "dev:debug": "NODE_ENV=development DEBUG=* nodemon --watch server --ext ts --exec \"tsx server/app.ts\"",
     "build": "npm run build:client:prod && npm run build:server",
     "build:client": "webpack --config webpack.config.mjs --mode development",

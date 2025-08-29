@@ -1,9 +1,13 @@
 export interface User {
   id: number;
   firstName: string;
-  lastName: string;
+  lastName?: string;
+  name: string;
   email: string;
+  google_id?: string;
   profilePicture?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface AuthResponse {

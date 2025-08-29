@@ -65,12 +65,18 @@
   min-height: calc(var(--vh, 1vh) * 100);
 }
 
-/* Reduced motion support */
-.reduce-motion * {
+/* Reduced motion support - be more specific to avoid breaking Framer Motion */
+.reduce-motion *:not(.framer-motion-element) {
   animation-duration: 0.01ms !important;
   animation-iteration-count: 1 !important;
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
+}
+
+/* Ensure Framer Motion elements can animate even with reduced motion */
+.framer-motion-element {
+  animation-duration: unset !important;
+  transition-duration: unset !important;
 }
 
 /* High contrast mode support */

@@ -110,15 +110,33 @@ router.get('/user', (req: Request, res: Response) => {
   console.log('Is authenticated:', req.isAuthenticated?.());
   console.log('Cookies:', req.headers.cookie);
   
-  res.json({
+  let userData = null;
+  if (req.user) {
+    // Cast to User type to access getters
+    const user = req.user as any;
+    userData = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      firstName: user.firstName || user.name?.split(' ')[0] || '',
+      lastName: user.lastName || user.name?.split(' ').slice(1).join(' ') || '',
+      google_id: user.google_id,
+      created_at: user.created_at,
+      updated_at: user.updated_at
+    };
+  }
+
+  const responseData = {
     authenticated: !!req.user,
-    user: req.user || null,
+    user: userData,
     debug: {
       sessionId: req.sessionID,
       hasSession: !!req.session,
       hasUser: !!req.user
     }
-  });
+  };
+  
+  res.json(responseData);
 });
 
 // Logout endpoint

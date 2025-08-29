@@ -17,7 +17,7 @@ const InlineLoading: React.FC<InlineLoadingProps> = ({
 }) => {
   return (
     <motion.div 
-      className={`flex items-center gap-3 ${className}`}
+      className={`flex items-center gap-3 ${className} framer-motion-element`}
       initial={{ opacity: 0, scale: 0.8 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.2 }}
@@ -31,7 +31,7 @@ const InlineLoading: React.FC<InlineLoadingProps> = ({
       
       {text && (
         <motion.span 
-          className="text-sm text-gray-400"
+          className="text-sm text-gray-400 framer-motion-element"
           animate={{
             opacity: [0.7, 1, 0.7]
           }}
