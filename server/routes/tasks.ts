@@ -3,6 +3,53 @@ import { Task } from '../models/Task.js';
 
 const router = express.Router();
 
+// Debug endpoint to check authentication and user status
+router.get('/debug/auth', async (req: Request, res: Response) => {
+  try {
+    console.log('=== DEBUG AUTH STATUS ===');
+    console.log('req.user:', (req as any).user);
+    console.log('req.session:', (req as any).session);
+    console.log('req.isAuthenticated():', typeof (req as any).isAuthenticated === 'function' ? (req as any).isAuthenticated() : 'Not available');
+    
+    const user = (req as any).user;
+    if (!user) {
+      return res.json({
+        authenticated: false,
+        message: 'No user found in request',
+        session: (req as any).session,
+        debug: 'Check if authentication middleware is working'
+      });
+    }
+
+    // Check if user exists in database
+    const { User } = await import('../db/index.js');
+    const dbUser = await User.findByPk(user.id);
+    
+    res.json({
+      authenticated: true,
+      sessionUser: user,
+      databaseUser: dbUser ? {
+        id: dbUser.id,
+        email: dbUser.email,
+        firstName: dbUser.firstName,
+        lastName: dbUser.lastName,
+        exists: true
+      } : {
+        exists: false,
+        message: 'User not found in database'
+      },
+      canCreateTasks: !!dbUser,
+      troubleshooting: !dbUser ? 'User exists in session but not in database. Run OAuth login again to recreate user record.' : 'User ready for task operations'
+    });
+  } catch (error: any) {
+    console.error('Debug auth error:', error);
+    res.status(500).json({
+      error: 'Debug failed',
+      details: error.message
+    });
+  }
+});
+
 // Enhanced middleware check with detailed debugging
 const requireAuth = (req: Request, res: Response, next: express.NextFunction) => {
   console.log('=== AUTH DEBUG START ===');
@@ -241,13 +288,29 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 router.post('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
+    console.log('=== TASK CREATION DEBUG ===');
     console.log('Creating task for user:', userId);
+    console.log('User object:', (req as any).user);
     console.log('Request body:', req.body);
+    console.log('Headers:', req.headers);
     
     if (!userId) {
-      console.log('User ID not found in request');
+      console.log('❌ User ID not found in request');
       return res.status(401).json({ error: 'User not authenticated' });
     }
+
+    // Check if user exists in database
+    const { User } = await import('../db/index.js');
+    const dbUser = await User.findByPk(userId);
+    if (!dbUser) {
+      console.log('❌ User not found in database:', userId);
+      return res.status(400).json({ 
+        error: 'User not found in database',
+        userId: userId,
+        solution: 'Please log out and log in again to recreate your user account'
+      });
+    }
+    console.log('✅ User found in database:', dbUser.email);
 
     const {
       title,
@@ -258,9 +321,11 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
       estimated_hours
     } = req.body;
 
+    console.log('📝 Extracted fields:', { title, description, priority, task_type, deadline, estimated_hours });
+
     // Validation
     if (!title || !priority || !task_type) {
-      console.log('Validation failed - missing required fields');
+      console.log('❌ Validation failed - missing required fields');
       return res.status(400).json({ 
         error: 'Title, priority, and task_type are required',
         received: { title, priority, task_type }
