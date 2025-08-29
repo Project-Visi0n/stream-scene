@@ -191,7 +191,9 @@ const AIWeeklyPlanner: React.FC = () => {
       });
 
       if (response.ok) {
-        const newTask = await response.json();
+        const responseData = await response.json();
+        // Extract the task from the response (server returns {message, task})
+        const newTask = responseData.task || responseData;
         setTasks(prev => [...prev, newTask]);
         setShowTaskForm(false);
         showNotification('success', 'Task created successfully!');
@@ -494,7 +496,9 @@ const AIWeeklyPlanner: React.FC = () => {
       });
 
       if (response.ok) {
-        const newTask = await response.json();
+        const responseData = await response.json();
+        // Extract the task from the response (server returns {message, task})
+        const newTask = responseData.task || responseData;
         setTasks(prev => [...prev, newTask]);
         setAiSuggestions(prev => Array.isArray(prev) ? prev.filter(s => s.id !== suggestion.id) : []);
         showNotification('success', `Task "${suggestion.title}" added successfully!`);
