@@ -1,5 +1,5 @@
 import { DataTypes, Model } from 'sequelize';
-import { getSequelize } from '../db/index.js';
+import { getSequelize } from '../db/connection.js';
 // Sequelize User model class
 export class User extends Model {
     // Compatibility getters for the old in-memory model properties

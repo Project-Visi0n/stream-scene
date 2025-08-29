@@ -1,4 +1,4 @@
-import { getSequelize } from './index.js';
+import { getSequelize } from './connection.js';
 import { Task } from '../models/Task.js';
 async function seed() {
     const sequelize = getSequelize();

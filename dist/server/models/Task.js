@@ -1,5 +1,5 @@
 import { DataTypes, Model, Op } from 'sequelize';
-import { getSequelize } from '../db/index.js';
+import { getSequelize } from '../db/connection.js';
 // Define the Task model class
 export class Task extends Model {
     // Static methods for common queries
