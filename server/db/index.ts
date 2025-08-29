@@ -1,26 +1,9 @@
 // server/db/index.ts
-// Always load environment variables first
-import dotenv from 'dotenv';
-dotenv.config();
+// Database models and sync functions
 
-import { Sequelize } from 'sequelize';
+import { getSequelize, testConnection } from './connection.js';
 
-let sequelize: Sequelize | null = null;
-export const getSequelize = () => {
-  if (!sequelize) {
-    sequelize = new Sequelize({
-      dialect: 'mysql',
-      host: process.env.DB_HOST || 'localhost',
-      database: process.env.DB_NAME || 'streamscene_db',
-      username: process.env.DB_USER || 'root',
-      password: process.env.DB_PASS || '',
-      logging: false,
-    });
-  }
-  return sequelize;
-};
-
-// Create instance early
+// Get the sequelize instance
 const sequelizeInstance = getSequelize();
 
 // import model initializers **after** sequelizeInstance exists
@@ -39,19 +22,8 @@ initScheduledPostModel(sequelizeInstance);
 // Task model should already be initialized in its own file
 // Just make sure it's using the same sequelize instance
 
-// (Associations are set inside initScheduledPostModel via belongsTo)
 export const associate = () => {
   console.log('Database associations set up');
-};
-
-export const testConnection = async () => {
-  try {
-    await sequelizeInstance.authenticate();
-    console.log('Database connection established successfully.');
-  } catch (error) {
-    console.error('Unable to connect to the database:', error);
-    console.log('Continuing with in-memory storage fallback...');
-  }
 };
 
 // Sync EVERYTHING including Task
@@ -70,7 +42,8 @@ export {
   File,
   Share,
   SocialAccountToken,
-  ScheduledPost
+  ScheduledPost,
+  Task
 };
 
 export const db = {
@@ -80,6 +53,7 @@ export const db = {
   SocialAccountToken,
   ScheduledPost,
   User,
+  Task,
   associate,
 };
 

@@ -1,58 +1,59 @@
-// Simple in-memory user storage for demo purposes
-// In production, this would be replaced with proper database persistence
-// In-memory user storage
-const userStorage = new Map();
-const userByGoogleId = new Map(); // googleId -> userId mapping
-let nextUserId = 1;
-// Minimal User class - NO Sequelize imports or decorators
-export class User {
-    constructor(data) {
-        this.id = data.id;
-        this.googleId = data.googleId;
-        this.firstName = data.firstName;
-        this.lastName = data.lastName;
-        this.email = data.email;
-        this.profilePic = data.profilePic;
+import { DataTypes, Model } from 'sequelize';
+import { getSequelize } from '../db/connection.js';
+// Sequelize User model class
+export class User extends Model {
+    // Compatibility getters for the old in-memory model properties
+    get googleId() {
+        return this.google_id;
     }
-    static async findOne(options) {
-        console.log('User.findOne called with:', options);
-        if (options.where && options.where.googleId) {
-            const googleId = options.where.googleId;
-            const userId = userByGoogleId.get(googleId);
-            if (userId) {
-                const userRecord = userStorage.get(userId);
-                if (userRecord) {
-                    return new User(userRecord);
-                }
-            }
-        }
-        return null;
+    get firstName() {
+        return this.name.split(' ')[0] || '';
     }
-    static async create(data) {
-        console.log('User.create called with:', data);
-        const userId = nextUserId++;
-        const userRecord = Object.assign({ id: userId }, data);
-        userStorage.set(userId, userRecord);
-        userByGoogleId.set(data.googleId, userId);
-        console.log('User created with ID:', userId);
-        return new User(userRecord);
+    get lastName() {
+        const parts = this.name.split(' ');
+        return parts.slice(1).join(' ') || '';
     }
-    static async findByPk(id) {
-        console.log('User.findByPk called with:', id);
-        const userRecord = userStorage.get(id);
-        if (userRecord) {
-            console.log('Found user:', userRecord.firstName, userRecord.lastName);
-            return new User(userRecord);
-        }
-        console.log('User not found for ID:', id);
-        return null;
-    }
-    // Debug method to see stored users
-    static getStorageStats() {
-        return {
-            totalUsers: userStorage.size,
-            users: Array.from(userStorage.values())
-        };
+    get profilePic() {
+        return undefined; // Not implemented yet
     }
 }
+// Initialize the model with the database connection
+const sequelize = getSequelize();
+User.init({
+    id: {
+        type: DataTypes.INTEGER.UNSIGNED,
+        autoIncrement: true,
+        primaryKey: true,
+    },
+    email: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+        unique: true,
+    },
+    name: {
+        type: DataTypes.STRING(255),
+        allowNull: false,
+    },
+    google_id: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        unique: true,
+    },
+    created_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+    },
+    updated_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+    },
+}, {
+    sequelize,
+    tableName: 'users',
+    timestamps: true,
+    createdAt: 'created_at',
+    updatedAt: 'updated_at',
+});
 export default User;

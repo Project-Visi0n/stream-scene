@@ -155,6 +155,6 @@ jobs:
           pm2 stop stream-scene || true
           pm2 delete stream-scene || true
           
-          # Start with PM2 using ecosystem config (will use .env file)
-          pm2 start ecosystem.config.cjs
+          # Start with PM2 using ecosystem config in production mode
+          pm2 start ecosystem.config.cjs --env production
           pm2 save

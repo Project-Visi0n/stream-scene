@@ -2,7 +2,7 @@ import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
 import dotenv from 'dotenv';
 import path from 'path';
-import { User } from '../db/index.js'; // Fix the import - remove the .js extension and import from the db index
+import { User } from '../models/User.js'; 
 
 // Load environment variables
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
@@ -23,15 +23,13 @@ passport.use(
         console.log('Profile Name:', profile.displayName);
 
         // Find or create user
-        let user = await User.findOne({ where: { googleId: profile.id } });
+        let user = await User.findOne({ where: { google_id: profile.id } });
 
         if (!user) {
           user = await User.create({
-            googleId: profile.id,
+            google_id: profile.id,
             email: profile.emails?.[0]?.value,
-            firstName: profile.name?.givenName || '',
-            lastName: profile.name?.familyName || '',
-            profilePicture: profile.photos?.[0]?.value,
+            name: `${profile.name?.givenName || ''} ${profile.name?.familyName || ''}`.trim(),
           });
           console.log('New user created:', user.id);
         } else {
