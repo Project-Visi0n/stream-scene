@@ -152,22 +152,14 @@ const AIWeeklyPlanner: React.FC = () => {
         
         // Log sample of tasks with user IDs for debugging
         if (tasksData.length > 0) {
-          console.log('🎯 Sample tasks with user_id:', tasksData.slice(0, 3).map(t => ({
+          console.log('🎯 Sample tasks with user_id:', tasksData.slice(0, 3).map((t: any) => ({
             id: t.id,
             title: t.title,
             user_id: t.user_id,
             created_at: t.created_at
           })));
         }
-          tasksData = responseData;
-        } else if (responseData && Array.isArray(responseData.tasks)) {
-          // Object with tasks property
-          tasksData = responseData.tasks;
-        } else {
-          console.error('API returned unexpected data format:', responseData);
-          tasksData = [];
-        }
-        
+
         // Validate and sanitize task data
         const validTasks = tasksData.filter((task: any) => {
           if (!task || typeof task !== 'object') {

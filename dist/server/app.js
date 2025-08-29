@@ -4,7 +4,12 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-// Load environment variables from the root .env file
+// Load environment-specific config
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development';
+const envPath = path.resolve(process.cwd(), envFile);
+console.log(`🔧 Loading environment from: ${envFile}`);
+dotenv.config({ path: envPath });
+// Fallback to main .env if specific env file doesn't exist
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 import express from "express";
 import session from 'express-session';

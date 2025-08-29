@@ -1,6 +1,33 @@
 import express from 'express';
 import { Task } from '../models/Task.js';
 const router = express.Router();
+// Debug endpoint to check auth details
+router.get('/debug/auth', (req, res) => {
+    var _a;
+    console.log('=== TASK AUTH DEBUG ===');
+    console.log('Session ID:', req.sessionID);
+    console.log('Session data:', req.session);
+    console.log('User object:', req.user);
+    console.log('Is authenticated:', (_a = req.isAuthenticated) === null || _a === void 0 ? void 0 : _a.call(req));
+    console.log('Cookies:', req.headers.cookie);
+    console.log('User-Agent:', req.headers['user-agent']);
+    console.log('Referer:', req.headers.referer);
+    console.log('Request headers:', req.headers);
+    const userInfo = req.user;
+    res.json({
+        authenticated: !!req.user,
+        user: req.user || null,
+        userId: (userInfo === null || userInfo === void 0 ? void 0 : userInfo.id) || null,
+        sessionId: req.sessionID,
+        debug: {
+            hasSession: !!req.session,
+            hasUser: !!req.user,
+            userType: typeof req.user,
+            userKeys: req.user ? Object.keys(req.user) : null,
+            sessionKeys: req.session ? Object.keys(req.session) : null
+        }
+    });
+});
 // Enhanced middleware check with detailed debugging
 const requireAuth = (req, res, next) => {
     var _a, _b, _c;
@@ -53,6 +80,56 @@ const requireAuth = (req, res, next) => {
     console.log('Authentication successful for user:', user.id || user.email || 'unknown');
     next();
 };
+// Debug endpoint to check what tasks are returned
+router.get('/debug/tasks', requireAuth, async (req, res) => {
+    const user = req.user;
+    const userId = user === null || user === void 0 ? void 0 : user.id;
+    console.log('=== TASK DEBUG ===');
+    console.log('User ID for task query:', userId);
+    console.log('User object:', user);
+    try {
+        // Get ALL tasks first (this is dangerous but for debugging)
+        const allTasks = await Task.findAll({
+            limit: 10
+        });
+        console.log('ALL TASKS (first 10):', allTasks.map(t => ({
+            id: t.id,
+            title: t.title,
+            user_id: t.user_id,
+            created_at: t.created_at
+        })));
+        // Get user-specific tasks
+        const userTasks = await Task.findAll({
+            where: { user_id: userId },
+            limit: 10
+        });
+        console.log('USER TASKS:', userTasks.map(t => ({
+            id: t.id,
+            title: t.title,
+            user_id: t.user_id,
+            created_at: t.created_at
+        })));
+        res.json({
+            userId,
+            totalTasks: allTasks.length,
+            userSpecificTasks: userTasks.length,
+            allTasksSample: allTasks.slice(0, 5).map(t => ({
+                id: t.id,
+                title: t.title,
+                user_id: t.user_id
+            })),
+            userTasks: userTasks.map(t => ({
+                id: t.id,
+                title: t.title,
+                user_id: t.user_id
+            }))
+        });
+    }
+    catch (error) {
+        console.error('Debug task query error:', error);
+        res.status(500).json({ error: 'Debug query failed' });
+    }
+});
 // DEBUG ENDPOINT - Remove this in production!
 router.get('/debug-auth', (req, res) => {
     var _a;
@@ -173,18 +250,44 @@ router.get('/', requireAuth, async (req, res) => {
     var _a;
     try {
         const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
-        console.log('Fetching tasks for user:', userId);
+        console.log('=== FETCHING TASKS ===');
+        console.log('User ID:', userId);
+        console.log('User object:', req.user);
+        console.log('Session ID:', req.sessionID);
+        console.log('Request headers:', req.headers);
         if (!userId) {
+            console.log('❌ No user ID found, returning 401');
             return res.status(401).json({ error: 'User not authenticated' });
         }
         const tasks = await Task.findAll({
             where: { user_id: userId },
             order: [['created_at', 'DESC']]
         });
+        console.log(`✅ Found ${tasks.length} tasks for user ${userId}`);
+        console.log('Task sample:', tasks.slice(0, 3).map(t => ({
+            id: t.id,
+            title: t.title,
+            user_id: t.user_id,
+            created_at: t.created_at
+        })));
+        // Serialize tasks to clean objects
+        const cleanTasks = tasks.map(task => ({
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            priority: task.priority,
+            task_type: task.task_type,
+            status: task.status,
+            deadline: task.deadline ? task.deadline.toISOString() : null,
+            estimated_hours: task.estimated_hours,
+            user_id: task.user_id,
+            created_at: task.created_at.toISOString(),
+            updated_at: task.updated_at.toISOString()
+        }));
         console.log(`Found ${tasks.length} tasks for user ${userId}`);
         res.json({
             message: `Found ${tasks.length} tasks`,
-            tasks: tasks,
+            tasks: cleanTasks,
             user_id: userId
         });
     }
@@ -201,16 +304,32 @@ router.post('/', requireAuth, async (req, res) => {
     var _a, _b;
     try {
         const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
+        console.log('=== TASK CREATION DEBUG ===');
         console.log('Creating task for user:', userId);
+        console.log('User object:', req.user);
         console.log('Request body:', req.body);
+        console.log('Headers:', req.headers);
         if (!userId) {
-            console.log('User ID not found in request');
+            console.log('❌ User ID not found in request');
             return res.status(401).json({ error: 'User not authenticated' });
         }
+        // Check if user exists in database
+        const { User } = await import('../db/index.js');
+        const dbUser = await User.findByPk(userId);
+        if (!dbUser) {
+            console.log('❌ User not found in database:', userId);
+            return res.status(400).json({
+                error: 'User not found in database',
+                userId: userId,
+                solution: 'Please log out and log in again to recreate your user account'
+            });
+        }
+        console.log('✅ User found in database:', dbUser.email);
         const { title, description, priority, task_type, deadline, estimated_hours } = req.body;
+        console.log('📝 Extracted fields:', { title, description, priority, task_type, deadline, estimated_hours });
         // Validation
         if (!title || !priority || !task_type) {
-            console.log('Validation failed - missing required fields');
+            console.log('❌ Validation failed - missing required fields');
             return res.status(400).json({
                 error: 'Title, priority, and task_type are required',
                 received: { title, priority, task_type }
@@ -266,9 +385,23 @@ router.post('/', requireAuth, async (req, res) => {
         console.log('Creating task with data:', taskData);
         const task = await Task.create(taskData);
         console.log('Task created successfully:', task.id);
+        // Return clean task data without Sequelize metadata
+        const cleanTask = {
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            priority: task.priority,
+            task_type: task.task_type,
+            status: task.status,
+            deadline: task.deadline ? task.deadline.toISOString() : null,
+            estimated_hours: task.estimated_hours,
+            user_id: task.user_id,
+            created_at: task.created_at.toISOString(),
+            updated_at: task.updated_at.toISOString()
+        };
         res.status(201).json({
             message: 'Task created successfully',
-            task: task
+            task: cleanTask
         });
     }
     catch (error) {

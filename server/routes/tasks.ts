@@ -32,62 +32,6 @@ router.get('/debug/auth', (req: Request, res: Response) => {
   });
 });
 
-// Debug endpoint to check what tasks are returned
-router.get('/debug/tasks', requireAuth, async (req: Request, res: Response) => {
-  const user = req.user as any;
-  const userId = user?.id;
-  
-  console.log('=== TASK DEBUG ===');
-  console.log('User ID for task query:', userId);
-  console.log('User object:', user);
-  
-  try {
-    // Get ALL tasks first (this is dangerous but for debugging)
-    const allTasks = await Task.findAll({
-      limit: 10
-    });
-    
-    console.log('ALL TASKS (first 10):', allTasks.map(t => ({
-      id: t.id,
-      title: t.title,
-      user_id: t.user_id,
-      created_at: t.created_at
-    })));
-    
-    // Get user-specific tasks
-    const userTasks = await Task.findAll({
-      where: { user_id: userId },
-      limit: 10
-    });
-    
-    console.log('USER TASKS:', userTasks.map(t => ({
-      id: t.id,
-      title: t.title,
-      user_id: t.user_id,
-      created_at: t.created_at
-    })));
-    
-    res.json({
-      userId,
-      totalTasks: allTasks.length,
-      userSpecificTasks: userTasks.length,
-      allTasksSample: allTasks.slice(0, 5).map(t => ({
-        id: t.id,
-        title: t.title,
-        user_id: t.user_id
-      })),
-      userTasks: userTasks.map(t => ({
-        id: t.id,
-        title: t.title,
-        user_id: t.user_id
-      }))
-    });
-  } catch (error) {
-    console.error('Debug task query error:', error);
-    res.status(500).json({ error: 'Debug query failed' });
-  }
-});
-
 // Enhanced middleware check with detailed debugging
 const requireAuth = (req: Request, res: Response, next: express.NextFunction) => {
   console.log('=== AUTH DEBUG START ===');
