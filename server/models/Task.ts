@@ -21,17 +21,17 @@ export interface TaskCreationAttributes extends Optional<TaskAttributes, 'id' | 
 
 // Define the Task model class
 export class Task extends Model<TaskAttributes, TaskCreationAttributes> implements TaskAttributes {
-  public id!: number;
-  public title!: string;
-  public description?: string;
-  public priority!: 'low' | 'medium' | 'high';
-  public task_type!: 'creative' | 'admin';
-  public status!: 'pending' | 'in_progress' | 'completed';
-  public deadline?: Date;  // Made optional
-  public estimated_hours?: number;
-  public user_id!: number;
-  public readonly created_at!: Date;
-  public readonly updated_at!: Date;
+  declare id: number;
+  declare title: string;
+  declare description?: string;
+  declare priority: 'low' | 'medium' | 'high';
+  declare task_type: 'creative' | 'admin';
+  declare status: 'pending' | 'in_progress' | 'completed';
+  declare deadline?: Date;
+  declare estimated_hours?: number;
+  declare user_id: number;
+  declare readonly created_at: Date;
+  declare readonly updated_at: Date;
 
   // Static methods for common queries
   static async findByUserId(userId: number): Promise<Task[]> {

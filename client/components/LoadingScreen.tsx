@@ -22,14 +22,14 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
 
   return (
     <motion.div 
-      className={`${baseClasses} ${className}`}
+      className={`${baseClasses} ${className} framer-motion-element`}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       transition={{ duration: 0.3 }}
     >
       <motion.div
-        className="text-center"
+        className="text-center framer-motion-element"
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ 
@@ -42,7 +42,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
           <div className="relative h-6 rounded-xl overflow-hidden shadow-lg border border-purple-700/40 bg-gradient-to-br from-purple-900/60 via-purple-800/80 to-purple-950/80 backdrop-blur-md">
             {/* Animated shimmer */}
             <motion.div
-              className="absolute inset-0"
+              className="absolute inset-0 framer-motion-element"
               initial={{ x: -120 }}
               animate={{ x: [0, 220] }}
               transition={{ duration: 1.8, repeat: Infinity, repeatType: 'loop', ease: 'linear' }}
@@ -55,7 +55,7 @@ const LoadingScreen: React.FC<LoadingScreenProps> = ({
         </div>
         {message && (
           <motion.p 
-            className="text-lg text-purple-200 mt-6 drop-shadow"
+            className="text-lg text-purple-200 mt-6 drop-shadow framer-motion-element"
             animate={{
               opacity: [0.7, 1, 0.7]
             }}
