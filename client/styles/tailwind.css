@@ -107,4 +107,25 @@
     font-size: 16px;
     border-radius: 8px;
   }
+  
+  /* Mobile text overflow fixes */
+  .mobile-text-container {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
+    max-width: 100%;
+  }
+  
+  /* Ensure badges don't wrap awkwardly */
+  .mobile-badge-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+  
+  /* Improved touch targets for mobile */
+  .mobile-touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
 }

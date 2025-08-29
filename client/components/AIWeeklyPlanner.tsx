@@ -1111,24 +1111,24 @@ const AIWeeklyPlanner: React.FC = () => {
     return (
       <div className="space-y-4">
         {filteredTasks.map(task => (
-          <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-4">
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className={`text-xs px-2 py-1 rounded ${
+          <div key={task.id} className="bg-white/5 border border-white/10 rounded-lg p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-center gap-1 sm:gap-2 mb-2">
+                  <span className={`text-xs px-2 py-1 rounded whitespace-nowrap ${
                     task.priority === 'high' ? 'bg-red-500/20 text-red-300' :
                     task.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
                     'bg-green-500/20 text-green-300'
                   }`}>
                     {task.priority || 'Unknown'}
                   </span>
-                  <span className={`text-xs px-2 py-1 rounded ${
+                  <span className={`text-xs px-2 py-1 rounded whitespace-nowrap ${
                     task.task_type === 'creative' ? 'bg-purple-500/20 text-purple-300' :
                     'bg-blue-500/20 text-blue-300'
                   }`}>
                     {task.task_type || 'Unknown'}
                   </span>
-                  <span className={`text-xs px-2 py-1 rounded ${
+                  <span className={`text-xs px-2 py-1 rounded whitespace-nowrap ${
                     task.status === 'completed' ? 'bg-green-500/20 text-green-300' :
                     task.status === 'in_progress' ? 'bg-blue-500/20 text-blue-300' :
                     'bg-gray-500/20 text-gray-300'
@@ -1136,23 +1136,23 @@ const AIWeeklyPlanner: React.FC = () => {
                     {task.status ? task.status.replace('_', ' ') : 'Unknown'}
                   </span>
                 </div>
-                <h3 className="font-medium text-white mb-1">{task.title}</h3>
+                <h3 className="font-medium text-white mb-1 break-words pr-2">{task.title}</h3>
                 {task.description && (
-                  <p className="text-sm text-gray-300 mb-2">{task.description}</p>
+                  <p className="text-sm text-gray-300 mb-2 break-words pr-2">{task.description}</p>
                 )}
-                <div className="flex items-center gap-4 text-xs text-gray-400">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-gray-400">
                   {task.deadline && (
-                    <span>Due: {new Date(task.deadline).toLocaleDateString()}</span>
+                    <span className="whitespace-nowrap">Due: {new Date(task.deadline).toLocaleDateString()}</span>
                   )}
                   {task.estimated_hours && (
-                    <span>{task.estimated_hours}h estimated</span>
+                    <span className="whitespace-nowrap">{task.estimated_hours}h estimated</span>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 ml-4">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={() => handleDeleteTask(task)}
-                  className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors"
+                  className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors mobile-tap-target"
                   title="Delete task"
                 >
                   Delete
