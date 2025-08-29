@@ -46,7 +46,7 @@ const Taskbar: React.FC<TaskbarProps> = ({ className = '' }) => {
   };
 
   return (
-    <nav className={`bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 shadow-lg border-b border-purple-500/20 ${className}`}>
+    <nav className={`sticky top-0 z-50 bg-gradient-to-r from-slate-900 via-purple-900 to-slate-900 shadow-lg border-b border-purple-500/20 backdrop-blur-sm ${className}`}>
       <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-8">
         <div className="flex justify-between items-center h-14 sm:h-16">
           {/* Logo */}
