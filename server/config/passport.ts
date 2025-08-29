@@ -23,15 +23,13 @@ passport.use(
         console.log('Profile Name:', profile.displayName);
 
         // Find or create user
-        let user = await User.findOne({ where: { googleId: profile.id } });
+        let user = await User.findOne({ where: { google_id: profile.id } });
 
         if (!user) {
           user = await User.create({
-            googleId: profile.id,
+            google_id: profile.id,
             email: profile.emails?.[0]?.value,
-            firstName: profile.name?.givenName || '',
-            lastName: profile.name?.familyName || '',
-            profilePicture: profile.photos?.[0]?.value,
+            name: `${profile.name?.givenName || ''} ${profile.name?.familyName || ''}`.trim(),
           });
           console.log('New user created:', user.id);
         } else {
