@@ -8,6 +8,8 @@ import Navbar from './NavBar';
 import ContentScheduler from '../ContentScheduler/ContentScheduler';
 import DemosTrailers from './DemosTrailers';
 import BudgetTracker from './BudgetTracker';
+import PrivacyPolicyPage from './PrivacyPolicyPage';
+import TermsOfServicePage from './TermsOfServicePage';
 import MobileOptimizations from './MobileOptimizations';
 
 export type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers' | 'content-scheduler';
@@ -51,7 +53,10 @@ const App: React.FC = () => {
     }
   };
 
-  const showNavbar = !location.pathname.startsWith('/shared/') && location.pathname !== '/';
+  const showNavbar = !location.pathname.startsWith('/shared/') && 
+                     location.pathname !== '/' && 
+                     location.pathname !== '/privacy' && 
+                     location.pathname !== '/terms';
 
   return (
     <div className="min-h-screen">
@@ -71,6 +76,9 @@ const App: React.FC = () => {
           <Route path="/demos-trailers" element={<DemosTrailers />} />
           <Route path="/content-scheduler" element={<ContentScheduler />} />
           <Route path="/shared/:token" element={<SharedFileViewer />} />
+          {/* Legal pages */}
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfServicePage />} />
         </Routes>
       </div>
     </div>
