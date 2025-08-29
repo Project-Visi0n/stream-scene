@@ -21,32 +21,27 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
     },
     {
       id: 'planner',
-      label: '🤖 AI Planner',
-      shortLabel: 'Planner',
+      label: '🤖 AI Weekly Planner',
       description: 'Smart task scheduling'
     },
     {
       id: 'budget-tracker',
-      label: '💰 Budget',
-      shortLabel: 'Budget',
+      label: '💰 Budget Tracker',
       description: 'Track expenses'
     },
     {
       id: 'content-scheduler',
-      label: '📅 Content',
-      shortLabel: 'Content',
+      label: '📅 Content Scheduler',
       description: 'Plan your content'
     },
     {
       id: 'demos-trailers',
-      label: '🎬 Demos',
-      shortLabel: 'Demos',
+      label: '🎬 Demos & Trailers',
       description: 'Showcase content'
     },
     {
       id: 'project-center',
-      label: '🎨 Projects',
-      shortLabel: 'Projects',
+      label: '🎨 Project Center', 
       description: 'Creative workspace'
     }
   ];
