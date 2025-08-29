@@ -246,6 +246,30 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           ))}
         </div>
 
+         {/* Footer Section with Legal Links */}
+        <footer className="mt-12 pt-8 border-t border-purple-500/20 w-full max-w-6xl px-4">
+          <div className="text-center">
+            <div className="flex justify-center items-center space-x-6 mb-4 flex-wrap gap-y-2">
+              <button
+                onClick={() => navigate('/privacy')}
+                className="text-gray-400 hover:text-purple-400 text-sm transition-colors duration-200 cursor-pointer"
+              >
+                Privacy Policy
+              </button>
+              <span className="text-gray-600 text-sm">•</span>
+              <button
+                onClick={() => navigate('/terms')}
+                className="text-gray-400 hover:text-purple-400 text-sm transition-colors duration-200 cursor-pointer"
+              >
+                Terms of Service
+              </button>
+            </div>
+            <p className="text-gray-500 text-sm">
+              © {new Date().getFullYear()} StreamScene. All rights reserved.
+            </p>
+          </div>
+        </footer>
+
         {/* Login Prompt Popup */}
         <LoginPromptPopup 
           isVisible={showLoginPrompt} 
