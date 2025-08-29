@@ -80,22 +80,38 @@ router.get('/google/callback', (req, res, next) => {
 });
 // Get current authenticated user
 router.get('/user', (req, res) => {
-    var _a;
+    var _a, _b, _c;
     console.log('=== AUTH CHECK DEBUG ===');
     console.log('Session ID:', req.sessionID);
     console.log('Session data:', req.session);
     console.log('User object:', req.user);
     console.log('Is authenticated:', (_a = req.isAuthenticated) === null || _a === void 0 ? void 0 : _a.call(req));
     console.log('Cookies:', req.headers.cookie);
-    res.json({
+    let userData = null;
+    if (req.user) {
+        // Cast to User type to access getters
+        const user = req.user;
+        userData = {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+            firstName: user.firstName || ((_b = user.name) === null || _b === void 0 ? void 0 : _b.split(' ')[0]) || '',
+            lastName: user.lastName || ((_c = user.name) === null || _c === void 0 ? void 0 : _c.split(' ').slice(1).join(' ')) || '',
+            google_id: user.google_id,
+            created_at: user.created_at,
+            updated_at: user.updated_at
+        };
+    }
+    const responseData = {
         authenticated: !!req.user,
-        user: req.user || null,
+        user: userData,
         debug: {
             sessionId: req.sessionID,
             hasSession: !!req.session,
             hasUser: !!req.user
         }
-    });
+    };
+    res.json(responseData);
 });
 // Logout endpoint
 router.post('/logout', (req, res) => {

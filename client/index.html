@@ -8,6 +8,21 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>StreamScene</title>
+    <script>
+      // Trusted Types policy for dynamic script loading (fixes TrustedScriptURL errors)
+      if (window.trustedTypes && trustedTypes.createPolicy) {
+        try {
+          trustedTypes.createPolicy('default', {
+            createHTML: string => string,
+            createScript: string => string,
+            createScriptURL: string => string
+          });
+        } catch (e) {
+          // Policy already exists or creation failed
+          console.log('Trusted Types policy already exists or failed to create');
+        }
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div> 

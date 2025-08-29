@@ -120,6 +120,31 @@ app.use((req, res, next) => {
     });
     next();
 });
+// Security headers middleware - add CSP to handle dynamic script loading
+app.use((req, res, next) => {
+    // More permissive CSP that allows Facebook/Meta OAuth flows while maintaining security
+    const csp = [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:",
+        "style-src 'self' 'unsafe-inline' https:",
+        "font-src 'self' https: data:",
+        "img-src 'self' data: https: blob:",
+        "media-src 'self' https: blob: data:",
+        "object-src 'none'",
+        "base-uri 'self'",
+        "form-action 'self' https:",
+        "frame-ancestors 'none'",
+        "connect-src 'self' https: wss: data:",
+        "worker-src 'self' blob:",
+        "manifest-src 'self'"
+    ].join('; ');
+    res.setHeader('Content-Security-Policy', csp);
+    // Additional security headers
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    next();
+});
 // Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

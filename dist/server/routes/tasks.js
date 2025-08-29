@@ -281,8 +281,8 @@ router.get('/', requireAuth, async (req, res) => {
             deadline: task.deadline ? task.deadline.toISOString() : null,
             estimated_hours: task.estimated_hours,
             user_id: task.user_id,
-            created_at: task.created_at.toISOString(),
-            updated_at: task.updated_at.toISOString()
+            created_at: task.created_at ? task.created_at.toISOString() : new Date().toISOString(),
+            updated_at: task.updated_at ? task.updated_at.toISOString() : new Date().toISOString()
         }));
         console.log(`Found ${tasks.length} tasks for user ${userId}`);
         res.json({
