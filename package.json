@@ -23,6 +23,7 @@
     "build:server": "tsc -p server/tsconfig.json",
     "start": "NODE_ENV=production node dist/server/app.js",
     "start:dev": "NODE_ENV=development tsx server/app.ts",
+    "start:prod": "NODE_ENV=production tsx server/app.ts",
     "db:migrate": "sequelize-cli db:migrate",
     "db:seed": "sequelize-cli db:seed:all",
     "seed": "ts-node server/db/seed.ts"

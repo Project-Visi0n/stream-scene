@@ -80,7 +80,7 @@ jobs:
         cp ecosystem.config.cjs deploy/
         cp package-server.json deploy/package.json
         
-        # Create environment file template (will be populated with secrets)
+        # Create production environment file (will override any existing .env)
         cat > deploy/.env << EOF
         NODE_ENV=production
         PORT=8000
@@ -95,9 +95,15 @@ jobs:
         AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_REGION=${{ secrets.AWS_REGION }}
         AWS_S3_BUCKET=${{ secrets.AWS_S3_BUCKET }}
+        THREADS_CLIENT_ID=${{ secrets.THREADS_CLIENT_ID }}
+        THREADS_CLIENT_SECRET=${{ secrets.THREADS_CLIENT_SECRET }}
+        OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }}
         DB_HOST=localhost
         DB_NAME=stream_scene_db
         DB_USER=root
+        DB_PASS=StreamRoot2024!
+        ENABLE_MONITORING=true
+        LOG_LEVEL=error
         DB_PASS=StreamRoot2024!
         EOF
 

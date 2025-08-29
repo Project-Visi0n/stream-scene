@@ -61,38 +61,38 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onTaskUpdate }) => {
       {tasks.map((task) => (
         <div
           key={task.id}
-          className="bg-white rounded-lg p-4 border border-gray-200 hover:border-gray-300 transition-all shadow-sm hover:shadow-md"
+          className="bg-white rounded-lg p-3 sm:p-4 border border-gray-200 hover:border-gray-300 transition-all shadow-sm hover:shadow-md"
         >
-          <div className="flex items-start justify-between mb-2">
-            <div className="flex items-center space-x-2">
-              <span className="text-lg">{getTypeIcon(task.task_type)}</span>
-              <h3 className="font-semibold text-black text-lg">{task.title}</h3>
+          <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2 mb-2">
+            <div className="flex items-center space-x-2 min-w-0 flex-1">
+              <span className="text-lg flex-shrink-0">{getTypeIcon(task.task_type)}</span>
+              <h3 className="font-semibold text-black text-lg break-words">{task.title}</h3>
             </div>
-            <div className="flex flex-wrap gap-2">
-              <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(task.priority)}`}>
+            <div className="flex flex-wrap gap-1 sm:gap-2 flex-shrink-0">
+              <span className={`px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getPriorityColor(task.priority)}`}>
                 {task.priority}
               </span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(task.status)}`}>
+              <span className={`px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getStatusColor(task.status)}`}>
                 {task.status.replace('_', ' ')}
               </span>
             </div>
           </div>
 
           {task.description && (
-            <p className="text-black text-sm mb-3">{task.description}</p>
+            <p className="text-black text-sm mb-3 break-words">{task.description}</p>
           )}
 
-          <div className="flex flex-wrap items-center justify-between text-sm">
-            <div className="flex items-center space-x-4 text-black">
-                <span className={`${isOverdue(task.deadline) ? 'text-red-600 font-semibold' : 'text-black'}`}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-black">
+                <span className={`whitespace-nowrap ${isOverdue(task.deadline) ? 'text-red-600 font-semibold' : 'text-black'}`}>
                 📅 {formatDate(task.deadline)}
                 {isOverdue(task.deadline) && ' (Overdue!)'}
               </span>
               {task.estimated_hours && (
-                <span>⏱️ {task.estimated_hours}h</span>
+                <span className="whitespace-nowrap">⏱️ {task.estimated_hours}h</span>
               )}
             </div>
-            <div className="text-xs text-gray-400">
+            <div className="text-xs text-gray-400 whitespace-nowrap">
               Created {formatDate(task.created_at)}
             </div>
           </div>
