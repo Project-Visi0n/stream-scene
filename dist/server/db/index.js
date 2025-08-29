@@ -24,6 +24,7 @@ import { initFileModel } from '../models/initFileModel.js';
 import { Share } from '../models/Share.js';
 import { initSocialAccountTokenModel, SocialAccountToken } from '../models/initSocialAccountToken.js';
 import { initScheduledPostModel, ScheduledPost } from '../models/initScheduledPost.js';
+import { Task } from '../models/Task.js';
 import { User } from '../models/User.js';
 // Initialize models
 const File = initFileModel(sequelizeInstance);
@@ -56,7 +57,7 @@ export const syncDB = async (force = false) => {
         throw error;
     }
 };
-export { User, File, Share, SocialAccountToken, ScheduledPost };
+export { User, File, Share, SocialAccountToken, ScheduledPost, Task };
 export const db = {
     sequelize: sequelizeInstance,
     File,
@@ -64,6 +65,7 @@ export const db = {
     SocialAccountToken,
     ScheduledPost,
     User,
+    Task,
     associate,
 };
 export default db;
