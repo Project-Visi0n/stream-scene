@@ -8,8 +8,9 @@ module.exports = {
     max_memory_restart: '1G',
     env_file: '.env', // Use .env file for all environments
     env: {
-      NODE_ENV: 'development',
-      PORT: 8000
+      NODE_ENV: 'production', // Changed to production by default
+      PORT: 8000,
+      HOST: '0.0.0.0'
     },
     env_production: {
       NODE_ENV: 'production',
