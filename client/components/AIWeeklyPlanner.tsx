@@ -106,6 +106,7 @@ const AIWeeklyPlanner: React.FC = () => {
 
       if (response.ok) {
         const responseData = await response.json();
+        console.log('🎯 API response:', responseData);
         
         // Handle different API response formats
         let tasksData;
@@ -120,7 +121,28 @@ const AIWeeklyPlanner: React.FC = () => {
           tasksData = [];
         }
         
-        setTasks(tasksData);
+        // Validate and sanitize task data
+        const validTasks = tasksData.filter((task: any) => {
+          if (!task || typeof task !== 'object') {
+            console.warn('Invalid task object:', task);
+            return false;
+          }
+          
+          // Ensure required properties exist with defaults
+          const validatedTask = {
+            ...task,
+            priority: task.priority || 'medium',
+            task_type: task.task_type || 'admin', 
+            status: task.status || 'pending'
+          };
+          
+          // Replace original task with validated version
+          Object.assign(task, validatedTask);
+          return true;
+        });
+        
+        console.log('🎯 Validated tasks:', validTasks.length, 'of', tasksData.length);
+        setTasks(validTasks);
       } else {
         console.error('Failed to load tasks');
         setTasks([]); // Fallback to empty array on error
@@ -236,6 +258,9 @@ const AIWeeklyPlanner: React.FC = () => {
 
     // Convert tasks to calendar events
     tasks.forEach(task => {
+      // Ensure task has required properties
+      if (!task || typeof task !== 'object') return;
+      
       if (task.deadline) {
         const deadlineDate = new Date(task.deadline);
         if (deadlineDate >= startDate && deadlineDate <= endDate) {
@@ -246,7 +271,7 @@ const AIWeeklyPlanner: React.FC = () => {
             end: task.deadline,
             type: 'deadline',
             taskId: String(task.id),
-            priority: task.priority
+            priority: task.priority || 'medium'
           });
         }
       }
@@ -267,8 +292,9 @@ const AIWeeklyPlanner: React.FC = () => {
         }
         
         // Set consistent hour based on task type and priority
-        const baseHour = task.task_type === 'creative' ? 9 : 14; // Creative in AM, admin in PM
-        const priorityOffset = task.priority === 'high' ? 0 : task.priority === 'medium' ? 1 : 2;
+        const baseHour = (task.task_type === 'creative') ? 9 : 14; // Creative in AM, admin in PM
+        const priority = task.priority || 'medium';
+        const priorityOffset = priority === 'high' ? 0 : priority === 'medium' ? 1 : 2;
         workDate.setHours(baseHour + priorityOffset, 0, 0, 0);
         
         const endTime = new Date(workDate);
@@ -278,12 +304,12 @@ const AIWeeklyPlanner: React.FC = () => {
         if (workDate >= startDate && workDate <= endDate) {
           events.push({
             id: `work-${task.id}`,
-            title: `${task.task_type === 'creative' ? 'Creative' : 'Admin'}: ${task.title}`,
+            title: `${(task.task_type === 'creative') ? 'Creative' : 'Admin'}: ${task.title}`,
             start: workDate.toISOString(),
             end: endTime.toISOString(),
             type: 'task',
             taskId: String(task.id),
-            priority: task.priority
+            priority: task.priority || 'medium'
           });
         }
       }
@@ -1040,20 +1066,20 @@ const AIWeeklyPlanner: React.FC = () => {
                     task.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
                     'bg-green-500/20 text-green-300'
                   }`}>
-                    {task.priority}
+                    {task.priority || 'Unknown'}
                   </span>
                   <span className={`text-xs px-2 py-1 rounded ${
                     task.task_type === 'creative' ? 'bg-purple-500/20 text-purple-300' :
                     'bg-blue-500/20 text-blue-300'
                   }`}>
-                    {task.task_type}
+                    {task.task_type || 'Unknown'}
                   </span>
                   <span className={`text-xs px-2 py-1 rounded ${
                     task.status === 'completed' ? 'bg-green-500/20 text-green-300' :
                     task.status === 'in_progress' ? 'bg-blue-500/20 text-blue-300' :
                     'bg-gray-500/20 text-gray-300'
                   }`}>
-                    {task.status.replace('_', ' ')}
+                    {task.status ? task.status.replace('_', ' ') : 'Unknown'}
                   </span>
                 </div>
                 <h3 className="font-medium text-white mb-1">{task.title}</h3>
@@ -1214,20 +1240,20 @@ const AIWeeklyPlanner: React.FC = () => {
                     selectedTask.priority === 'medium' ? 'bg-yellow-500/20 text-yellow-300' :
                     'bg-green-500/20 text-green-300'
                   }`}>
-                    {selectedTask.priority} priority
+                    {selectedTask.priority || 'Unknown'} priority
                   </span>
                   <span className={`text-xs px-2 py-1 rounded ${
                     selectedTask.task_type === 'creative' ? 'bg-purple-500/20 text-purple-300' :
                     'bg-blue-500/20 text-blue-300'
                   }`}>
-                    {selectedTask.task_type}
+                    {selectedTask.task_type || 'Unknown'}
                   </span>
                   <span className={`text-xs px-2 py-1 rounded ${
                     selectedTask.status === 'completed' ? 'bg-green-500/20 text-green-300' :
                     selectedTask.status === 'in_progress' ? 'bg-blue-500/20 text-blue-300' :
                     'bg-gray-500/20 text-gray-300'
                   }`}>
-                    {selectedTask.status.replace('_', ' ')}
+                    {selectedTask.status ? selectedTask.status.replace('_', ' ') : 'Unknown'}
                   </span>
                 </div>
                 
@@ -1350,7 +1376,7 @@ const AIWeeklyPlanner: React.FC = () => {
                           taskFilter === 'creative' ? 'bg-purple-500/20 text-purple-300' :
                           'bg-green-500/20 text-green-300'
                         }`}>
-                          Showing: {taskFilter.replace('_', ' ')} ({filteredTasks.length})
+                          Showing: {taskFilter ? taskFilter.replace('_', ' ') : 'all'} ({filteredTasks.length})
                         </span>
                         <button
                           onClick={() => setTaskFilter('all')}
@@ -1372,7 +1398,7 @@ const AIWeeklyPlanner: React.FC = () => {
                 ) : taskFilter !== 'all' ? (
                   <div className="text-center py-12">
                     <div className="text-6xl mb-4">🔍</div>
-                    <h3 className="text-xl font-semibold text-white mb-2">No {taskFilter.replace('_', ' ')} tasks</h3>
+                    <h3 className="text-xl font-semibold text-white mb-2">No {taskFilter ? taskFilter.replace('_', ' ') : 'filtered'} tasks</h3>
                     <p className="text-gray-300 mb-6">You don't have any tasks in this category yet.</p>
                     <button
                       onClick={() => setTaskFilter('all')}
