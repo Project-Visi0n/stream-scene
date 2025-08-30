@@ -2,7 +2,7 @@ name: Deploy to Personal Server
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Check every 5 minutes
+    - cron: '0 * * * *'  # Check every 5 minutes
   push:
     branches: [ main ]  # Deploy from your main branch too
   workflow_dispatch: # Allow manual trigger
