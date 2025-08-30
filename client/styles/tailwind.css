@@ -1,5 +1,46 @@
 @import "tailwindcss";
 
+/* Fix iOS Safari bounce scroll showing white background */
+html, body {
+  background: #0f172a; /* slate-900 fallback */
+  background: linear-gradient(to bottom right, #0f172a, #111827, #000000); /* from-slate-900 via-gray-900 to-black */
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Enhanced iOS bounce scroll prevention */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari specific styles */
+  html {
+    height: 100%;
+    overflow: hidden;
+  }
+  
+  body {
+    height: 100%;
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
+  }
+  
+  #root {
+    height: 100vh;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+  }
+}
+
+/* Fallback for other browsers */
+@supports not (-webkit-touch-callout: none) {
+  #root {
+    min-height: 100vh;
+  }
+}
+
 /* Custom hyperspace transition effects */
 .bg-gradient-radial {
   background: radial-gradient(circle, var(--tw-gradient-stops));
@@ -24,6 +65,32 @@
 .mobile-scroll {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
+}
+
+/* iOS bounce scroll prevention */
+.ios-scroll-fix {
+  position: fixed;
+  overflow: hidden;
+  width: 100%;
+  height: 100%;
+}
+
+.ios-scroll-content {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Ensure consistent background across all pages */
+.page-background {
+  background: linear-gradient(to bottom right, #0f172a, #111827, #000000);
+  background-attachment: fixed;
+  min-height: 100vh;
 }
 
 /* Mobile modal improvements */
