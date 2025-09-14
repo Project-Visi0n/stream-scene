@@ -25,9 +25,10 @@ interface UploadedFile {
 interface FilePreviewProps {
   file: UploadedFile | null;
   className?: string;
+  onFileUpdated?: () => void; // Callback when file data needs to be refreshed
 }
 
-const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '' }) => {
+const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '', onFileUpdated }) => {
   const [imageError, setImageError] = useState(false);
   const [videoError, setVideoError] = useState(false);
 
@@ -99,7 +100,10 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '' }) => {
           {file.fileRecordId && (
             <div className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
               <span className="text-sm text-gray-300">Add captions to this video:</span>
-              <ClosedCaptionButton fileId={file.fileRecordId} />
+              <ClosedCaptionButton 
+                fileId={file.fileRecordId} 
+                onCaptionsGenerated={onFileUpdated}
+              />
             </div>
           )}
         </div>

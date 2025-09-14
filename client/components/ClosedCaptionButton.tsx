@@ -4,9 +4,10 @@ const POLL_INTERVAL = 5000; // 5 seconds
 
 interface ClosedCaptionButtonProps {
   fileId: number;
+  onCaptionsGenerated?: () => void; // Callback when captions are successfully generated
 }
 
-const ClosedCaptionButton: React.FC<ClosedCaptionButtonProps> = ({ fileId }) => {
+const ClosedCaptionButton: React.FC<ClosedCaptionButtonProps> = ({ fileId, onCaptionsGenerated }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [jobName, setJobName] = useState<string | null>(null);
   const [captionUrl, setCaptionUrl] = useState<string | null>(null);
@@ -92,6 +93,11 @@ const ClosedCaptionButton: React.FC<ClosedCaptionButtonProps> = ({ fileId }) => 
           setCaptionUrl(transcriptResult.captionUrl);
           setIsProcessing(false);
           console.log('Captions ready:', transcriptResult.captionUrl);
+          
+          // Notify parent component that captions are now available
+          if (onCaptionsGenerated) {
+            onCaptionsGenerated();
+          }
         } else if (statusResult.status === 'FAILED') {
           console.error('Transcription job failed');
           setIsProcessing(false);

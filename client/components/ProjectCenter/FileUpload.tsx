@@ -760,6 +760,7 @@ const FileUpload: React.FC = () => {
               <FilePreview 
                 file={selectedFile}
                 className="min-h-[400px]"
+                onFileUpdated={loadUserFiles}
               />
             </div>
           </div>
