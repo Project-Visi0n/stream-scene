@@ -94,10 +94,13 @@ const ClosedCaptionButton: React.FC<ClosedCaptionButtonProps> = ({ fileId, onCap
           setIsProcessing(false);
           console.log('Captions ready:', transcriptResult.captionUrl);
           
-          // Notify parent component that captions are now available
-          if (onCaptionsGenerated) {
-            onCaptionsGenerated();
-          }
+          // Add a small delay to ensure database update completes before triggering refresh
+          setTimeout(() => {
+            // Notify parent component that captions are now available
+            if (onCaptionsGenerated) {
+              onCaptionsGenerated();
+            }
+          }, 500); // 500ms delay
         } else if (statusResult.status === 'FAILED') {
           console.error('Transcription job failed');
           setIsProcessing(false);

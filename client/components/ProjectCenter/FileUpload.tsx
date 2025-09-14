@@ -20,6 +20,7 @@ interface UploadedFile {
   tags?: string[];
   uploadedAt: Date;
   fileRecordId?: number; // Database record ID
+  captionUrl?: string; // URL for video captions (VTT format)
 }
 
 const FileUpload: React.FC = () => {
@@ -86,7 +87,8 @@ const FileUpload: React.FC = () => {
         s3Key: record.s3Key,
         tags: record.tags,
         uploadedAt: new Date(record.uploadedAt),
-        fileRecordId: record.id
+        fileRecordId: record.id,
+        captionUrl: record.captionUrl
       }));
       
       setUploadedFiles(files);
