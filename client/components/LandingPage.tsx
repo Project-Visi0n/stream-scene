@@ -5,7 +5,7 @@ import FilmReelLogo from './FilmReelLogo';
 import useAuth from '../hooks/useAuth';
 
 // Define the CurrentView type to match App.tsx
-type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers' | 'content-scheduler';
+type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'content-scheduler';
 
 interface LandingPageProps {
   onNavigate?: (destination: CurrentView) => void;
@@ -42,13 +42,6 @@ const FEATURES: Feature[] = [
     title: 'Content Scheduler', 
     desc: 'Plan and schedule your content across platforms',
     destination: 'content-scheduler' as CurrentView,
-    available: true 
-  },
-  { 
-    icon: '▶️', 
-    title: 'Demos & Trailers', 
-    desc: 'Showcase your best work professionally',
-    destination: 'demos-trailers' as CurrentView,
     available: true 
   },
   { 
@@ -114,7 +107,6 @@ const FeatureCard: React.FC<{
       'planner': '/planner',
       'project-center': '/project-center',
       'budget-tracker': '/budget-tracker',
-      'demos-trailers': '/demos-trailers',
       'content-scheduler': '/content-scheduler'
     };
 

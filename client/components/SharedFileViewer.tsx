@@ -283,7 +283,6 @@ const SharedFileViewer: React.FC = () => {
             'planner': '/planner',
             'project-center': '/project-center',
             'budget-tracker': '/budget-tracker',
-            'demos-trailers': '/demos-trailers',
             'content-scheduler': '/content-scheduler'
           };
           const route = viewToRouteMap[component];

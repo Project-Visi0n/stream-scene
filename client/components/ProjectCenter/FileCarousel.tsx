@@ -5,7 +5,9 @@ import {
   HiMusicalNote, 
   HiPhoto, 
   HiDocument, 
-  HiFolder 
+  HiFolder,
+  HiShare,
+  HiTrash 
 } from 'react-icons/hi2';
 
 interface UploadedFile {
@@ -24,6 +26,8 @@ interface FileCarouselProps {
   files: UploadedFile[];
   selectedFile: UploadedFile | null;
   onFileSelect: (file: UploadedFile) => void;
+  onFileShare?: (file: UploadedFile) => void;
+  onFileDelete?: (file: UploadedFile) => void;
   className?: string;
 }
 
@@ -31,6 +35,8 @@ const FileCarousel: React.FC<FileCarouselProps> = ({
   files,
   selectedFile,
   onFileSelect,
+  onFileShare,
+  onFileDelete,
   className = ''
 }) => {
   if (files.length === 0) {
@@ -141,12 +147,39 @@ const FileCarousel: React.FC<FileCarouselProps> = ({
                 )}
               </div>
 
-              {/* Selection Indicator */}
-              {selectedFile?.id === file.id && (
-                <div className="flex-shrink-0">
-                  <div className="w-3 h-3 bg-purple-500 rounded-full"></div>
-                </div>
-              )}
+              {/* Action Buttons */}
+              <div className="flex-shrink-0 flex items-center gap-1">
+                {onFileShare && file.fileRecordId && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFileShare(file);
+                    }}
+                    className="p-1 text-gray-400 hover:text-blue-400 transition-colors"
+                    title="Share file"
+                  >
+                    <HiShare className="w-4 h-4" />
+                  </button>
+                )}
+                
+                {onFileDelete && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onFileDelete(file);
+                    }}
+                    className="p-1 text-gray-400 hover:text-red-400 transition-colors"
+                    title="Delete file"
+                  >
+                    <HiTrash className="w-4 h-4" />
+                  </button>
+                )}
+
+                {/* Selection Indicator */}
+                {selectedFile?.id === file.id && (
+                  <div className="w-3 h-3 bg-purple-500 rounded-full ml-1"></div>
+                )}
+              </div>
             </div>
           </motion.button>
         ))}
