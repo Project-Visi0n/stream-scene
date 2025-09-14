@@ -101,6 +101,30 @@ const FileUpload: React.FC = () => {
     }
   };
 
+  // Update specific file in state (for real-time caption updates)
+  const updateFileInState = (fileId: string, updates: Partial<UploadedFile>) => {
+    console.log('🔄 updateFileInState called:', { fileId, updates });
+    
+    setUploadedFiles(prevFiles => {
+      const updatedFiles = prevFiles.map(file => 
+        file.id === fileId ? { ...file, ...updates } : file
+      );
+      console.log('📁 Updated uploadedFiles:', updatedFiles.find(f => f.id === fileId));
+      return updatedFiles;
+    });
+    
+    // Update selected file if it matches
+    if (selectedFile && selectedFile.id === fileId) {
+      setSelectedFile(prevFile => {
+        const updated = prevFile ? { ...prevFile, ...updates } : null;
+        console.log('🎯 Updated selectedFile:', updated);
+        return updated;
+      });
+    }
+    
+    console.log('✅ File state update completed for:', fileId);
+  };
+
   const loadUserTags = async () => {
     try {
       const tags = await fileService.getUserTags();
@@ -762,7 +786,7 @@ const FileUpload: React.FC = () => {
               <FilePreview 
                 file={selectedFile}
                 className="min-h-[400px]"
-                onFileUpdated={loadUserFiles}
+                onFileUpdated={updateFileInState}
               />
             </div>
           </div>

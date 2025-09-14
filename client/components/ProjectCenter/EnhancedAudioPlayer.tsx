@@ -4,6 +4,7 @@ import {
   HiMusicalNote, 
   HiExclamationTriangle 
 } from 'react-icons/hi2';
+import type { IconType } from 'react-icons';
 
 interface UploadedFile {
   id: string;

@@ -20,12 +20,13 @@ interface UploadedFile {
   tags?: string[];
   uploadedAt: Date;
   fileRecordId?: number;
+  captionUrl?: string; // URL for video captions
 }
 
 interface FilePreviewProps {
   file: UploadedFile | null;
   className?: string;
-  onFileUpdated?: () => void; // Callback when file data needs to be refreshed
+  onFileUpdated?: (fileId: string, updates: Partial<UploadedFile>) => void; // Direct file update
 }
 
 const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '', onFileUpdated }) => {
@@ -76,6 +77,15 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '', onFileU
                 onLoadStart={() => console.log('Video loading started for:', file.name)}
               >
                 <source src={previewUrl} type={file.type} />
+                {file.captionUrl && (
+                  <track
+                    kind="captions"
+                    src={file.captionUrl}
+                    srcLang="en"
+                    label="English"
+                    default
+                  />
+                )}
                 Your browser does not support the video tag.
               </video>
             ) : (
@@ -99,11 +109,27 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '', onFileU
           {/* Video file caption controls */}
           {file.fileRecordId && (
             <div className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
-              <span className="text-sm text-gray-300">Add captions to this video:</span>
-              <ClosedCaptionButton 
-                fileId={file.fileRecordId} 
-                onCaptionsGenerated={onFileUpdated}
-              />
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-gray-300">
+                  {file.captionUrl ? 'Captions available' : 'Add captions to this video:'}
+                </span>
+                {file.captionUrl && (
+                  <span className="text-green-400 text-xs bg-green-400/10 px-2 py-1 rounded">
+                    ✓ Ready
+                  </span>
+                )}
+              </div>
+              {!file.captionUrl && (
+                <ClosedCaptionButton 
+                  fileId={file.fileRecordId} 
+                  onCaptionReady={(captionUrl) => {
+                    console.log('🎬 Caption ready callback triggered:', { fileId: file.id, captionUrl });
+                    if (onFileUpdated) {
+                      onFileUpdated(file.id, { captionUrl });
+                    }
+                  }}
+                />
+              )}
             </div>
           )}
         </div>
