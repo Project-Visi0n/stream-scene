@@ -31,3 +31,11 @@ Thumbs.db
 
 # GitHub Actions secrets
 secrets/
+
+# Documentation and test files
+docs/
+IOS_SCROLL_FIX_DOCUMENTATION.md
+test-ios-scroll-fix.html
+test-*.js
+test-*.ts
+debug-*.js
