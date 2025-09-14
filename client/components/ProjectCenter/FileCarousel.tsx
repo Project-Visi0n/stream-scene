@@ -1,5 +1,12 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import { 
+  HiPlay, 
+  HiMusicalNote, 
+  HiPhoto, 
+  HiDocument, 
+  HiFolder 
+} from 'react-icons/hi2';
 
 interface UploadedFile {
   id: string;
@@ -31,11 +38,11 @@ const FileCarousel: React.FC<FileCarouselProps> = ({
   }
 
   const getFileIcon = (type: string) => {
-    if (type.startsWith('video/')) return '🎥';
-    if (type.startsWith('audio/')) return '🎵';
-    if (type.startsWith('image/')) return '🖼️';
-    if (type.startsWith('text/') || type.includes('document') || type.includes('pdf')) return '📄';
-    return '📁';
+    if (type.startsWith('video/')) return <HiPlay className="w-6 h-6" />;
+    if (type.startsWith('audio/')) return <HiMusicalNote className="w-6 h-6" />;
+    if (type.startsWith('image/')) return <HiPhoto className="w-6 h-6" />;
+    if (type.startsWith('text/') || type.includes('document') || type.includes('pdf')) return <HiDocument className="w-6 h-6" />;
+    return <HiFolder className="w-6 h-6" />;
   };
 
   const formatFileSize = (bytes: number) => {
@@ -64,8 +71,8 @@ const FileCarousel: React.FC<FileCarouselProps> = ({
 
     // For other files, show the appropriate icon
     return (
-      <div className="w-12 h-12 flex items-center justify-center bg-slate-700/50 rounded-lg">
-        <span className="text-2xl">{getFileIcon(file.type)}</span>
+      <div className="w-12 h-12 flex items-center justify-center bg-slate-700/50 rounded-lg text-gray-400">
+        {getFileIcon(file.type)}
       </div>
     );
   };

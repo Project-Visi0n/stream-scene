@@ -1,5 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import WaveSurfer from 'wavesurfer.js';
+import { 
+  HiMusicalNote, 
+  HiExclamationTriangle 
+} from 'react-icons/hi2';
 
 interface UploadedFile {
   id: string;
@@ -149,7 +153,7 @@ const EnhancedAudioPlayer: React.FC<EnhancedAudioPlayerProps> = ({
     return (
       <div className={`bg-red-900/20 border border-red-500/30 rounded-lg p-4 ${className}`}>
         <div className="flex items-center gap-3 mb-2">
-          <span className="text-2xl">⚠️</span>
+          <HiExclamationTriangle className="w-6 h-6 text-red-400" />
           <div>
             <div className="text-red-400 font-medium">Audio Error</div>
             <div className="text-sm text-gray-400">{error}</div>
@@ -173,7 +177,7 @@ const EnhancedAudioPlayer: React.FC<EnhancedAudioPlayerProps> = ({
     <div className={`bg-slate-800/50 rounded-lg p-4 space-y-4 ${className}`}>
       {/* Header */}
       <div className="flex items-center gap-3">
-        <span className="text-2xl">🎵</span>
+        <HiMusicalNote className="w-6 h-6 text-purple-400" />
         <div className="flex-1 min-w-0">
           <div className="text-white font-medium truncate" title={file.name}>
             {file.name}

@@ -1,4 +1,12 @@
 import React, { useState } from 'react';
+import { 
+  HiPlay, 
+  HiMusicalNote, 
+  HiPhoto, 
+  HiDocument, 
+  HiFolder,
+  HiArrowDownTray 
+} from 'react-icons/hi2';
 import EnhancedAudioPlayer from './EnhancedAudioPlayer';
 import ClosedCaptionButton from '../ClosedCaptionButton';
 
@@ -27,7 +35,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '' }) => {
     return (
       <div className={`flex items-center justify-center bg-slate-800/30 rounded-lg border-2 border-dashed border-gray-600 ${className}`}>
         <div className="text-center py-12">
-          <div className="text-6xl mb-4">📁</div>
+          <HiFolder className="w-16 h-16 text-gray-500 mx-auto mb-4" />
           <div className="text-xl text-gray-400 mb-2">No file selected</div>
           <div className="text-sm text-gray-500">Choose a file from the list to preview</div>
         </div>
@@ -71,7 +79,9 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '' }) => {
               </video>
             ) : (
               <div className="bg-red-900/20 border border-red-500/30 text-red-200 px-4 py-8 text-center">
-                <div className="text-4xl mb-2">⚠️</div>
+                <div className="text-red-400 mb-2 flex justify-center">
+                  <HiPlay className="w-8 h-8" />
+                </div>
                 <div className="mb-2">Video preview not available</div>
                 <a 
                   href={previewUrl} 
@@ -114,7 +124,9 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '' }) => {
             />
           ) : (
             <div className="bg-red-900/20 border border-red-500/30 text-red-200 px-4 py-8 text-center rounded-lg">
-              <div className="text-4xl mb-2">⚠️</div>
+              <div className="text-red-400 mb-2 flex justify-center">
+                <HiPhoto className="w-8 h-8" />
+              </div>
               <div className="mb-2">Image preview not available</div>
               <a 
                 href={previewUrl} 
@@ -135,7 +147,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '' }) => {
         <div className="space-y-4">
           <div className="bg-slate-800/50 rounded-lg p-4">
             <div className="flex items-center gap-3 mb-4">
-              <span className="text-2xl">📄</span>
+              <HiDocument className="w-6 h-6 text-gray-400" />
               <div>
                 <div className="font-medium text-white">{file.name}</div>
                 <div className="text-sm text-gray-400">{file.type}</div>
@@ -169,11 +181,11 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '' }) => {
     // Default preview for unsupported file types
     return (
       <div className="bg-slate-800/50 rounded-lg p-8 text-center">
-        <div className="text-6xl mb-4">
-          {file.type.startsWith('video/') ? '🎥' : 
-           file.type.startsWith('audio/') ? '🎵' : 
-           file.type.startsWith('image/') ? '🖼️' : 
-           file.type.includes('document') || file.type.includes('pdf') ? '📄' : '📁'}
+        <div className="flex justify-center mb-4">
+          {file.type.startsWith('video/') ? <HiPlay className="w-16 h-16 text-gray-400" /> : 
+           file.type.startsWith('audio/') ? <HiMusicalNote className="w-16 h-16 text-gray-400" /> : 
+           file.type.startsWith('image/') ? <HiPhoto className="w-16 h-16 text-gray-400" /> : 
+           file.type.includes('document') || file.type.includes('pdf') ? <HiDocument className="w-16 h-16 text-gray-400" /> : <HiFolder className="w-16 h-16 text-gray-400" />}
         </div>
         <div className="text-xl font-medium text-white mb-2">{file.name}</div>
         <div className="text-sm text-gray-400 mb-4">
@@ -188,9 +200,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '' }) => {
           rel="noopener noreferrer"
           className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
+          <HiArrowDownTray className="w-4 h-4" />
           Download File
         </a>
       </div>
@@ -203,12 +213,12 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '' }) => {
       <div className="p-4 border-b border-slate-600">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <span className="text-2xl">
-              {file.type.startsWith('video/') ? '🎥' : 
-               file.type.startsWith('audio/') ? '🎵' : 
-               file.type.startsWith('image/') ? '🖼️' : 
-               file.type.includes('document') || file.type.includes('pdf') ? '📄' : '📁'}
-            </span>
+            <div className="text-gray-400">
+              {file.type.startsWith('video/') ? <HiPlay className="w-6 h-6" /> : 
+               file.type.startsWith('audio/') ? <HiMusicalNote className="w-6 h-6" /> : 
+               file.type.startsWith('image/') ? <HiPhoto className="w-6 h-6" /> : 
+               file.type.includes('document') || file.type.includes('pdf') ? <HiDocument className="w-6 h-6" /> : <HiFolder className="w-6 h-6" />}
+            </div>
             <div className="min-w-0 flex-1">
               <div className="font-medium text-white truncate" title={file.name}>
                 {file.name}

@@ -7,6 +7,8 @@ import useAuth from '../../hooks/useAuth';
 import ShareModal from '../ShareModal';
 import LoadingScreen from '../LoadingScreen';
 import InlineLoading from '../InlineLoading';
+import FileCarousel from './FileCarousel';
+import FilePreview from './FilePreview';
 
 interface UploadedFile {
   id: string;
@@ -39,6 +41,9 @@ const FileUpload: React.FC = () => {
   // Share modal state
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedFileForShare, setSelectedFileForShare] = useState<UploadedFile | null>(null);
+
+  // File selection state for preview
+  const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
 
   // Load user's files when component mounts or user changes
   useEffect(() => {
