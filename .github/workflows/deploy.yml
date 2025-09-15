@@ -126,16 +126,14 @@ jobs:
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
         port: ${{ secrets.SERVER_PORT || 22 }}
-        timeout: 120s
-        command_timeout: 10m
+        timeout: 30s
+        command_timeout: 1m
         debug: true
         use_insecure_cipher: true
         script: |
           echo "SSH connection successful!"
           echo "Current user: $(whoami)"
           echo "Current directory: $(pwd)"
-          echo "Server time: $(date)"
-          echo "Server uptime: $(uptime)"
 
     - name: Setup server directory
       uses: appleboy/ssh-action@v1.0.3
@@ -147,6 +145,7 @@ jobs:
         timeout: 120s
         command_timeout: 10m
         debug: true
+        use_insecure_cipher: true
         script: |
           # Create app directory if it doesn't exist
           sudo mkdir -p /var/www/stream-scene
@@ -183,9 +182,10 @@ jobs:
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
         port: ${{ secrets.SERVER_PORT || 22 }}
-        timeout: 180s
+        timeout: 300s
         command_timeout: 15m
         debug: true
+        use_insecure_cipher: true
         script: |
           cd /var/www/stream-scene
           
