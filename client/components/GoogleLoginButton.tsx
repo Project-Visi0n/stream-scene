@@ -6,12 +6,8 @@ const GoogleLoginButton: React.FC = () => {
   const isAuthenticated = !!user;
 
   const handleGoogleLogin = (): void => {
-    console.log('=== Google OAuth Login Debug ===');
-    console.log('Current location:', window.location.href);
-    
     // Use the full URL to ensure we hit the server
     const loginUrl = `${window.location.origin}/auth/google`;
-    console.log('Redirecting to:', loginUrl);
     
     // Force a full page navigation (not a React Router navigation)
     window.location.href = loginUrl;
@@ -28,7 +24,6 @@ const GoogleLoginButton: React.FC = () => {
       });
       
       if (response.ok) {
-        console.log('Logout successful');
         // Refresh the page to clear any cached state
         window.location.href = '/';
       } else {

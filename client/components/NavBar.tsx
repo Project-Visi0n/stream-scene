@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 
 interface NavbarProps {
-  currentComponent: 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers' | 'content-scheduler';
-  onNavigate: (component: 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers' | 'content-scheduler') => void;
+  currentComponent: 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'content-scheduler';
+  onNavigate: (component: 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'content-scheduler') => void;
   user?: {
     name: string;
     avatar?: string;
@@ -33,11 +33,6 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
       id: 'content-scheduler',
       label: '📅 Content Scheduler',
       description: 'Plan your content'
-    },
-    {
-      id: 'demos-trailers',
-      label: '🎬 Demos & Trailers',
-      description: 'Showcase content'
     },
     {
       id: 'project-center',

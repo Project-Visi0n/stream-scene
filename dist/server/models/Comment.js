@@ -1,70 +1,118 @@
-"use strict";
-var __decorate = (this && this.__decorate) || function (decorators, target, key, desc) {
-    var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
-    if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
-    else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
-    return c > 3 && r && Object.defineProperty(target, key, r), r;
-};
-var __metadata = (this && this.__metadata) || function (k, v) {
-    if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-exports.Comment = void 0;
-// server/src/models/Comment.ts
-const sequelize_typescript_1 = require("sequelize-typescript");
-const User_1 = require("../models/User");
-const Media_1 = require("./Media");
-let Comment = class Comment extends sequelize_typescript_1.Model {
-};
-exports.Comment = Comment;
-__decorate([
-    (0, sequelize_typescript_1.Column)({
-        type: sequelize_typescript_1.DataType.BIGINT,
-        primaryKey: true,
+import { DataTypes, Model } from 'sequelize';
+import { getSequelize } from '../db/connection.js';
+class Comment extends Model {
+}
+Comment.init({
+    id: {
+        type: DataTypes.INTEGER,
         autoIncrement: true,
-    }),
-    __metadata("design:type", Number)
-], Comment.prototype, "id", void 0);
-__decorate([
-    (0, sequelize_typescript_1.ForeignKey)(() => User_1.User),
-    (0, sequelize_typescript_1.Column)(sequelize_typescript_1.DataType.BIGINT),
-    __metadata("design:type", Number)
-], Comment.prototype, "user_id", void 0);
-__decorate([
-    (0, sequelize_typescript_1.ForeignKey)(() => Media_1.Media),
-    (0, sequelize_typescript_1.Column)(sequelize_typescript_1.DataType.BIGINT),
-    __metadata("design:type", Number)
-], Comment.prototype, "media_id", void 0);
-__decorate([
-    (0, sequelize_typescript_1.ForeignKey)(() => Comment),
-    (0, sequelize_typescript_1.Column)(sequelize_typescript_1.DataType.BIGINT),
-    __metadata("design:type", Number)
-], Comment.prototype, "parent_id", void 0);
-__decorate([
-    (0, sequelize_typescript_1.Column)(sequelize_typescript_1.DataType.TEXT),
-    __metadata("design:type", String)
-], Comment.prototype, "comment_body", void 0);
-__decorate([
-    (0, sequelize_typescript_1.Column)(sequelize_typescript_1.DataType.DATE),
-    __metadata("design:type", Date)
-], Comment.prototype, "created_at", void 0);
-__decorate([
-    (0, sequelize_typescript_1.BelongsTo)(() => User_1.User),
-    __metadata("design:type", User_1.User)
-], Comment.prototype, "user", void 0);
-__decorate([
-    (0, sequelize_typescript_1.BelongsTo)(() => Media_1.Media),
-    __metadata("design:type", Media_1.Media)
-], Comment.prototype, "media", void 0);
-__decorate([
-    (0, sequelize_typescript_1.BelongsTo)(() => Comment, { as: 'Parent' }),
-    __metadata("design:type", Comment)
-], Comment.prototype, "parent", void 0);
-__decorate([
-    (0, sequelize_typescript_1.HasMany)(() => Comment, { foreignKey: 'parent_id', as: 'Replies' }),
-    __metadata("design:type", Array)
-], Comment.prototype, "replies", void 0);
-exports.Comment = Comment = __decorate([
-    (0, sequelize_typescript_1.Table)({ tableName: 'comments', timestamps: false })
-], Comment);
-//# sourceMappingURL=Comment.js.map
+        primaryKey: true,
+    },
+    fileId: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+            model: 'files',
+            key: 'id',
+        },
+        onDelete: 'CASCADE',
+    },
+    userId: {
+        type: DataTypes.BIGINT,
+        allowNull: true,
+        references: {
+            model: 'users',
+            key: 'id',
+        },
+        onDelete: 'SET NULL', // Keep comment if user is deleted
+    },
+    guestName: {
+        type: DataTypes.STRING(100),
+        allowNull: true,
+        validate: {
+            len: [1, 100],
+        },
+    },
+    guestIdentifier: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+        comment: 'Session/browser identifier for anonymous users',
+    },
+    content: {
+        type: DataTypes.TEXT,
+        allowNull: false,
+        validate: {
+            notEmpty: true,
+            len: [1, 2000], // Max 2000 characters
+        },
+    },
+    timestampSeconds: {
+        type: DataTypes.DECIMAL(10, 3),
+        allowNull: true,
+        validate: {
+            min: 0,
+        },
+    },
+    parentCommentId: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+        references: {
+            model: 'comments',
+            key: 'id',
+        },
+        onDelete: 'CASCADE',
+    },
+    isDeleted: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+    },
+    isModerationHidden: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'Hidden by file owner moderation',
+    },
+    isEdited: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'Track if comment has been edited',
+    },
+    isModerated: {
+        type: DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+        comment: 'Track if comment has been moderated',
+    },
+    moderatedReason: {
+        type: DataTypes.STRING(500),
+        allowNull: true,
+        comment: 'Reason for moderation action',
+    },
+    createdAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+    },
+    updatedAt: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: DataTypes.NOW,
+    },
+}, {
+    sequelize: getSequelize(),
+    modelName: 'Comment',
+    tableName: 'comments',
+    timestamps: true,
+    indexes: [
+        { fields: ['fileId'] },
+        { fields: ['userId'] },
+        { fields: ['guestIdentifier'] },
+        { fields: ['parentCommentId'] },
+        { fields: ['timestampSeconds'] },
+        { fields: ['createdAt'] },
+        { fields: ['isDeleted', 'isModerationHidden'] }, // For filtering visible comments
+    ],
+});
+export default Comment;

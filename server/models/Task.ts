@@ -105,7 +105,7 @@ Task.init({
     allowNull: true,
   },
   user_id: {
-    type: DataTypes.INTEGER.UNSIGNED,
+    type: DataTypes.BIGINT,
     allowNull: false,
     references: {
       model: 'users',
