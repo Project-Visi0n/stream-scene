@@ -8,7 +8,7 @@ import {
   HiArrowDownTray 
 } from 'react-icons/hi2';
 import WaveformWithComments from './WaveformWithComments';
-import ClosedCaptionButton from '../ClosedCaptionButton';
+import VideoWithComments from './VideoWithComments';
 
 interface UploadedFile {
   id: string;
@@ -31,7 +31,6 @@ interface FilePreviewProps {
 
 const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '', onFileUpdated }) => {
   const [imageError, setImageError] = useState(false);
-  const [videoError, setVideoError] = useState(false);
 
   if (!file) {
     return (
@@ -65,75 +64,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '', onFileU
     const previewUrl = getPreviewUrl(file);
 
     if (file.type.startsWith('video/')) {
-      return (
-        <div className="space-y-4">
-          <div className="rounded-lg overflow-hidden bg-black">
-            {!videoError ? (
-              <video
-                controls
-                className="w-full max-h-96 mx-auto"
-                crossOrigin="anonymous"
-                onError={() => setVideoError(true)}
-                onLoadStart={() => console.log('Video loading started for:', file.name)}
-              >
-                <source src={previewUrl} type={file.type} />
-                {file.captionUrl && (
-                  <track
-                    kind="captions"
-                    src={file.captionUrl}
-                    srcLang="en"
-                    label="English"
-                    default
-                  />
-                )}
-                Your browser does not support the video tag.
-              </video>
-            ) : (
-              <div className="bg-red-900/20 border border-red-500/30 text-red-200 px-4 py-8 text-center">
-                <div className="text-red-400 mb-2 flex justify-center">
-                  <HiPlay className="w-8 h-8" />
-                </div>
-                <div className="mb-2">Video preview not available</div>
-                <a 
-                  href={previewUrl} 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-blue-400 hover:text-blue-300 underline text-sm"
-                >
-                  Download video file
-                </a>
-              </div>
-            )}
-          </div>
-          
-          {/* Video file caption controls */}
-          {file.fileRecordId && (
-            <div className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-300">
-                  {file.captionUrl ? 'Captions available' : 'Add captions to this video:'}
-                </span>
-                {file.captionUrl && (
-                  <span className="text-green-400 text-xs bg-green-400/10 px-2 py-1 rounded">
-                    ✓ Ready
-                  </span>
-                )}
-              </div>
-              {!file.captionUrl && (
-                <ClosedCaptionButton 
-                  fileId={file.fileRecordId} 
-                  onCaptionReady={(captionUrl) => {
-                    console.log('🎬 Caption ready callback triggered:', { fileId: file.id, captionUrl });
-                    if (onFileUpdated) {
-                      onFileUpdated(file.id, { captionUrl });
-                    }
-                  }}
-                />
-              )}
-            </div>
-          )}
-        </div>
-      );
+      return <VideoWithComments file={file} onFileUpdated={onFileUpdated} />;
     }
 
     if (file.type.startsWith('audio/')) {
