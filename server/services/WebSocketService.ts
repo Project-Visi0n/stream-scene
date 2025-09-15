@@ -40,7 +40,11 @@ export class WebSocketService {
           : ['http://localhost:3000', 'http://localhost:8000', 'http://127.0.0.1:3000'],
         credentials: true,
         methods: ['GET', 'POST']
-      }
+      },
+      transports: ['polling', 'websocket'], // Prioritize polling for Cloudflare
+      allowEIO3: true, // Allow Engine.IO v3 clients
+      pingTimeout: 60000, // Increase ping timeout
+      pingInterval: 25000 // Increase ping interval
     });
 
     this.setupEventHandlers();

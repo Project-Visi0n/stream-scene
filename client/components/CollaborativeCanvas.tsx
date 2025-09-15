@@ -166,14 +166,18 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
       try {
         const serverUrl = process.env.REACT_APP_SERVER_URL || 'http://localhost:3001';
         socketInstance = io(serverUrl, {
-          transports: ['websocket', 'polling'],
+          transports: ['polling', 'websocket'], // Prioritize polling for Cloudflare compatibility
           autoConnect: true,
           reconnection: true,
           reconnectionAttempts: 5,
           reconnectionDelay: 1000,
+          forceNew: true, // Force new connection
+          upgrade: true, // Allow transport upgrades
+          timeout: 10000, // Increase timeout for slow connections
         });
 
         socketInstance.on('connect', () => {
+          console.log('🔌 WebSocket connected successfully to:', serverUrl);
           setIsConnected(true);
           setSocket(socketInstance);
           
@@ -189,8 +193,27 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
           socketInstance?.emit('join-canvas', canvasId);
         });
 
-        socketInstance.on('disconnect', () => {
+        socketInstance.on('disconnect', (reason) => {
+          console.log('❌ WebSocket disconnected:', reason);
           setIsConnected(false);
+        });
+
+        socketInstance.on('connect_error', (error) => {
+          console.error('❌ WebSocket connection error:', error);
+          setIsConnected(false);
+        });
+
+        socketInstance.on('reconnect_attempt', (attemptNumber) => {
+          console.log(`🔄 WebSocket reconnection attempt ${attemptNumber}`);
+        });
+
+        socketInstance.on('reconnect', (attemptNumber) => {
+          console.log(`✅ WebSocket reconnected after ${attemptNumber} attempts`);
+          setIsConnected(true);
+        });
+
+        socketInstance.on('reconnect_error', (error) => {
+          console.error('❌ WebSocket reconnection error:', error);
         });
 
         socketInstance.on('canvas-update', (updateData: any) => {
