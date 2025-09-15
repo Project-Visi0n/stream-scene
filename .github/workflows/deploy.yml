@@ -2,7 +2,7 @@ name: Deploy to Personal Server
 
 on:
   schedule:
-    - cron: '*/5 * * * *'  # Check every 5 minutes
+    - cron: '0 * * * *'  # Check every 5 minutes
   push:
     branches: [ main ]  # Deploy from your main branch too
   workflow_dispatch: # Allow manual trigger
@@ -16,11 +16,17 @@ jobs:
       uses: actions/checkout@v4
       with:
         fetch-depth: 0  # Fetch full history to compare with upstream
+        token: ${{ secrets.GITHUB_TOKEN }}
         
     - name: Add upstream remote
       run: |
         git remote add upstream https://github.com/Project-Visi0n/stream-scene.git || true
         git fetch upstream
+        
+    - name: Configure Git
+      run: |
+        git config --global user.email "action@github.com"
+        git config --global user.name "GitHub Actions"
         
     - name: Check for upstream changes
       id: check_changes

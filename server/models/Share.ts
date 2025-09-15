@@ -4,7 +4,7 @@ import { randomBytes } from 'crypto';
 export interface ShareRecord {
   id: number;
   fileId?: number; // Optional for canvas shares
-  canvasId?: number; // New field for canvas shares
+  canvasId?: string; // Changed to string for canvas shares
   userId: number;
   shareToken: string;
   shareType: 'one-time' | 'indefinite';
@@ -25,7 +25,7 @@ let nextShareId = 1;
 export class Share {
   public id!: number;
   public fileId?: number; // Optional for canvas shares
-  public canvasId?: number; // New field for canvas shares
+  public canvasId?: string; // Changed to string for canvas shares
   public userId!: number;
   public shareToken!: string;
   public shareType!: 'one-time' | 'indefinite';
@@ -49,10 +49,11 @@ export class Share {
   // Static method to create a new share
   static async create(data: {
     fileId?: number;
-    canvasId?: number;
+    canvasId?: string;
     userId: number;
     shareType: 'one-time' | 'indefinite';
     resourceType: 'file' | 'canvas';
+    maxAccess?: number;
     expiresAt?: Date;
   }): Promise<Share> {
     if (!data.fileId && !data.canvasId) {
@@ -126,7 +127,7 @@ export class Share {
   }
 
   // Static method to find all shares for a specific canvas
-  static async findAllByCanvasId(canvasId: number, userId: number): Promise<Share[]> {
+  static async findAllByCanvasId(canvasId: string, userId: number): Promise<Share[]> {
     const canvasShares = Array.from(shareStorage.values())
       .filter(share => share.canvasId === canvasId && share.userId === userId && share.resourceType === 'canvas')
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())

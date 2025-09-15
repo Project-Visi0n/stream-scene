@@ -26,7 +26,7 @@ import filesRoutes from "./routes/files.js";
 import sharesRoutes from "./routes/shares.js";
 import budgetRoutes from './routes/budget.js';
 import socialAuthRoutes from './routes/socialAuth.js';
-import { syncDB } from "./db/index.js";
+import { syncDB, associate } from "./db/index.js";
 import captionRouter from './routes/caption.js';
 import taskRoutes from './routes/tasks.js';
 import contentSchedulerRoutes from './routes/contentScheduler.js';
@@ -136,7 +136,7 @@ app.use((req, res, next) => {
         "base-uri 'self'",
         "form-action 'self' https:",
         "frame-ancestors 'none'",
-        "connect-src 'self' https: wss: data: blob:",
+        "connect-src 'self' https: wss: ws: data: blob:",
         "worker-src 'self' blob:",
         "manifest-src 'self'"
     ].join('; ');
@@ -219,6 +219,7 @@ const server = createServer(app);
 // Initialize WebSocket service
 const webSocketService = initializeWebSocket(server);
 // Initialize database and start server
+associate(); // Set up model associations
 syncDB().then(() => {
     server.listen(PORT, HOST, () => {
         const protocol = isProd ? 'https' : 'http';

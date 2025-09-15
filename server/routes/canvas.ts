@@ -269,7 +269,7 @@ router.post('/:canvasId/collaborators', optionalAuth, async (req: Request, res: 
       canvas.userId === user.id ||
       await CanvasCollaborator.findOne({
         where: { 
-          canvasId: Number(canvasId), 
+          canvasId: canvasId, 
           userId: user.id, 
           permission: 'admin' 
         }
@@ -305,7 +305,7 @@ router.post('/:canvasId/collaborators', optionalAuth, async (req: Request, res: 
     }
     
     const collaborator = await CanvasCollaborator.create({
-      canvasId: Number(canvasId),
+      canvasId: canvasId,
       userId: targetUser.id,
       permission,
       joinedAt: new Date()

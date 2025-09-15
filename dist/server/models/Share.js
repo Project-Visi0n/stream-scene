@@ -14,15 +14,22 @@ export class Share {
     }
     // Static method to create a new share
     static async create(data) {
-        console.log('Share.create called with:', data);
+        if (!data.fileId && !data.canvasId) {
+            throw new Error('Either fileId or canvasId must be provided');
+        }
+        if (data.fileId && data.canvasId) {
+            throw new Error('Cannot share both file and canvas in the same share');
+        }
         const now = new Date();
         const shareToken = this.generateShareToken();
         const shareRecord = {
             id: nextShareId++,
             fileId: data.fileId,
+            canvasId: data.canvasId,
             userId: data.userId,
             shareToken,
             shareType: data.shareType,
+            resourceType: data.resourceType,
             accessCount: 0,
             maxAccess: data.shareType === 'one-time' ? 1 : null,
             expiresAt: data.expiresAt || null,
@@ -32,12 +39,10 @@ export class Share {
         };
         shareStorage.set(shareRecord.id, shareRecord);
         tokenToShareMap.set(shareToken, shareRecord.id);
-        console.log('Share created with ID:', shareRecord.id, 'Token:', shareToken);
         return new Share(shareRecord);
     }
     // Static method to find share by token
     static async findByToken(token) {
-        console.log('Share.findByToken called with token:', token.substring(0, 10) + '...');
         const shareId = tokenToShareMap.get(token);
         if (!shareId) {
             return null;
@@ -52,23 +57,27 @@ export class Share {
     }
     // Static method to find all shares by user ID
     static async findAllByUserId(userId) {
-        console.log('Share.findAllByUserId called with userId:', userId);
         const userShares = Array.from(shareStorage.values())
             .filter(share => share.userId === userId)
             .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
             .map(record => new Share(record));
-        console.log('Found shares for user:', userShares.length);
         return userShares;
     }
     // Static method to find all shares for a specific file
     static async findAllByFileId(fileId, userId) {
-        console.log('Share.findAllByFileId called with:', { fileId, userId });
         const fileShares = Array.from(shareStorage.values())
-            .filter(share => share.fileId === fileId && share.userId === userId)
+            .filter(share => share.fileId === fileId && share.userId === userId && share.resourceType === 'file')
             .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
             .map(record => new Share(record));
-        console.log('Found shares for file:', fileShares.length);
         return fileShares;
+    }
+    // Static method to find all shares for a specific canvas
+    static async findAllByCanvasId(canvasId, userId) {
+        const canvasShares = Array.from(shareStorage.values())
+            .filter(share => share.canvasId === canvasId && share.userId === userId && share.resourceType === 'canvas')
+            .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+            .map(record => new Share(record));
+        return canvasShares;
     }
     // Check if share is valid and can be accessed
     canAccess() {
@@ -101,37 +110,21 @@ export class Share {
     }
     // Instance method to save changes
     async save() {
-        console.log('Share.save called for share:', this.id);
-        this.updatedAt = new Date();
-        const record = shareStorage.get(this.id);
-        if (record) {
-            // Update the stored record
-            Object.assign(record, {
-                shareType: this.shareType,
-                accessCount: this.accessCount,
-                maxAccess: this.maxAccess,
-                expiresAt: this.expiresAt,
-                updatedAt: this.updatedAt,
-                isActive: this.isActive
-            });
-            shareStorage.set(this.id, record);
-        }
-        return this;
+        const updated = Object.assign(Object.assign({}, this), { updatedAt: new Date() });
+        shareStorage.set(this.id, updated);
+        return new Share(updated);
     }
     // Instance method to deactivate this share
     async deactivate() {
-        console.log('Share.deactivate called for share:', this.id);
         this.isActive = false;
         return await this.save();
     }
     // Instance method to delete this share
     async destroy() {
-        console.log('Share.destroy called for share:', this.id);
         // Remove from token mapping
         tokenToShareMap.delete(this.shareToken);
         // Remove from storage
         const deleted = shareStorage.delete(this.id);
-        console.log('Share deletion result:', deleted);
         return deleted;
     }
     // Static method to get storage stats (for debugging)
@@ -147,6 +140,8 @@ export class Share {
         return {
             id: this.id,
             fileId: this.fileId,
+            canvasId: this.canvasId,
+            resourceType: this.resourceType,
             shareType: this.shareType,
             accessCount: this.accessCount,
             maxAccess: this.maxAccess,
@@ -159,6 +154,9 @@ export class Share {
     }
     // Get shareable URL (for the user who created the share)
     getShareUrl(baseUrl) {
+        if (this.resourceType === 'canvas') {
+            return `${baseUrl}/shared/canvas/${this.shareToken}`;
+        }
         return `${baseUrl}/shared/${this.shareToken}`;
     }
 }

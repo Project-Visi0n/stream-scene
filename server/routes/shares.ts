@@ -181,9 +181,9 @@ router.get('/file/:fileId', requireAuth, async (req: Request, res: Response) => 
 router.get('/canvas/:canvasId', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req.user as any).id;
-    const canvasId = parseInt(req.params.canvasId);
+    const canvasId = req.params.canvasId;
 
-    if (isNaN(canvasId)) {
+    if (!canvasId || typeof canvasId !== 'string') {
       return res.status(400).json({ error: 'Invalid canvas ID' });
     }
 
