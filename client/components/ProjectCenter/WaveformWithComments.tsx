@@ -48,6 +48,8 @@ const WaveformWithComments: React.FC<WaveformWithCommentsProps> = ({
   const [commentTimestamp, setCommentTimestamp] = useState<number>(0);
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [hoveredComment, setHoveredComment] = useState<TimestampedComment | null>(null);
+  const [showCommentsPanel, setShowCommentsPanel] = useState(true);
 
   // Format time helper
   const formatTime = (seconds: number): string => {
