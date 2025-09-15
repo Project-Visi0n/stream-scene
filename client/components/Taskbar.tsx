@@ -23,12 +23,6 @@ const Taskbar: React.FC<TaskbarProps> = ({ className = '' }) => {
       href: '#budget-tracker'
     },
     {
-      id: 'demos-trailers',
-      label: 'Demos & Trailers',
-      icon: '▶️',
-      href: '#demos-trailers'
-    },
-    {
       id: 'ai-planner',
       label: 'AI Weekly Planner',
       icon: '📅',

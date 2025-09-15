@@ -17,11 +17,6 @@ passport.use(
     },
     async (req: any, accessToken: string, refreshToken: string, profile: any, done: Function) => {
       try {
-        console.log('=== Google Strategy Callback ===');
-        console.log('Profile ID:', profile.id);
-        console.log('Profile Email:', profile.emails?.[0]?.value);
-        console.log('Profile Name:', profile.displayName);
-
         // Find or create user
         let user = await User.findOne({ where: { google_id: profile.id } });
 
@@ -31,9 +26,6 @@ passport.use(
             email: profile.emails?.[0]?.value,
             name: `${profile.name?.givenName || ''} ${profile.name?.familyName || ''}`.trim(),
           });
-          console.log('New user created:', user.id);
-        } else {
-          console.log('Existing user found:', user.id);
         }
 
         return done(null, user);
@@ -46,12 +38,10 @@ passport.use(
 );
 
 passport.serializeUser((user: any, done) => {
-  console.log('Serializing user:', user.id);
   done(null, user.id);
 });
 
 passport.deserializeUser(async (id: number, done) => {
-  console.log('Deserializing user:', id);
   try {
     const user = await User.findByPk(id); 
     done(null, user);

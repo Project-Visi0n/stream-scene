@@ -6,13 +6,13 @@ import ProjectCenter from './ProjectCenter/ProjectCenter';
 import SharedFileViewer from './SharedFileViewer';
 import Navbar from './NavBar';
 import ContentScheduler from '../ContentScheduler/ContentScheduler';
-import DemosTrailers from './DemosTrailers';
 import BudgetTracker from './BudgetTracker';
 import PrivacyPolicyPage from './PrivacyPolicyPage';
 import TermsOfServicePage from './TermsOfServicePage';
 import MobileOptimizations from './MobileOptimizations';
+import SharedCanvas from './SharedCanvas';
 
-export type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers' | 'content-scheduler';
+export type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'content-scheduler';
 
 const App: React.FC = () => {
   const navigate = useNavigate();
@@ -25,7 +25,6 @@ const App: React.FC = () => {
       '/planner': 'planner',
       '/project-center': 'project-center',
       '/budget-tracker': 'budget-tracker',
-      '/demos-trailers': 'demos-trailers',
       '/content-scheduler': 'content-scheduler'
     };
 
@@ -42,7 +41,6 @@ const App: React.FC = () => {
       'planner': '/planner',
       'project-center': '/project-center',
       'budget-tracker': '/budget-tracker',
-      'demos-trailers': '/demos-trailers',
       'content-scheduler': '/content-scheduler'
     };
 
@@ -59,7 +57,7 @@ const App: React.FC = () => {
                      location.pathname !== '/terms';
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-black">
       <MobileOptimizations />
       {showNavbar && (
         <Navbar
@@ -73,9 +71,9 @@ const App: React.FC = () => {
           <Route path="/planner" element={<AIWeeklyPlanner />} />
           <Route path="/project-center" element={<ProjectCenter />} />
           <Route path="/budget-tracker" element={<BudgetTracker />} />
-          <Route path="/demos-trailers" element={<DemosTrailers />} />
           <Route path="/content-scheduler" element={<ContentScheduler />} />
           <Route path="/shared/:token" element={<SharedFileViewer />} />
+          <Route path="/canvas/shared/:token" element={<SharedCanvas />} />
           {/* Legal pages */}
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsOfServicePage />} />
