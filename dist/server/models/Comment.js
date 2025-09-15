@@ -9,7 +9,7 @@ Comment.init({
         primaryKey: true,
     },
     fileId: {
-        type: DataTypes.INTEGER,
+        type: DataTypes.INTEGER.UNSIGNED,
         allowNull: false,
         references: {
             model: 'files',

@@ -100,7 +100,6 @@ router.post('/upload', requireAuth, async (req, res) => {
     try {
         const userId = req.user.id;
         const { name, originalName, type, size, s3Key, url, tags } = req.body;
-        console.log('[Files] Upload endpoint called with:', { name, type, size, s3Key, userId });
         if (!name || !type || !size || !url) {
             return res.status(400).json({ error: 'Missing required file information' });
         }
@@ -128,7 +127,6 @@ router.post('/upload', requireAuth, async (req, res) => {
         const response = Object.assign(Object.assign({}, file.toJSON()), { tags: (file.tags && typeof file.tags === 'string')
                 ? file.tags.split(',').map(tag => tag.trim())
                 : [] });
-        console.log('[Files] File record created successfully:', { id: file.id, name: file.name });
         res.status(201).json(response);
     }
     catch (error) {
