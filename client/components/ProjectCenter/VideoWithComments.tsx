@@ -49,6 +49,8 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [videoError, setVideoError] = useState(false);
+  const [hoveredComment, setHoveredComment] = useState<TimestampedComment | null>(null);
+  const [showCommentsPanel, setShowCommentsPanel] = useState(true);
 
   // Format time helper
   const formatTime = (seconds: number): string => {
@@ -212,199 +214,281 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
   }
 
   return (
-    <div className={`bg-gray-800 rounded-lg p-4 space-y-4 ${className}`}>
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium text-white truncate">
-          {file.name}
-        </h3>
-        <div className="text-sm text-gray-400">
-          {formatTime(currentTime)} / {formatTime(duration)}
-        </div>
-      </div>
-
-      {/* Video Player */}
-      <div className="relative bg-black rounded-lg overflow-hidden">
-        <video
-          ref={videoRef}
-          src={getVideoUrl(file)}
-          className="w-full h-auto"
-          onTimeUpdate={handleTimeUpdate}
-          onLoadedMetadata={handleLoadedMetadata}
-          onPlay={() => setIsPlaying(true)}
-          onPause={() => setIsPlaying(false)}
-          onError={() => setVideoError(true)}
-          controls={false} // We'll create custom controls
-          crossOrigin="anonymous"
-        >
-          {file.captionUrl && (
-            <track
-              kind="captions"
-              src={file.captionUrl}
-              srcLang="en"
-              label="English"
-              default
-            />
-          )}
-        </video>
-
-        {/* Custom Video Controls Overlay */}
-        <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-4">
-          {/* Progress Bar with Comment Markers */}
-          <div 
-            ref={progressBarRef}
-            className="relative w-full h-2 bg-gray-600 rounded-full cursor-pointer mb-3"
-            onClick={handleProgressClick}
-            onDoubleClick={handleProgressDoubleClick}
-            title="Click to seek, double-click to add comment"
-          >
-            {/* Progress */}
-            <div 
-              className="absolute top-0 left-0 h-full bg-purple-500 rounded-full transition-all duration-100"
-              style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
-            />
-            
-            {/* Comment markers */}
-            {comments.map((comment) => {
-              const position = duration > 0 ? (comment.timestampSeconds / duration) * 100 : 0;
-              
-              return (
-                <div
-                  key={comment.id}
-                  className="absolute top-0 w-1 h-2 bg-yellow-400 cursor-pointer hover:bg-yellow-300 transition-colors"
-                  style={{ left: `${position}%` }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    jumpToComment(comment.timestampSeconds);
-                  }}
-                  title={`${formatTime(comment.timestampSeconds)}: ${comment.content.substring(0, 50)}...`}
-                >
-                  <div className="absolute -top-1 -left-1 w-3 h-3 bg-yellow-400 rounded-full border border-gray-800" />
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Control Buttons */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {/* Play/Pause */}
-              <button
-                onClick={togglePlayPause}
-                className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-full transition-colors"
-                title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
-              >
-                {isPlaying ? (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 002 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                  </svg>
-                )}
-              </button>
-
-              {/* Skip buttons */}
-              <button
-                onClick={() => {
-                  if (videoRef.current) {
-                    videoRef.current.currentTime = Math.max(0, currentTime - 5);
-                  }
-                }}
-                className="p-2 text-gray-300 hover:text-white transition-colors"
-                title="Skip backward 5s (←)"
-              >
-                -5s
-              </button>
-
-              <button
-                onClick={() => {
-                  if (videoRef.current) {
-                    videoRef.current.currentTime = Math.min(duration, currentTime + 5);
-                  }
-                }}
-                className="p-2 text-gray-300 hover:text-white transition-colors"
-                title="Skip forward 5s (→)"
-              >
-                +5s
-              </button>
-            </div>
-
-            {/* Add comment button */}
-            <button
-              onClick={() => {
-                setCommentTimestamp(currentTime);
-                setShowCommentModal(true);
-              }}
-              className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-              title="Add comment at current time"
-            >
-              <HiPlus className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Comments List */}
-      {comments.length > 0 && (
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-300 flex items-center gap-2">
-            <HiChatBubbleLeft className="w-4 h-4" />
-            Comments ({comments.length})
-          </h4>
-          <div className="space-y-2 max-h-32 overflow-y-auto">
-            {comments.map((comment) => (
-              <div 
-                key={comment.id}
-                className="bg-gray-700 rounded p-2 text-sm cursor-pointer hover:bg-gray-600 transition-colors"
-                onClick={() => jumpToComment(comment.timestampSeconds)}
-              >
-                <div className="flex items-center justify-between text-xs text-gray-400 mb-1">
-                  <span>{comment.user?.name || comment.guestName || 'Anonymous'}</span>
-                  <span className="text-yellow-400 font-mono">
-                    {formatTime(comment.timestampSeconds)}
-                  </span>
-                </div>
-                <div className="text-gray-200">{comment.content}</div>
+    <div className={`bg-gray-800 rounded-lg overflow-hidden ${className}`}>
+      {/* Main Layout: Video + Comments Side by Side */}
+      <div className="flex flex-col lg:flex-row">
+        {/* Video Section */}
+        <div className="flex-1 lg:max-w-2xl">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-700">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium text-white truncate">
+                {file.name}
+              </h3>
+              <div className="text-sm text-gray-400 font-mono">
+                {formatTime(currentTime)} / {formatTime(duration)}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Caption Controls */}
-      {file.fileRecordId && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between p-3 bg-slate-700/50 rounded-lg">
-            <div className="flex items-center gap-3">
-              <span className="text-sm text-gray-300">
-                {file.captionUrl ? 'Captions available' : 'Add captions to this video:'}
-              </span>
-              {file.captionUrl && (
-                <span className="text-green-400 text-xs bg-green-400/10 px-2 py-1 rounded">
-                  ✓ Ready
-                </span>
-              )}
             </div>
-            {!file.captionUrl && (
-              <ClosedCaptionButton 
-                fileId={file.fileRecordId} 
-                onCaptionReady={(captionUrl) => {
-                  console.log('🎬 Caption ready callback triggered:', { fileId: file.id, captionUrl });
-                  if (onFileUpdated) {
-                    onFileUpdated(file.id, { captionUrl });
-                  }
-                }}
-              />
+          </div>
+
+          {/* Video Player */}
+          <div className="relative bg-black">
+            <video
+              ref={videoRef}
+              src={getVideoUrl(file)}
+              className="w-full h-auto"
+              onTimeUpdate={handleTimeUpdate}
+              onLoadedMetadata={handleLoadedMetadata}
+              onPlay={() => setIsPlaying(true)}
+              onPause={() => setIsPlaying(false)}
+              onError={() => setVideoError(true)}
+              controls={false}
+              crossOrigin="anonymous"
+            >
+              {file.captionUrl && (
+                <track
+                  kind="captions"
+                  src={file.captionUrl}
+                  srcLang="en"
+                  label="English"
+                  default
+                />
+              )}
+            </video>
+
+            {/* Video Controls Overlay */}
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-4">
+              {/* Progress Bar with Enhanced Comment Markers */}
+              <div className="mb-4">
+                <div 
+                  ref={progressBarRef}
+                  className="relative w-full h-3 bg-gray-600 rounded-full cursor-pointer group"
+                  onClick={handleProgressClick}
+                  onDoubleClick={handleProgressDoubleClick}
+                  title="Click to seek, double-click to add comment"
+                >
+                  {/* Progress */}
+                  <div 
+                    className="absolute top-0 left-0 h-full bg-purple-500 rounded-full transition-all duration-100"
+                    style={{ width: `${duration > 0 ? (currentTime / duration) * 100 : 0}%` }}
+                  />
+                  
+                  {/* Comment markers with enhanced hover */}
+                  {comments.map((comment) => {
+                    const position = duration > 0 ? (comment.timestampSeconds / duration) * 100 : 0;
+                    const isNearCurrent = Math.abs(comment.timestampSeconds - currentTime) < 5;
+                    
+                    return (
+                      <div
+                        key={comment.id}
+                        className={`absolute top-0 w-2 h-3 cursor-pointer transition-all duration-200 ${
+                          isNearCurrent ? 'bg-yellow-300 scale-150' : 'bg-yellow-400 hover:bg-yellow-300'
+                        }`}
+                        style={{ left: `${position}%`, marginLeft: '-4px' }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          jumpToComment(comment.timestampSeconds);
+                        }}
+                        onMouseEnter={() => setHoveredComment(comment)}
+                        onMouseLeave={() => setHoveredComment(null)}
+                      >
+                        {/* Comment popup on hover */}
+                        {hoveredComment?.id === comment.id && (
+                          <div className="absolute bottom-5 left-1/2 transform -translate-x-1/2 bg-gray-900 text-white p-2 rounded shadow-lg z-10 w-48 text-xs">
+                            <div className="text-yellow-400 font-mono mb-1">{formatTime(comment.timestampSeconds)}</div>
+                            <div className="text-gray-200">{comment.content}</div>
+                            <div className="text-gray-400 text-xs mt-1">
+                              {comment.user?.name || comment.guestName || 'Anonymous'}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Control Buttons */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {/* Play/Pause */}
+                  <button
+                    onClick={togglePlayPause}
+                    className="p-3 bg-purple-600 hover:bg-purple-700 text-white rounded-full transition-colors"
+                    title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+                  >
+                    {isPlaying ? (
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 002 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+
+                  {/* Skip buttons */}
+                  <button
+                    onClick={() => {
+                      if (videoRef.current) {
+                        videoRef.current.currentTime = Math.max(0, currentTime - 5);
+                      }
+                    }}
+                    className="p-2 text-gray-300 hover:text-white transition-colors text-sm"
+                    title="Skip backward 5s (←)"
+                  >
+                    -5s
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (videoRef.current) {
+                        videoRef.current.currentTime = Math.min(duration, currentTime + 5);
+                      }
+                    }}
+                    className="p-2 text-gray-300 hover:text-white transition-colors text-sm"
+                    title="Skip forward 5s (→)"
+                  >
+                    +5s
+                  </button>
+                </div>
+
+                {/* Right side controls */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowCommentsPanel(!showCommentsPanel)}
+                    className="p-2 text-gray-300 hover:text-white transition-colors lg:hidden"
+                    title="Toggle comments"
+                  >
+                    <HiChatBubbleLeft className="w-5 h-5" />
+                  </button>
+                  
+                  <button
+                    onClick={() => {
+                      setCommentTimestamp(currentTime);
+                      setShowCommentModal(true);
+                    }}
+                    className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                    title="Add comment at current time"
+                  >
+                    <HiPlus className="w-5 h-5" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Caption Controls */}
+          {file.fileRecordId && (
+            <div className="p-4 border-t border-gray-700">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-sm text-gray-300">
+                    {file.captionUrl ? 'Captions available' : 'Add captions:'}
+                  </span>
+                  {file.captionUrl && (
+                    <span className="text-green-400 text-xs bg-green-400/10 px-2 py-1 rounded">
+                      ✓ Ready
+                    </span>
+                  )}
+                </div>
+                {!file.captionUrl && (
+                  <ClosedCaptionButton 
+                    fileId={file.fileRecordId} 
+                    onCaptionReady={(captionUrl) => {
+                      console.log('🎬 Caption ready callback triggered:', { fileId: file.id, captionUrl });
+                      if (onFileUpdated) {
+                        onFileUpdated(file.id, { captionUrl });
+                      }
+                    }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Comments Panel */}
+        <div className={`lg:w-80 bg-gray-750 border-l border-gray-700 ${showCommentsPanel ? 'block' : 'hidden lg:block'}`}>
+          <div className="p-4 border-b border-gray-700">
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-medium text-white flex items-center gap-2">
+                <HiChatBubbleLeft className="w-5 h-5" />
+                Comments
+              </h4>
+              <span className="text-sm text-gray-400 bg-gray-600 px-2 py-1 rounded-full">
+                {comments.length}
+              </span>
+            </div>
+          </div>
+
+          {/* Current Time Comment */}
+          {(() => {
+            const currentComment = comments.find(comment => 
+              Math.abs(comment.timestampSeconds - currentTime) < 2
+            );
+            return currentComment ? (
+              <div className="p-4 bg-purple-900/30 border-b border-gray-700">
+                <div className="text-xs text-purple-300 mb-1">Now playing:</div>
+                <div className="bg-purple-800/50 rounded p-3">
+                  <div className="flex items-center justify-between text-xs text-purple-200 mb-2">
+                    <span>{currentComment.user?.name || currentComment.guestName || 'Anonymous'}</span>
+                    <span className="font-mono">{formatTime(currentComment.timestampSeconds)}</span>
+                  </div>
+                  <div className="text-white">{currentComment.content}</div>
+                </div>
+              </div>
+            ) : null;
+          })()}
+
+          {/* Comments List */}
+          <div className="flex-1 overflow-y-auto max-h-96">
+            {comments.length === 0 ? (
+              <div className="p-8 text-center text-gray-400">
+                <HiChatBubbleLeft className="w-12 h-12 mx-auto mb-3 text-gray-500" />
+                <div className="text-sm">No comments yet</div>
+                <div className="text-xs text-gray-500 mt-1">Double-click the timeline or use the + button</div>
+              </div>
+            ) : (
+              <div className="p-4 space-y-3">
+                {comments.map((comment) => {
+                  const isActive = Math.abs(comment.timestampSeconds - currentTime) < 2;
+                  return (
+                    <div 
+                      key={comment.id}
+                      className={`p-3 rounded-lg cursor-pointer transition-all duration-200 ${
+                        isActive 
+                          ? 'bg-purple-800/50 border border-purple-500/50 shadow-lg' 
+                          : 'bg-gray-700 hover:bg-gray-600'
+                      }`}
+                      onClick={() => jumpToComment(comment.timestampSeconds)}
+                    >
+                      <div className="flex items-center justify-between text-xs mb-2">
+                        <span className={isActive ? 'text-purple-200' : 'text-gray-400'}>
+                          {comment.user?.name || comment.guestName || 'Anonymous'}
+                        </span>
+                        <span className={`font-mono ${isActive ? 'text-purple-300' : 'text-yellow-400'}`}>
+                          {formatTime(comment.timestampSeconds)}
+                        </span>
+                      </div>
+                      <div className={`text-sm ${isActive ? 'text-white' : 'text-gray-200'}`}>
+                        {comment.content}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
-      )}
+      </div>
 
-      {/* Keyboard shortcuts hint */}
-      <div className="text-xs text-gray-500">
-        💡 Space: Play/Pause | ← →: Skip 5s | Double-click timeline: Add comment
+      {/* Quick Tips */}
+      <div className="p-4 bg-gray-900/50 border-t border-gray-700">
+        <div className="text-xs text-gray-500 text-center">
+          💡 Space: Play/Pause | ← →: Skip 5s | Double-click timeline: Add comment | Click comment: Jump to time
+        </div>
       </div>
 
       {/* Comment Modal */}
