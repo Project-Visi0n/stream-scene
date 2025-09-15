@@ -10,6 +10,7 @@ import BudgetTracker from './BudgetTracker';
 import PrivacyPolicyPage from './PrivacyPolicyPage';
 import TermsOfServicePage from './TermsOfServicePage';
 import MobileOptimizations from './MobileOptimizations';
+import SharedCanvas from './SharedCanvas';
 
 export type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'content-scheduler';
 
@@ -72,6 +73,7 @@ const App: React.FC = () => {
           <Route path="/budget-tracker" element={<BudgetTracker />} />
           <Route path="/content-scheduler" element={<ContentScheduler />} />
           <Route path="/shared/:token" element={<SharedFileViewer />} />
+          <Route path="/canvas/shared/:token" element={<SharedCanvas />} />
           {/* Legal pages */}
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/terms" element={<TermsOfServicePage />} />

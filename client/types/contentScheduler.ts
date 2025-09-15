@@ -41,9 +41,16 @@ export interface CalendarEvent {
   title: string;
   description: string;
   date: Date;
-  type: 'post' | 'reminder' | 'content-idea';
+  type: 'post' | 'reminder' | 'content-idea' | 'canvas-session' | 'canvas-meeting';
   postId?: string;
   platforms?: ['threads'];
+  canvasId?: string;
+  collaborators?: string[];
+  duration?: number; // Duration in minutes
+  recurring?: {
+    frequency: 'daily' | 'weekly' | 'monthly';
+    endDate?: Date;
+  };
 }
 
 export interface SocialAuthResponse {
@@ -91,4 +98,32 @@ export interface ThreadsStatusResponse {
   ok: boolean;
   connected: boolean;
   accountId?: string;
+}
+
+// Canvas-specific calendar interfaces
+export interface CanvasSession {
+  id: string;
+  canvasId: string;
+  title: string;
+  description?: string;
+  scheduledDate: Date;
+  duration: number; // Duration in minutes
+  organizer: string; // User ID of the organizer
+  collaborators: string[]; // Array of user IDs or email addresses
+  status: 'scheduled' | 'active' | 'completed' | 'cancelled';
+  calendarEventId?: string;
+  recurring?: {
+    frequency: 'daily' | 'weekly' | 'monthly';
+    endDate?: Date;
+  };
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CanvasCalendarEvent extends CalendarEvent {
+  type: 'canvas-session' | 'canvas-meeting';
+  canvasId: string;
+  collaborators: string[];
+  duration: number;
+  sessionId?: string;
 }

@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db/index.js';
+import Canvas from '../models/Canvas.js';
 
 const router = Router();
 const { File, Share } = db;
@@ -37,7 +38,7 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     }
 
     // Verify file exists and belongs to user
-  const file = await File.findOne({ where: { id: fileId, userId } });
+    const file = await File.findOne({ where: { id: fileId, userId } });
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
@@ -46,7 +47,8 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
     const shareData: any = {
       fileId,
       userId,
-      shareType
+      shareType,
+      resourceType: 'file' as const
     };
 
     // Handle expiration date if provided
@@ -80,6 +82,68 @@ router.post('/', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
+// Create a new share for a canvas
+router.post('/canvas', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any).id;
+    const { canvasId, shareType, expiresAt } = req.body;
+
+    // Validate input
+    if (!canvasId || !shareType) {
+      return res.status(400).json({ error: 'Missing required canvas share information' });
+    }
+
+    if (!['one-time', 'indefinite'].includes(shareType)) {
+      return res.status(400).json({ error: 'Invalid share type. Must be "one-time" or "indefinite"' });
+    }
+
+    // Import Canvas model here to avoid circular dependencies
+    
+    // Verify canvas exists and belongs to user
+    const canvas = await Canvas.findOne({ where: { id: canvasId, userId } });
+    if (!canvas) {
+      return res.status(404).json({ error: 'Canvas not found' });
+    }
+
+    // Create the share
+    const shareData: any = {
+      canvasId,
+      userId,
+      shareType,
+      resourceType: 'canvas' as const
+    };
+
+    // Handle expiration date if provided
+    if (expiresAt) {
+      const expDate = new Date(expiresAt);
+      if (isNaN(expDate.getTime())) {
+        return res.status(400).json({ error: 'Invalid expiration date' });
+      }
+      if (expDate <= new Date()) {
+        return res.status(400).json({ error: 'Expiration date must be in the future' });
+      }
+      shareData.expiresAt = expDate;
+    }
+
+    const share = await Share.create(shareData);
+
+    // Generate the shareable URL (points to frontend client route)
+    const baseUrl = getBaseUrl(req);
+    const shareUrl = `${baseUrl}/shared/canvas/${share.shareToken}`;
+
+    res.status(201).json({
+      share: {
+        ...share.toJSON(),
+        shareUrl,
+        shareToken: share.shareToken // Include token for the creator
+      }
+    });
+  } catch (error) {
+    console.error('Error creating canvas share:', error);
+    res.status(500).json({ error: 'Failed to create canvas share' });
+  }
+});
+
 // Get all shares for a specific file
 router.get('/file/:fileId', requireAuth, async (req: Request, res: Response) => {
   try {
@@ -91,7 +155,7 @@ router.get('/file/:fileId', requireAuth, async (req: Request, res: Response) => 
     }
 
     // Verify file exists and belongs to user
-  const file = await File.findOne({ where: { id: fileId, userId } });
+    const file = await File.findOne({ where: { id: fileId, userId } });
     if (!file) {
       return res.status(404).json({ error: 'File not found' });
     }
@@ -110,6 +174,39 @@ router.get('/file/:fileId', requireAuth, async (req: Request, res: Response) => 
   } catch (error) {
     console.error('Error fetching file shares:', error);
     res.status(500).json({ error: 'Failed to fetch file shares' });
+  }
+});
+
+// Get all shares for a specific canvas
+router.get('/canvas/:canvasId', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = (req.user as any).id;
+    const canvasId = parseInt(req.params.canvasId);
+
+    if (isNaN(canvasId)) {
+      return res.status(400).json({ error: 'Invalid canvas ID' });
+    }
+
+    // Verify canvas exists and belongs to user
+    const canvas = await Canvas.findOne({ where: { id: canvasId, userId } });
+    if (!canvas) {
+      return res.status(404).json({ error: 'Canvas not found' });
+    }
+
+    const shares = await Share.findAllByCanvasId(canvasId, userId);
+    const baseUrl = getBaseUrl(req);
+
+    // Add share URLs to each share
+    const sharesWithUrls = shares.map((share: any) => ({
+      ...share.toJSON(),
+      shareUrl: `${baseUrl}/shared/canvas/${share.shareToken}`,
+      shareToken: share.shareToken // Include token for the creator
+    }));
+
+    res.json({ shares: sharesWithUrls });
+  } catch (error) {
+    console.error('Error fetching canvas shares:', error);
+    res.status(500).json({ error: 'Failed to fetch canvas shares' });
   }
 });
 
@@ -159,38 +256,86 @@ router.get('/shared/:token', async (req: Request, res: Response) => {
       });
     }
 
-    // Get the associated file
-  const file = await File.findOne({ where: { id: share.fileId, userId: share.userId } });
-    if (!file) {
-      return res.status(404).json({ error: 'Associated file not found' });
-    }
-
-    // Record the access
-    const accessGranted = await share.recordAccess();
-    if (!accessGranted) {
-      return res.status(410).json({ error: 'Share is no longer available' });
-    }
-
-    // Return file information and direct download/view URL
-    res.json({
-      file: {
-        id: file.id,
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        url: file.url,
-        uploadedAt: file.uploadedAt
-      },
-      share: {
-        shareType: share.shareType,
-        accessCount: share.accessCount,
-        maxAccess: share.maxAccess,
-        remainingAccess: share.maxAccess ? share.maxAccess - share.accessCount : null
+    // Handle file shares
+    if (share.resourceType === 'file' && share.fileId) {
+      // Get the associated file
+      const file = await File.findOne({ where: { id: share.fileId, userId: share.userId } });
+      if (!file) {
+        return res.status(404).json({ error: 'Associated file not found' });
       }
-    });
+
+      // Record the access
+      const accessGranted = await share.recordAccess();
+      if (!accessGranted) {
+        return res.status(410).json({ error: 'Share is no longer available' });
+      }
+
+      // Return file information and direct download/view URL
+      res.json({
+        file: {
+          id: file.id,
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          url: file.url,
+          uploadedAt: file.uploadedAt
+        },
+        share: {
+          shareType: share.shareType,
+          accessCount: share.accessCount,
+          maxAccess: share.maxAccess,
+          remainingAccess: share.maxAccess ? share.maxAccess - share.accessCount : null
+        }
+      });
+    }
+    // Handle canvas shares
+    else if (share.resourceType === 'canvas' && share.canvasId) {
+      // Get the associated canvas
+      const canvas = await Canvas.findOne({ 
+        where: { id: share.canvasId, userId: share.userId },
+        include: [
+          {
+            model: Canvas.associations?.owner?.target || Canvas, // Handle association
+            as: 'owner',
+            attributes: ['id', 'email', 'name']
+          }
+        ]
+      });
+      if (!canvas) {
+        return res.status(404).json({ error: 'Associated canvas not found' });
+      }
+
+      // Record the access
+      const accessGranted = await share.recordAccess();
+      if (!accessGranted) {
+        return res.status(410).json({ error: 'Share is no longer available' });
+      }
+
+      // Return canvas information
+      res.json({
+        canvas: {
+          id: canvas.id,
+          name: canvas.name,
+          description: canvas.description,
+          canvasData: canvas.canvasData,
+          backgroundColor: canvas.backgroundColor,
+          shareToken: canvas.shareToken,
+          allowAnonymousEdit: canvas.allowAnonymousEdit,
+          isPublic: canvas.isPublic
+        },
+        share: {
+          shareType: share.shareType,
+          accessCount: share.accessCount,
+          maxAccess: share.maxAccess,
+          remainingAccess: share.maxAccess ? share.maxAccess - share.accessCount : null
+        }
+      });
+    } else {
+      return res.status(400).json({ error: 'Invalid share configuration' });
+    }
   } catch (error) {
-    console.error('Error accessing shared file:', error);
-    res.status(500).json({ error: 'Failed to access shared file' });
+    console.error('Error accessing shared resource:', error);
+    res.status(500).json({ error: 'Failed to access shared resource' });
   }
 });
 

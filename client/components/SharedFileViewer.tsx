@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Navbar from './NavBar';
 import { useNavigate } from 'react-router-dom';
 import { useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { shareService, SharedFileAccess } from '../services/shareService';
+import { CommentSection } from './Comments';
 
 const SharedFileViewer: React.FC = () => {
   const { token } = useParams<{ token: string }>();
@@ -14,6 +15,9 @@ const SharedFileViewer: React.FC = () => {
   const [imageError, setImageError] = useState(false);
   const [videoError, setVideoError] = useState(false);
   const [audioError, setAudioError] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
     if (token) {
@@ -74,11 +78,13 @@ const SharedFileViewer: React.FC = () => {
         <div className="w-full max-w-4xl mx-auto">
           {!videoError ? (
             <video 
+              ref={videoRef}
               controls 
               className="w-full rounded-lg shadow-lg bg-black"
               style={{ maxHeight: '70vh' }}
               crossOrigin="anonymous"
               onError={() => setVideoError(true)}
+              onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
             >
               <source src={url} type={type} />
               Your browser does not support the video tag.
@@ -112,10 +118,12 @@ const SharedFileViewer: React.FC = () => {
           </div>
           {!audioError ? (
             <audio 
+              ref={audioRef}
               controls 
               className="w-full"
               crossOrigin="anonymous"
               onError={() => setAudioError(true)}
+              onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
             >
               <source src={url} type={type} />
               Your browser does not support the audio tag.
@@ -363,6 +371,17 @@ const SharedFileViewer: React.FC = () => {
               </svg>
               Download {file.name}
             </motion.a>
+          </div>
+
+          {/* Comments Section */}
+          <div className="bg-slate-800/30 border border-purple-500/20 rounded-xl p-6 backdrop-blur-sm">
+            <CommentSection
+              fileId={file.id}
+              currentTime={isVideoFile(file.type) || isAudioFile(file.type) ? currentTime : undefined}
+              isOwner={false} // Shared links are for guests
+              allowAnonymous={true}
+              className="bg-transparent border-0 shadow-none"
+            />
           </div>
         </motion.div>
       </div>

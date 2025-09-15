@@ -31,7 +31,6 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
 
   // Load project files and check auth status on mount
   useEffect(() => {
-    console.log('[ContentScheduler] useeEffect running')
     loadProjectFiles();
     checkThreadsAuth();
   }, []);
@@ -39,27 +38,20 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
 const loadProjectFiles = async () => {
   setLoadingFiles(true);
   try {
-    console.log('[ContentScheduler] Loading files...');
     const response = await fetch('/api/files', {
       credentials: 'include'
     });
     
-    console.log('[ContentScheduler] Response status:', response.status);
-    
     if (response.status === 401) {
-      console.warn('User not authenticated, cannot load files');
       setProjectFiles([]);
       return;
     }
     
     if (response.ok) {
       const data = await response.json();
-      console.log('[ContentScheduler] Response data:', data);
-      console.log('[ContentScheduler] Files array:', data.files);
       
       // Extract files from the response object
       const files = data.files || [];
-      console.log('[ContentScheduler] Setting files:', files.length, 'files');
       setProjectFiles(Array.isArray(files) ? files : []);
     } else {
       console.warn('Failed to load files:', response.status, response.statusText);

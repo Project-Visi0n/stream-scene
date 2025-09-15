@@ -98,8 +98,6 @@ const FeatureCard: React.FC<{
       onShowLoginPrompt();
       return;
     }
-
-    console.log('🎯 NAVIGATING TO:', feature.destination);
     
     // Use React Router navigation
     const routeMap: Record<CurrentView, string> = {
@@ -233,11 +231,7 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
               {/* Large Google Login Button */}
               <button
                 onClick={() => {
-                  console.log('=== Google OAuth Login Debug ===');
-                  console.log('Current location:', window.location.href);
-                  
                   const loginUrl = `${window.location.origin}/auth/google`;
-                  console.log('Redirecting to:', loginUrl);
                   
                   window.location.href = loginUrl;
                 }}
