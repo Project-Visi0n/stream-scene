@@ -174,6 +174,8 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
           forceNew: true, // Force new connection
           upgrade: true, // Allow transport upgrades
           timeout: 10000, // Increase timeout for slow connections
+          secure: window.location.protocol === 'https:', // Use secure connection for HTTPS sites
+          rejectUnauthorized: false // For development/self-signed certificates
         });
 
         socketInstance.on('connect', () => {
@@ -367,6 +369,19 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
     return {
       x: (e.clientX - rect.left) * (canvas.width / rect.width),
       y: (e.clientY - rect.top) * (canvas.height / rect.height)
+    };
+  }, []);
+
+  // Touch support - convert touch coordinates to canvas coordinates
+  const getTouchCanvasPoint = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = canvasRef.current;
+    if (!canvas || e.touches.length === 0) return { x: 0, y: 0 };
+
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0]; // Use first touch point
+    return {
+      x: (touch.clientX - rect.left) * (canvas.width / rect.width),
+      y: (touch.clientY - rect.top) * (canvas.height / rect.height)
     };
   }, []);
 
@@ -641,6 +656,55 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
   }, [isDrawing, lastPoint, getCanvasPoint, drawLine, brushColor, brushWidth, currentTool, saveStroke, socket]);
 
   const handleMouseUp = useCallback(() => {
+    setIsDrawing(false);
+    setLastPoint(null);
+  }, []);
+
+  // Touch event handlers for mobile support
+  const handleTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault(); // Prevent scrolling and zooming
+    const point = getTouchCanvasPoint(e);
+    
+    if (currentTool === 'text') {
+      setTextInput({ x: point.x, y: point.y, text: '', active: true });
+      return;
+    }
+    
+    setIsDrawing(true);
+    setLastPoint(point);
+    saveToHistory(); // Save state before drawing
+  }, [getTouchCanvasPoint, currentTool, saveToHistory]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault(); // Prevent scrolling and zooming
+    const point = getTouchCanvasPoint(e);
+    
+    // Emit cursor position to collaborators
+    if (socket && socket.connected) {
+      socket.emit('cursor-move', { x: point.x, y: point.y, canvasId });
+    }
+    
+    if (!isDrawing || !lastPoint) return;
+    
+    // Draw immediately for visual feedback
+    drawLine(lastPoint, point, brushColor, brushWidth, currentTool, currentTool === 'eraser');
+    
+    // Save stroke data
+    const strokeEvent: DrawingEvent = {
+      type: currentTool === 'eraser' ? 'erase' : 'draw',
+      points: [lastPoint, point],
+      color: brushColor,
+      width: brushWidth,
+      tool: currentTool,
+      timestamp: Date.now()
+    };
+    
+    saveStroke(strokeEvent);
+    setLastPoint(point);
+  }, [isDrawing, lastPoint, getTouchCanvasPoint, drawLine, brushColor, brushWidth, currentTool, saveStroke, socket, canvasId]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault(); // Prevent scrolling and zooming
     setIsDrawing(false);
     setLastPoint(null);
   }, []);
@@ -1121,8 +1185,12 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
             className="cursor-crosshair"
-            style={{ display: 'block' }}
+            style={{ display: 'block', touchAction: 'none' }}
           />
           
           {/* Collaborative Cursors */}

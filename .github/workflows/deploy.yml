@@ -70,6 +70,7 @@ jobs:
       if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       env:
         REACT_APP_API_URL: https://streamscene.net
+        REACT_APP_SERVER_URL: https://streamscene.net
       run: |
         npm run build
         
