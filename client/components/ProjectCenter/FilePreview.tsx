@@ -7,7 +7,7 @@ import {
   HiFolder,
   HiArrowDownTray 
 } from 'react-icons/hi2';
-import EnhancedAudioPlayer from './EnhancedAudioPlayer';
+import WaveformWithComments from './WaveformWithComments';
 import ClosedCaptionButton from '../ClosedCaptionButton';
 
 interface UploadedFile {
@@ -137,7 +137,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '', onFileU
     }
 
     if (file.type.startsWith('audio/')) {
-      return <EnhancedAudioPlayer file={file} />;
+      return <WaveformWithComments file={file} />;
     }
 
     if (file.type.startsWith('image/')) {
