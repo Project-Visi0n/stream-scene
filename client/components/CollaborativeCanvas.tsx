@@ -174,6 +174,8 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
           forceNew: true, // Force new connection
           upgrade: true, // Allow transport upgrades
           timeout: 10000, // Increase timeout for slow connections
+          secure: window.location.protocol === 'https:', // Use secure connection for HTTPS sites
+          rejectUnauthorized: false // For development/self-signed certificates
         });
 
         socketInstance.on('connect', () => {
