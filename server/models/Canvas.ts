@@ -60,7 +60,7 @@ Canvas.init(
       allowNull: false,
     },
     userId: {
-      type: DataTypes.BIGINT,
+      type: DataTypes.INTEGER.UNSIGNED,
       allowNull: false,
       references: {
         model: 'users',
@@ -133,7 +133,7 @@ Canvas.init(
       comment: 'Version number for conflict resolution',
     },
     lastEditedBy: {
-      type: DataTypes.BIGINT,
+      type: DataTypes.INTEGER.UNSIGNED,
       allowNull: true,
       references: {
         model: 'users',

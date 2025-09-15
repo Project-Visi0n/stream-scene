@@ -53,7 +53,7 @@ CanvasCollaborator.init(
       onDelete: 'CASCADE',
     },
     userId: {
-      type: DataTypes.BIGINT,
+      type: DataTypes.INTEGER.UNSIGNED,
       allowNull: true, // Allow null for anonymous collaborators
       references: {
         model: 'users',

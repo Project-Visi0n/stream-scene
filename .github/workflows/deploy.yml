@@ -82,6 +82,11 @@ jobs:
         cp -r dist/ deploy/
         cp -r public/ deploy/
         
+        # Copy server database files for seeding
+        mkdir -p deploy/server/db
+        cp server/db/seed.ts deploy/server/db/
+        cp server/db/connection.ts deploy/server/db/
+        
         # Copy configuration files
         cp ecosystem.config.cjs deploy/
         cp package-server.json deploy/package.json
@@ -184,6 +189,16 @@ jobs:
           
           echo "Installing production dependencies..."
           npm install --production
+          
+          echo "Setting up database schema..."
+          echo "Installing tsx for seed script execution..."
+          npm install tsx --save-dev
+          
+          echo "Running database seed script to ensure proper schema..."
+          npm run seed:production || {
+            echo "WARNING: Database seed failed. This might be expected if database is already seeded."
+            echo "Continuing with deployment..."
+          }
           
           echo "Stopping existing PM2 processes..."
           pm2 stop stream-scene || echo "No existing process to stop"

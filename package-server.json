@@ -4,7 +4,10 @@
   "type": "module",
   "main": "dist/server/app.js",
   "scripts": {
-    "start": "node dist/server/app.js"
+    "start": "node dist/server/app.js",
+    "seed": "tsx server/db/seed.ts",
+    "seed:force": "tsx server/db/seed.ts --force",
+    "seed:production": "NODE_ENV=production tsx server/db/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.691.0",
@@ -27,5 +30,8 @@
     "sequelize": "^6.37.7",
     "sequelize-typescript": "^2.1.6",
     "twitter-api-v2": "^1.24.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.1"
   }
 }
