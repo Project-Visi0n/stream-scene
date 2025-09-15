@@ -2,8 +2,7 @@ import express, { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import Comment from '../models/Comment.js';
 import CommentReaction from '../models/CommentReaction.js';
-import { File } from '../models/File.js';
-import { User } from '../models/User.js';
+import { File } from '../models/initFileModel.js';
 
 const router = express.Router();
 
@@ -40,21 +39,13 @@ router.get('/file/:fileId', optionalAuth, async (req: Request, res: Response) =>
     
     const offset = (Number(page) - 1) * Number(limit);
     
-    // Get comments with minimal data to avoid association issues
+    // Get comments without User association for now to avoid the association error
     const comments = await Comment.findAll({
       where: { 
         fileId: parseInt(fileId),
         parentCommentId: null, // Only top-level comments
         isDeleted: false // Don't show deleted comments
       },
-      include: [
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'name'], // Use 'name' instead of 'displayName'
-          required: false // Allow comments without users (anonymous)
-        }
-      ],
       order: [
         ['timestampSeconds', 'ASC'],
         ['createdAt', 'ASC']
@@ -139,19 +130,8 @@ router.post('/', optionalAuth, async (req: Request, res: Response) => {
     
     const comment = await Comment.create(commentData);
     
-    // Fetch the created comment with associations
-    const createdComment = await Comment.findByPk(comment.id, {
-      include: [
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'name'],
-          required: false
-        }
-      ]
-    });
-    
-    res.status(201).json(createdComment);
+    // Return the created comment without trying to load User associations
+    res.status(201).json(comment);
   } catch (error) {
     console.error('Error creating comment:', error);
     res.status(500).json({ 
@@ -194,17 +174,8 @@ router.put('/:commentId', optionalAuth, async (req: Request, res: Response) => {
       isEdited: true
     });
     
-    // Fetch updated comment with associations
-    const updatedComment = await Comment.findByPk(commentId, {
-      include: [
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'email', 'displayName'],
-          required: false
-        }
-      ]
-    });
+    // Fetch updated comment without User association for now
+    const updatedComment = await Comment.findByPk(commentId);
     
     res.json(updatedComment);
   } catch (error) {
@@ -305,16 +276,7 @@ router.post('/:commentId/reactions', optionalAuth, async (req: Request, res: Res
     const reaction = await CommentReaction.create(reactionData);
     
     // Fetch reaction with user info
-    const createdReaction = await CommentReaction.findByPk(reaction.id, {
-      include: [
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'displayName'],
-          required: false
-        }
-      ]
-    });
+    const createdReaction = await CommentReaction.findByPk(reaction.id);
     
     res.status(201).json(createdReaction);
   } catch (error) {
@@ -375,26 +337,6 @@ router.get('/file/:fileId/timestamp/:timestamp', optionalAuth, async (req: Reque
           ]
         }
       },
-      include: [
-        {
-          model: User,
-          as: 'user',
-          attributes: ['id', 'email', 'displayName'],
-          required: false
-        },
-        {
-          model: CommentReaction,
-          as: 'reactions',
-          include: [
-            {
-              model: User,
-              as: 'user',
-              attributes: ['id', 'displayName'],
-              required: false
-            }
-          ]
-        }
-      ],
       order: [['timestampSeconds', 'ASC']]
     });
     
