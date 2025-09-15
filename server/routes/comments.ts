@@ -29,93 +29,61 @@ router.get('/file/:fileId', optionalAuth, async (req: Request, res: Response) =>
     const { fileId } = req.params;
     const { page = 1, limit = 20 } = req.query;
     
+    console.log(`📝 Loading comments for file ${fileId}`);
+    
     // Verify file exists
     const file = await File.findByPk(fileId);
     if (!file) {
+      console.log(`❌ File ${fileId} not found`);
       return res.status(404).json({ error: 'File not found' });
     }
     
     const offset = (Number(page) - 1) * Number(limit);
     
-    // Get top-level comments (no parent) with nested replies
-    const comments = await Comment.findAndCountAll({
+    // Get comments with minimal data to avoid association issues
+    const comments = await Comment.findAll({
       where: { 
-        fileId,
-        parentCommentId: null // Only top-level comments
+        fileId: parseInt(fileId),
+        parentCommentId: null, // Only top-level comments
+        isDeleted: false // Don't show deleted comments
       },
       include: [
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'email', 'displayName'], // Don't expose sensitive data
-          required: false // Include anonymous comments
-        },
-        {
-          model: Comment,
-          as: 'replies',
-          include: [
-            {
-              model: User,
-              as: 'user',
-              attributes: ['id', 'email', 'displayName'],
-              required: false
-            },
-            {
-              model: CommentReaction,
-              as: 'reactions',
-              include: [
-                {
-                  model: User,
-                  as: 'user',
-                  attributes: ['id', 'displayName'],
-                  required: false
-                }
-              ]
-            }
-          ]
-        },
-        {
-          model: CommentReaction,
-          as: 'reactions',
-          include: [
-            {
-              model: User,
-              as: 'user',
-              attributes: ['id', 'displayName'],
-              required: false
-            }
-          ]
+          attributes: ['id', 'name'], // Use 'name' instead of 'displayName'
+          required: false // Allow comments without users (anonymous)
         }
       ],
       order: [
-        ['timestampSeconds', 'ASC'], // Order by timestamp for video/audio sync
-        ['createdAt', 'ASC'],
-        [{ model: Comment, as: 'replies' }, 'createdAt', 'ASC']
+        ['timestampSeconds', 'ASC'],
+        ['createdAt', 'ASC']
       ],
       offset,
       limit: Number(limit)
     });
     
-    res.json({
-      comments: comments.rows,
-      pagination: {
-        total: comments.count,
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(comments.count / Number(limit))
-      }
-    });
+    console.log(`✅ Found ${comments.length} comments for file ${fileId}`);
+    
+    res.json(comments);
   } catch (error) {
-    console.error('Error fetching comments:', error);
-    res.status(500).json({ error: 'Failed to fetch comments' });
+    console.error('❌ Error fetching comments for file:', req.params.fileId, error);
+    console.error('❌ Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : 'No stack trace'
+    });
+    res.status(500).json({ 
+      error: 'Failed to fetch comments',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
 // Create a new comment (supports anonymous users)
-router.post('/file/:fileId', optionalAuth, async (req: Request, res: Response) => {
+router.post('/', optionalAuth, async (req: Request, res: Response) => {
   try {
-    const { fileId } = req.params;
     const { 
+      fileId,
       content, 
       timestampSeconds, 
       parentCommentId, 
@@ -126,6 +94,10 @@ router.post('/file/:fileId', optionalAuth, async (req: Request, res: Response) =
     // Validate required fields
     if (!content || content.trim().length === 0) {
       return res.status(400).json({ error: 'Comment content is required' });
+    }
+    
+    if (!fileId) {
+      return res.status(400).json({ error: 'File ID is required' });
     }
     
     // Verify file exists
@@ -145,26 +117,24 @@ router.post('/file/:fileId', optionalAuth, async (req: Request, res: Response) =
     }
     
     const user = (req as any).user;
-    let commentData: any = {
-      fileId,
+    const commentData = {
+      fileId: parseInt(fileId),
       content: content.trim(),
       timestampSeconds: timestampSeconds || null,
       parentCommentId: parentCommentId || null,
-      isModerated: false
+      isDeleted: false,
+      isModerationHidden: false,
+      isEdited: false,
+      isModerated: false,
+      userId: user?.id || null,
+      guestName: user ? null : (guestName?.trim() || null),
+      guestEmail: user ? null : (guestEmail?.trim() || null),
+      guestIdentifier: user ? null : `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
     };
     
-    // Handle authenticated vs anonymous users
-    if (user) {
-      commentData.userId = user.id;
-    } else {
-      // Anonymous user - require guest info
-      if (!guestName || guestName.trim().length === 0) {
-        return res.status(400).json({ error: 'Guest name is required for anonymous comments' });
-      }
-      
-      commentData.guestName = guestName.trim();
-      commentData.guestEmail = guestEmail?.trim() || null;
-      commentData.guestIdentifier = `guest_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // For anonymous users, require guest name
+    if (!user && !commentData.guestName) {
+      return res.status(400).json({ error: 'Guest name is required for anonymous comments' });
     }
     
     const comment = await Comment.create(commentData);
@@ -175,7 +145,7 @@ router.post('/file/:fileId', optionalAuth, async (req: Request, res: Response) =
         {
           model: User,
           as: 'user',
-          attributes: ['id', 'email', 'displayName'],
+          attributes: ['id', 'name'],
           required: false
         }
       ]
@@ -184,7 +154,10 @@ router.post('/file/:fileId', optionalAuth, async (req: Request, res: Response) =
     res.status(201).json(createdComment);
   } catch (error) {
     console.error('Error creating comment:', error);
-    res.status(500).json({ error: 'Failed to create comment' });
+    res.status(500).json({ 
+      error: 'Failed to create comment',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
