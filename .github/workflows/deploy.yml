@@ -132,13 +132,21 @@ jobs:
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
         port: ${{ secrets.SERVER_PORT || 22 }}
-        timeout: 30s
-        command_timeout: 2m
-        debug: false
+        timeout: 15s
+        command_timeout: 30s
+        debug: true
         script: |
-          # Quick setup
-          sudo mkdir -p /var/www/stream-scene
-          sudo chown $USER:$USER /var/www/stream-scene
+          echo "Connected successfully"
+          whoami
+          pwd
+
+    - name: Setup server directory (using different action)
+      if: failure()
+      run: |
+        echo "Primary SSH action failed, checking connectivity..."
+        echo "Host: ${{ secrets.SERVER_HOST }}"
+        echo "Port: ${{ secrets.SERVER_PORT || 22 }}"
+        echo "User: ${{ secrets.SERVER_USER }}"
           fi
           
           # Create logs directory
