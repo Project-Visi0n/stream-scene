@@ -119,28 +119,26 @@ jobs:
         DB_PASS=StreamRoot2024!
         EOF
 
+    - name: Quick connectivity test
+      run: |
+        echo "Testing connectivity to server..."
+        timeout 10 nc -zv ${{ secrets.SERVER_HOST }} ${{ secrets.SERVER_PORT || 22 }} || echo "Connection test failed"
+
     - name: Setup server directory
       uses: appleboy/ssh-action@v1.0.3
+      continue-on-error: true
       with:
         host: ${{ secrets.SERVER_HOST }}
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
         port: ${{ secrets.SERVER_PORT || 22 }}
-        timeout: 60s
-        command_timeout: 10m
+        timeout: 30s
+        command_timeout: 2m
         debug: false
-        envs: GITHUB_SHA
         script: |
-          # Create app directory if it doesn't exist
+          # Quick setup
           sudo mkdir -p /var/www/stream-scene
           sudo chown $USER:$USER /var/www/stream-scene
-          
-          # Install PM2 globally if not installed
-          if ! command -v pm2 &> /dev/null; then
-            echo "Installing PM2..."
-            sudo npm install -g pm2
-          else
-            echo "PM2 already installed: $(pm2 --version)"
           fi
           
           # Create logs directory
@@ -166,10 +164,19 @@ jobs:
         username: ${{ secrets.SERVER_USER }}
         key: ${{ secrets.SERVER_SSH_KEY }}
         port: ${{ secrets.SERVER_PORT || 22 }}
-        timeout: 180s
-        command_timeout: 15m
-        debug: true
+        timeout: 30s
+        command_timeout: 5m
+        debug: false
         script: |
+          cd /var/www/stream-scene
+          
+          # Install PM2 if needed
+          if ! command -v pm2 &> /dev/null; then
+            sudo npm install -g pm2
+          fi
+          
+          echo "Installing production dependencies..."
+          npm install --production
           cd /var/www/stream-scene
           
           echo "Installing production dependencies..."
