@@ -1,15 +1,43 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" style="background: linear-gradient(to bottom right, #0f172a, #111827, #000000); background-attachment: fixed;">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#6366f1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f172a" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- Prevent iOS Safari bounce scroll -->
+    <meta name="format-detection" content="telephone=no" />
+    <style>
+      /* Immediate background fix before CSS loads */
+      html, body {
+        background: #0f172a;
+        background: linear-gradient(to bottom right, #0f172a, #111827, #000000);
+        background-attachment: fixed;
+        margin: 0;
+        padding: 0;
+        overflow-x: hidden;
+      }
+    </style>
     <title>StreamScene</title>
+    <script>
+      // Trusted Types policy for dynamic script loading (fixes TrustedScriptURL errors)
+      if (window.trustedTypes && trustedTypes.createPolicy) {
+        try {
+          trustedTypes.createPolicy('default', {
+            createHTML: string => string,
+            createScript: string => string,
+            createScriptURL: string => string
+          });
+        } catch (e) {
+          // Policy already exists or creation failed
+          console.log('Trusted Types policy already exists or failed to create');
+        }
+      }
+    </script>
   </head>
-  <body>
+  <body style="background: linear-gradient(to bottom right, #0f172a, #111827, #000000); background-attachment: fixed;">
     <div id="root"></div> 
   </body>
 </html>

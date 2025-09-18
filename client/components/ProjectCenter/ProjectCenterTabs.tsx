@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import FileUpload from './FileUpload';
-import ProjectCenterCanvas from './ProjectCenterCanvas';
+import CollaborativeCanvas from '../CollaborativeCanvas';
 
 interface Tab {
   id: string;
@@ -13,12 +13,24 @@ interface Tab {
 const ProjectCenterTabs: React.FC = () => {
   const [activeTab, setActiveTab] = useState('canvas');
 
+  const handleCollaboratorChange = (collaboratorId: string, action: string) => {
+    // Handle collaborator changes in the main canvas
+    console.log(`Collaborator ${collaboratorId} ${action} the canvas`);
+  };
+
   const tabs: Tab[] = [
     {
       id: 'canvas',
       label: 'Canvas',
       icon: '🎨',
-      component: <ProjectCenterCanvas />
+      component: (
+        <CollaborativeCanvas 
+          canvasId="project-center-main" 
+          isOwner={true}
+          allowAnonymousEdit={true}
+          onCollaboratorChange={handleCollaboratorChange}
+        />
+      )
     },
     {
       id: 'files',

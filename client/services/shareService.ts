@@ -2,7 +2,9 @@
 
 export interface ShareRecord {
   id: number;
-  fileId: number;
+  fileId?: number;
+  canvasId?: number;
+  resourceType: 'file' | 'canvas';
   shareType: 'one-time' | 'indefinite';
   accessCount: number;
   maxAccess: number | null;
@@ -16,19 +18,31 @@ export interface ShareRecord {
 }
 
 export interface CreateShareRequest {
-  fileId: number;
+  fileId?: number;
+  canvasId?: number;
+  resourceType: 'file' | 'canvas';
   shareType: 'one-time' | 'indefinite';
   expiresAt?: string; // ISO date string
 }
 
 export interface SharedFileAccess {
-  file: {
+  file?: {
     id: number;
     name: string;
     type: string;
     size: number;
     url: string;
     uploadedAt: string;
+  };
+  canvas?: {
+    id: number;
+    name: string;
+    description?: string;
+    canvasData: string;
+    backgroundColor?: string;
+    shareToken: string;
+    allowAnonymousEdit: boolean;
+    isPublic: boolean;
   };
   share: {
     shareType: 'one-time' | 'indefinite';
@@ -52,10 +66,12 @@ const getApiBaseUrl = (): string => {
 const API_BASE = getApiBaseUrl();
 
 export const shareService = {
-  // Create a new share for a file
+  // Create a new share for a file or canvas
   async createShare(shareData: CreateShareRequest): Promise<ShareRecord> {
     try {
-      const response = await fetch(API_BASE, {
+      const endpoint = shareData.resourceType === 'canvas' ? `${API_BASE}/canvas` : API_BASE;
+      
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -93,6 +109,26 @@ export const shareService = {
       return data.shares || [];
     } catch (error) {
       console.error('Error fetching file shares:', error);
+      throw error;
+    }
+  },
+
+  // Get all shares for a specific canvas
+  async getCanvasShares(canvasId: number): Promise<ShareRecord[]> {
+    try {
+      const response = await fetch(`${API_BASE}/canvas/${canvasId}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Failed to fetch canvas shares: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      return data.shares || [];
+    } catch (error) {
+      console.error('Error fetching canvas shares:', error);
       throw error;
     }
   },

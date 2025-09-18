@@ -6,21 +6,18 @@ import ProjectCenter from './ProjectCenter/ProjectCenter';
 import SharedFileViewer from './SharedFileViewer';
 import Navbar from './NavBar';
 import ContentScheduler from '../ContentScheduler/ContentScheduler';
-import DemosTrailers from './DemosTrailers';
 import BudgetTracker from './BudgetTracker';
 import PrivacyPolicyPage from './PrivacyPolicyPage';
 import TermsOfServicePage from './TermsOfServicePage';
 import MobileOptimizations from './MobileOptimizations';
+import SharedCanvas from './SharedCanvas';
 
-export type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'demos-trailers' | 'content-scheduler';
+export type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'content-scheduler';
 
 const App: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [currentView, setCurrentView] = useState<CurrentView>('landing');
-
-  // Routes that should show the navbar (exclude landing page if you want different styling)
-  const shouldShowNavbar = location.pathname !== '/';
 
   useEffect(() => {
     const routeToViewMap: Record<string, CurrentView> = {
@@ -28,7 +25,6 @@ const App: React.FC = () => {
       '/planner': 'planner',
       '/project-center': 'project-center',
       '/budget-tracker': 'budget-tracker',
-      '/demos-trailers': 'demos-trailers',
       '/content-scheduler': 'content-scheduler'
     };
 
@@ -45,7 +41,6 @@ const App: React.FC = () => {
       'planner': '/planner',
       'project-center': '/project-center',
       'budget-tracker': '/budget-tracker',
-      'demos-trailers': '/demos-trailers',
       'content-scheduler': '/content-scheduler'
     };
 
@@ -56,77 +51,32 @@ const App: React.FC = () => {
     }
   };
 
+  const showNavbar = !location.pathname.startsWith('/shared/') && 
+                     location.pathname !== '/' && 
+                     location.pathname !== '/privacy' && 
+                     location.pathname !== '/terms';
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-gray-900 to-black">
       <MobileOptimizations />
-      
-      {/* Conditionally render Navbar */}
-      {shouldShowNavbar && (
-        <Navbar currentView={currentView} onNavigate={handleNavigation} />
+      {showNavbar && (
+        <Navbar
+          currentComponent={currentView}
+          onNavigate={handleNavigation}
+        />
       )}
-      
-      <div className="min-h-screen">
+      <div className={showNavbar ? '' : 'min-h-screen'}>
         <Routes>
-          {/* Landing Page */}
-          <Route 
-            path="/" 
-            element={<LandingPage onNavigate={handleNavigation} />} 
-          />
-          
-          {/* Main App Routes */}
-          <Route 
-            path="/planner" 
-            element={<AIWeeklyPlanner onNavigate={handleNavigation} />} 
-          />
-          <Route 
-            path="/project-center" 
-            element={<ProjectCenter onNavigate={handleNavigation} />} 
-          />
-          <Route 
-            path="/budget-tracker" 
-            element={<BudgetTracker onNavigate={handleNavigation} />} 
-          />
-          <Route 
-            path="/demos-trailers" 
-            element={<DemosTrailers onNavigate={handleNavigation} />} 
-          />
-          <Route 
-            path="/content-scheduler" 
-            element={<ContentScheduler onNavigate={handleNavigation} />} 
-          />
-          
-          {/* Utility Pages */}
-          <Route 
-            path="/shared/:fileId" 
-            element={<SharedFileViewer />} 
-          />
-          <Route 
-            path="/privacy" 
-            element={<PrivacyPolicyPage />} 
-          />
-          <Route 
-            path="/terms" 
-            element={<TermsOfServicePage />} 
-          />
-          
-          {/* 404 Fallback */}
-          <Route 
-            path="*" 
-            element={
-              <div className="flex items-center justify-center min-h-screen">
-                <div className="text-center">
-                  <h1 className="text-4xl font-bold mb-4">404</h1>
-                  <p className="mb-4">Page not found</p>
-                  <button 
-                    onClick={() => handleNavigation('landing')}
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                  >
-                    Go Home
-                  </button>
-                </div>
-              </div>
-            } 
-          />
+          <Route path="/" element={<LandingPage onNavigate={handleNavigation} />} />
+          <Route path="/planner" element={<AIWeeklyPlanner />} />
+          <Route path="/project-center" element={<ProjectCenter />} />
+          <Route path="/budget-tracker" element={<BudgetTracker />} />
+          <Route path="/content-scheduler" element={<ContentScheduler />} />
+          <Route path="/shared/:token" element={<SharedFileViewer />} />
+          <Route path="/canvas/shared/:token" element={<SharedCanvas />} />
+          {/* Legal pages */}
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/terms" element={<TermsOfServicePage />} />
         </Routes>
       </div>
     </div>
