@@ -13,6 +13,7 @@ public/bundle.js
 public/bundle.js.LICENSE.txt
 public/index.html
 public/
+!public/favicon*.svg
 
 # Environment files
 .env

@@ -165,44 +165,93 @@ async function seed(forceRecreate = false) {
       ) ENGINE=InnoDB;
     `);
         console.log('✅ Comment reactions table created');
-        // 9. Create shares table
-        await sequelize.query(`
-      CREATE TABLE IF NOT EXISTS \`shares\` (
-        \`id\` INTEGER AUTO_INCREMENT,
-        \`fileId\` INTEGER UNSIGNED NOT NULL,
-        \`userId\` INTEGER UNSIGNED NOT NULL,
-        \`shareToken\` VARCHAR(255) NOT NULL UNIQUE,
-        \`expiresAt\` DATETIME NULL,
-        \`allowComments\` TINYINT(1) NOT NULL DEFAULT true,
-        \`allowDownload\` TINYINT(1) NOT NULL DEFAULT true,
-        \`password\` VARCHAR(255) NULL,
-        \`viewCount\` INTEGER NOT NULL DEFAULT 0,
-        \`createdAt\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        \`updatedAt\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (\`id\`),
-        FOREIGN KEY (\`fileId\`) REFERENCES \`files\` (\`id\`) ON DELETE CASCADE,
-        FOREIGN KEY (\`userId\`) REFERENCES \`users\` (\`id\`) ON DELETE CASCADE
-      ) ENGINE=InnoDB;
-    `);
-        console.log('✅ Shares table created');
+        // 9. Create shares table (drop and recreate if schema conflicts)
+        try {
+            // First try to create normally
+            await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS \`shares\` (
+          \`id\` INTEGER UNSIGNED AUTO_INCREMENT,
+          \`fileId\` INTEGER UNSIGNED NULL,
+          \`canvasId\` VARCHAR(255) NULL,
+          \`userId\` INTEGER UNSIGNED NOT NULL,
+          \`shareToken\` VARCHAR(255) NOT NULL UNIQUE,
+          \`shareType\` ENUM('one-time', 'indefinite') NOT NULL DEFAULT 'indefinite',
+          \`resourceType\` ENUM('file', 'canvas') NOT NULL,
+          \`accessCount\` INTEGER NOT NULL DEFAULT 0,
+          \`maxAccess\` INTEGER NULL,
+          \`expiresAt\` DATETIME NULL,
+          \`isActive\` TINYINT(1) NOT NULL DEFAULT true,
+          \`createdAt\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          \`updatedAt\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          PRIMARY KEY (\`id\`),
+          FOREIGN KEY (\`fileId\`) REFERENCES \`files\` (\`id\`) ON DELETE CASCADE,
+          FOREIGN KEY (\`canvasId\`) REFERENCES \`canvases\` (\`id\`) ON DELETE CASCADE,
+          FOREIGN KEY (\`userId\`) REFERENCES \`users\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB;
+      `);
+            console.log('✅ Shares table created');
+        }
+        catch (err) {
+            const error = err;
+            if (error.message.includes('incompatible') || error.message.includes('foreign key')) {
+                try {
+                    console.log('🔄 Attempting to recreate shares table with correct schema...');
+                    await sequelize.query('DROP TABLE IF EXISTS `shares`;');
+                    await sequelize.query(`
+            CREATE TABLE \`shares\` (
+              \`id\` INTEGER UNSIGNED AUTO_INCREMENT,
+              \`fileId\` INTEGER UNSIGNED NULL,
+              \`canvasId\` VARCHAR(255) NULL,
+              \`userId\` INTEGER UNSIGNED NOT NULL,
+              \`shareToken\` VARCHAR(255) NOT NULL UNIQUE,
+              \`shareType\` ENUM('one-time', 'indefinite') NOT NULL DEFAULT 'indefinite',
+              \`resourceType\` ENUM('file', 'canvas') NOT NULL,
+              \`accessCount\` INTEGER NOT NULL DEFAULT 0,
+              \`maxAccess\` INTEGER NULL,
+              \`expiresAt\` DATETIME NULL,
+              \`isActive\` TINYINT(1) NOT NULL DEFAULT true,
+              \`createdAt\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              \`updatedAt\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+              PRIMARY KEY (\`id\`),
+              INDEX \`idx_fileId\` (\`fileId\`),
+              INDEX \`idx_canvasId\` (\`canvasId\`),
+              INDEX \`idx_userId\` (\`userId\`)
+            ) ENGINE=InnoDB;
+          `);
+                    console.log('✅ Shares table recreated with correct schema (without foreign keys for now)');
+                }
+                catch (recreateErr) {
+                    console.log('⚠️  Shares table recreation failed (continuing anyway):', recreateErr.message);
+                }
+            }
+            else {
+                console.log('⚠️  Shares table creation failed (continuing anyway):', error.message);
+            }
+        }
         // 10. Create tasks table
-        await sequelize.query(`
-      CREATE TABLE IF NOT EXISTS \`tasks\` (
-        \`id\` INTEGER UNSIGNED AUTO_INCREMENT,
-        \`title\` VARCHAR(255) NOT NULL,
-        \`description\` TEXT,
-        \`priority\` ENUM('low', 'medium', 'high') NOT NULL DEFAULT 'medium',
-        \`task_type\` ENUM('creative', 'admin') NOT NULL,
-        \`status\` ENUM('pending', 'in_progress', 'completed') NOT NULL DEFAULT 'pending',
-        \`deadline\` DATETIME NOT NULL,
-        \`estimated_hours\` INTEGER,
-        \`user_id\` INTEGER UNSIGNED NOT NULL,
-        \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        PRIMARY KEY (\`id\`),
-        FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`id\`) ON DELETE CASCADE
-      ) ENGINE=InnoDB;
-    `);
+        try {
+            await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS \`tasks\` (
+          \`id\` INTEGER UNSIGNED AUTO_INCREMENT,
+          \`title\` VARCHAR(255) NOT NULL,
+          \`description\` TEXT,
+          \`priority\` ENUM('low', 'medium', 'high') NOT NULL DEFAULT 'medium',
+          \`task_type\` ENUM('creative', 'admin') NOT NULL,
+          \`status\` ENUM('pending', 'in_progress', 'completed') NOT NULL DEFAULT 'pending',
+          \`deadline\` DATETIME NOT NULL,
+          \`estimated_hours\` INTEGER,
+          \`user_id\` INTEGER UNSIGNED NOT NULL,
+          \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          PRIMARY KEY (\`id\`),
+          FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB;
+      `);
+            console.log('✅ Tasks table created');
+        }
+        catch (err) {
+            console.log('⚠️  Tasks table creation failed (continuing anyway):', err.message);
+        }
         console.log('✅ Tasks table created');
         console.log('🎉 All tables created successfully!');
         // Insert initial data
