@@ -13,6 +13,7 @@
     }
   },
   "scripts": {
+    "analyze": "webpack --config webpack.config.mjs --mode development --profile --json > stats.json && npx webpack-bundle-analyzer stats.json",
     "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
     "dev:client": "webpack --config webpack.config.mjs --mode development --watch",
     "dev:server": "NODE_ENV=development nodemon --watch server --watch client --ext ts,tsx,js,jsx --exec \"tsx server/app.ts\"",
@@ -97,6 +98,7 @@
     "util": "^0.12.5",
     "vm-browserify": "^1.1.2",
     "webpack": "^5.100.2",
+    "webpack-bundle-analyzer": "^4.10.2",
     "webpack-cli": "^6.0.1",
     "webpack-dev-server": "^5.2.2"
   }

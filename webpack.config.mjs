@@ -16,22 +16,68 @@ export default (env, argv) => {
     target: 'web',
     output: {
       path: path.resolve('./public'),
-      filename: 'bundle.js',
+      filename: isProduction ? '[name].[contenthash].js' : '[name].bundle.js',
+      chunkFilename: isProduction ? '[name].[contenthash].chunk.js' : '[name].chunk.js',
       publicPath: '/',
       clean: true,
     },
     optimization: {
       minimize: isProduction,
-      splitChunks: false, // Disable code splitting to reduce memory usage
+      splitChunks: {
+        chunks: 'all',
+        maxSize: 200000, // 200KB max - very aggressive
+        minSize: 0,
+        maxAsyncRequests: 30, // Allow many chunks
+        maxInitialRequests: 30,
+        cacheGroups: {
+          default: false,
+          defaultVendors: false, // Disable all defaults
+          react: {
+            test: /[\\/]node_modules[\\/]react[\\/]/,
+            name: 'react-core',
+            chunks: 'all',
+            maxSize: 100000, // 100KB for React core
+            priority: 30,
+          },
+          reactDom: {
+            test: /[\\/]node_modules[\\/]react-dom[\\/]/,
+            name: 'react-dom',
+            chunks: 'all',
+            maxSize: 200000, // Split React DOM aggressively
+            priority: 25,
+          },
+          vendor: {
+            test: /[\\/]node_modules[\\/](?!(tesseract\.js|tesseract\.js-core|fluent-ffmpeg|react|react-dom)[\\/])/,
+            name: 'vendor',
+            chunks: 'all',
+            maxSize: 200000,
+            priority: 10,
+          },
+          app: {
+            test: /[\\/]client[\\/]/,
+            name: 'app',
+            chunks: 'all',
+            maxSize: 200000,
+            priority: 5,
+          },
+        },
+      },
     },
     performance: {
-      hints: false, // Disable performance warnings
+      hints: isProduction ? 'warning' : false,
+      maxEntrypointSize: 512000,
+      maxAssetSize: 512000,
     },
     resolve: {
       extensions: ['.ts', '.tsx', '.js', '.jsx'],
       fallback: {
         "process": false,
         "buffer": false,
+      },
+      // Temporarily exclude problematic libraries
+      alias: {
+        'tesseract.js': false,
+        'fluent-ffmpeg': false,
       }
     },
     module: {
@@ -41,7 +87,7 @@ export default (env, argv) => {
           use: {
             loader: 'ts-loader',
             options: {
-              transpileOnly: true, // Faster compilation, skip type checking
+              transpileOnly: true,
             }
           },
           exclude: /node_modules/,
@@ -70,12 +116,22 @@ export default (env, argv) => {
         Buffer: ['buffer', 'Buffer'],
       }),
       new Dotenv({
-        systemvars: true, // Load system environment variables
-        safe: false, // Don't require a .env.example file
+        systemvars: true,
+        safe: false,
         allowEmptyValues: true,
         defaults: false,
       }),
     ],
     devtool: isProduction ? false : 'eval-cheap-module-source-map',
+    
+    // Bundle analysis (uncomment when needed)
+    // stats: {
+    //   all: false,
+    //   modules: true,
+    //   chunks: true,
+    //   assets: true,
+    //   reasons: true,
+    //   moduleTrace: true,
+    // },
   };
 };

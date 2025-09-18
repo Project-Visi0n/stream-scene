@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import Tesseract from 'tesseract.js';
+
 
 // Types
 type Project = {
@@ -123,16 +123,36 @@ const BudgetTracker: React.FC = () => {
   const [scanResult, setScanResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [tesseractLoaded, setTesseractLoaded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Categories
   const incomeCategories = ['Freelance Payment', 'Residuals', 'Grant', 'Salary', 'Bonus', 'Donation', 'Other'];
   const expenseCategories = ['Equipment', 'Transportation', 'Software', 'Marketing', 'Office Supplies', 'Personal', 'Food', 'Other'];
 
-  // OCR Processing
+  // ✅ LAZY LOAD TESSERACT - Only loads when user actually tries to scan
+  const loadTesseract = async () => {
+    if (tesseractLoaded) return;
+    
+    try {
+      setProgress(10);
+      const Tesseract = await import('tesseract.js');
+      setTesseractLoaded(true);
+      setProgress(20);
+      return Tesseract;
+    } catch (error) {
+      console.error('Failed to load OCR library:', error);
+      throw new Error('Failed to load OCR library. Please try again.');
+    }
+  };
+
+  // OCR Processing with lazy loading
   const processReceiptWithTesseract = async (file: File) => {
     try {
       setProgress(0);
+      
+      // Load Tesseract dynamically
+      const Tesseract = await loadTesseract();
       
       const imageUrl = URL.createObjectURL(file);
       const worker = await Tesseract.createWorker('eng');
@@ -563,7 +583,9 @@ const BudgetTracker: React.FC = () => {
                           {isProcessing ? (
                             <div className="space-y-3">
                               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto"></div>
-                              <p className="text-sm text-purple-300">Scanning receipt with AI...</p>
+                              <p className="text-sm text-purple-300">
+                                {!tesseractLoaded ? 'Loading AI scanner...' : 'Scanning receipt with AI...'}
+                              </p>
                               {progress > 0 && (
                                 <div className="w-full bg-slate-700 rounded-full h-2">
                                   <div 
@@ -595,6 +617,12 @@ const BudgetTracker: React.FC = () => {
                               </div>
                               <p className="text-xs text-gray-400">
                                 AI will automatically extract amount, vendor, and date from your receipt
+                                {!tesseractLoaded && (
+                                  <>
+                                    <br />
+                                    <span className="text-purple-400">⚡ OCR library loads only when you need it</span>
+                                  </>
+                                )}
                               </p>
                             </div>
                           )}
@@ -634,7 +662,7 @@ const BudgetTracker: React.FC = () => {
                               )}
                             </div>
                             <p className="text-xs text-emerald-400 mt-2">
-                              💡 You can still edit the amount below if needed
+                              You can still edit the amount below if needed
                             </p>
                           </div>
                         </div>
@@ -675,7 +703,7 @@ const BudgetTracker: React.FC = () => {
                     />
                     {formData.ocrScanned && (
                       <p className="mt-1 text-xs text-emerald-400">
-                        ✨ Amount automatically extracted from receipt. You can edit if needed.
+                        Amount automatically extracted from receipt. You can edit if needed.
                       </p>
                     )}
                   </div>
@@ -767,7 +795,7 @@ const BudgetTracker: React.FC = () => {
                           <p className="text-xs text-gray-400">Receipt uploaded & scanned successfully</p>
                           {formData.ocrScanned && (
                             <p className="text-xs text-emerald-400">
-                              ✅ AI extracted: ${formData.amount} {formData.ocrVendor && `from ${formData.ocrVendor}`}
+                              AI extracted: ${formData.amount} {formData.ocrVendor && `from ${formData.ocrVendor}`}
                             </p>
                           )}
                         </div>
@@ -879,7 +907,7 @@ const BudgetTracker: React.FC = () => {
                                 {entry.ocrScanned && (
                                   <div className="flex items-center mt-1">
                                     <span className="text-xs bg-gradient-to-r from-blue-600 to-purple-600 text-white px-2 py-0.5 rounded-full">
-                                      🤖 AI-scanned ({Math.round((entry.ocrConfidence || 0) * 100)}%)
+                                      AI-scanned ({Math.round((entry.ocrConfidence || 0) * 100)}%)
                                     </span>
                                   </div>
                                 )}

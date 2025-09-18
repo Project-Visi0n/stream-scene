@@ -11,7 +11,6 @@ interface LandingPageProps {
   onNavigate?: (destination: CurrentView) => void;
 }
 
-
 // Define a proper type for features
 type Feature = {
   readonly icon: string;
@@ -185,35 +184,68 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       <div className="absolute top-0 left-1/4 w-48 h-48 sm:w-96 sm:h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 right-1/4 w-48 h-48 sm:w-96 sm:h-96 bg-pink-500/10 rounded-full blur-3xl"></div>
       
-      {/* Floating Animation Elements */}
-      <div className="absolute top-20 left-10 w-4 h-4 bg-purple-400/40 rounded-full animate-pulse"></div>
-      <div className="absolute top-40 right-20 w-6 h-6 bg-pink-400/40 rounded-full animate-bounce"></div>
-      <div className="absolute bottom-32 left-20 w-3 h-3 bg-purple-300/50 rounded-full animate-ping"></div>
-      <div className="absolute bottom-20 right-10 w-5 h-5 bg-pink-300/50 rounded-full animate-pulse"></div>
-
-      {/* Simple Navbar */}
-      <nav className="relative z-20 p-4 sm:p-6">
-        <div className="flex justify-between items-center">
-          {/* Rocket Logo */}
-          <div className="flex items-center space-x-3">
-            <div className="relative group cursor-pointer hover:scale-110 transition-all duration-300">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center group-hover:rotate-12 transition-transform duration-300 shadow-lg shadow-purple-500/30">
-                <span className="text-xl" role="img" aria-label="rocket">🚀</span>
-              </div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full animate-pulse"></div>
-            </div>
-            <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              StreamScene
-            </span>
-          </div>
-
-          {/* Google Login in Right Upper Corner */}
-          <GoogleLoginButton />
-        </div>
-      </nav>
+      {/* Random Blinking Lights - Scattered All Over Page */}
+      {/* Top area lights - enhanced top-middle section */}
+      <div className="absolute top-12 left-16 w-2 h-2 bg-white rounded-full animate-pulse" style={{animationDelay: '0s', animationDuration: '0.8s'}}></div>
+      <div className="absolute top-20 right-32 w-6 h-6 bg-pink-500 rounded-full animate-pulse" style={{animationDelay: '0.3s', animationDuration: '2.5s'}}></div>
+      <div className="absolute top-28 left-1/2 w-3 h-3 bg-purple-400 rounded-full animate-pulse" style={{animationDelay: '1.2s', animationDuration: '1.1s'}}></div>
+      <div className="absolute top-36 right-1/3 w-5 h-5 bg-white rounded-full animate-pulse" style={{animationDelay: '0.7s', animationDuration: '1.9s'}}></div>
+      <div className="absolute top-44 left-1/4 w-2 h-2 bg-pink-400 rounded-full animate-pulse" style={{animationDelay: '1.8s', animationDuration: '0.9s'}}></div>
+      <div className="absolute top-52 right-12 w-4 h-4 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '0.4s', animationDuration: '2.1s'}}></div>
+      <div className="absolute top-60 left-2/3 w-3 h-3 bg-white rounded-full animate-pulse" style={{animationDelay: '1.5s', animationDuration: '1.3s'}}></div>
+      <div className="absolute top-68 right-1/4 w-5 h-5 bg-pink-500 rounded-full animate-pulse" style={{animationDelay: '2.3s', animationDuration: '0.7s'}}></div>
+      
+      {/* Additional top-middle area lights */}
+      <div className="absolute top-16 left-2/5 w-2 h-2 bg-purple-400 rounded-full animate-pulse" style={{animationDelay: '0.8s', animationDuration: '1.4s'}}></div>
+      <div className="absolute top-24 right-2/5 w-3 h-3 bg-white rounded-full animate-pulse" style={{animationDelay: '1.7s', animationDuration: '0.9s'}}></div>
+      <div className="absolute top-32 left-1/3 w-4 h-4 bg-pink-400 rounded-full animate-pulse" style={{animationDelay: '0.5s', animationDuration: '2.2s'}}></div>
+      <div className="absolute top-40 right-1/2 w-2 h-2 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '2.0s', animationDuration: '1.0s'}}></div>
+      <div className="absolute top-48 left-3/5 w-5 h-5 bg-white rounded-full animate-pulse" style={{animationDelay: '1.3s', animationDuration: '1.6s'}}></div>
+      <div className="absolute top-56 right-3/5 w-3 h-3 bg-pink-500 rounded-full animate-pulse" style={{animationDelay: '0.2s', animationDuration: '2.4s'}}></div>
+      
+      {/* Lights in navbar space (top 40px area) - reduced to 8 */}
+      <div className="absolute top-4 left-1/5 w-3 h-3 bg-white rounded-full animate-pulse" style={{animationDelay: '0.9s', animationDuration: '1.8s'}}></div>
+      <div className="absolute top-8 right-1/5 w-2 h-2 bg-purple-400 rounded-full animate-pulse" style={{animationDelay: '2.1s', animationDuration: '0.7s'}}></div>
+      <div className="absolute top-6 left-1/2 w-4 h-4 bg-pink-500 rounded-full animate-pulse" style={{animationDelay: '1.4s', animationDuration: '2.3s'}}></div>
+      <div className="absolute top-14 right-1/6 w-3 h-3 bg-white rounded-full animate-pulse" style={{animationDelay: '0.6s', animationDuration: '1.5s'}}></div>
+      <div className="absolute top-18 left-1/6 w-2 h-2 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '2.8s', animationDuration: '0.9s'}}></div>
+      <div className="absolute top-10 right-2/3 w-5 h-5 bg-pink-400 rounded-full animate-pulse" style={{animationDelay: '1.1s', animationDuration: '1.7s'}}></div>
+      <div className="absolute top-22 left-2/3 w-3 h-3 bg-white rounded-full animate-pulse" style={{animationDelay: '0.3s', animationDuration: '2.0s'}}></div>
+      <div className="absolute top-26 left-1/4 w-4 h-4 bg-pink-500 rounded-full animate-pulse" style={{animationDelay: '0.8s', animationDuration: '2.6s'}}></div>
+      
+      {/* Middle area lights */}
+      <div className="absolute top-1/3 left-8 w-4 h-4 bg-purple-400 rounded-full animate-pulse" style={{animationDelay: '0.9s', animationDuration: '1.7s'}}></div>
+      <div className="absolute top-1/3 right-16 w-2 h-2 bg-white rounded-full animate-pulse" style={{animationDelay: '1.1s', animationDuration: '0.6s'}}></div>
+      <div className="absolute top-2/5 right-1/3 w-3 h-3 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '1.6s', animationDuration: '1.4s'}}></div>
+      <div className="absolute top-1/2 left-1/4 w-5 h-5 bg-white rounded-full animate-pulse" style={{animationDelay: '2.1s', animationDuration: '0.8s'}}></div>
+      <div className="absolute top-1/2 right-8 w-2 h-2 bg-pink-500 rounded-full animate-pulse" style={{animationDelay: '0.6s', animationDuration: '1.8s'}}></div>
+      <div className="absolute top-3/5 left-2/3 w-4 h-4 bg-purple-400 rounded-full animate-pulse" style={{animationDelay: '1.4s', animationDuration: '1.2s'}}></div>
+      <div className="absolute top-3/5 right-1/2 w-3 h-3 bg-white rounded-full animate-pulse" style={{animationDelay: '2.7s', animationDuration: '0.9s'}}></div>
+      <div className="absolute top-2/3 left-12 w-6 h-6 bg-pink-400 rounded-full animate-pulse" style={{animationDelay: '0.8s', animationDuration: '2.0s'}}></div>
+      <div className="absolute top-2/3 right-1/4 w-2 h-2 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '1.9s', animationDuration: '1.5s'}}></div>
+      
+      {/* Bottom area lights */}
+      <div className="absolute bottom-60 left-20 w-5 h-5 bg-white rounded-full animate-pulse" style={{animationDelay: '1.3s', animationDuration: '0.7s'}}></div>
+      <div className="absolute bottom-52 right-28 w-3 h-3 bg-pink-500 rounded-full animate-pulse" style={{animationDelay: '0.5s', animationDuration: '1.6s'}}></div>
+      <div className="absolute bottom-44 left-1/3 w-4 h-4 bg-purple-400 rounded-full animate-pulse" style={{animationDelay: '2.2s', animationDuration: '1.0s'}}></div>
+      <div className="absolute bottom-36 right-1/2 w-2 h-2 bg-white rounded-full animate-pulse" style={{animationDelay: '0.1s', animationDuration: '2.4s'}}></div>
+      <div className="absolute bottom-28 left-2/3 w-6 h-6 bg-pink-400 rounded-full animate-pulse" style={{animationDelay: '1.7s', animationDuration: '0.8s'}}></div>
+      <div className="absolute bottom-20 right-16 w-3 h-3 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '2.5s', animationDuration: '1.3s'}}></div>
+      <div className="absolute bottom-12 left-1/4 w-5 h-5 bg-white rounded-full animate-pulse" style={{animationDelay: '0.4s', animationDuration: '1.9s'}}></div>
+      
+      {/* Center area lights */}
+      <div className="absolute top-1/4 left-1/6 w-3 h-3 bg-pink-500 rounded-full animate-pulse" style={{animationDelay: '1.0s', animationDuration: '0.6s'}}></div>
+      <div className="absolute top-3/4 right-1/6 w-4 h-4 bg-purple-400 rounded-full animate-pulse" style={{animationDelay: '2.6s', animationDuration: '1.4s'}}></div>
+      <div className="absolute top-1/4 right-1/6 w-2 h-2 bg-white rounded-full animate-pulse" style={{animationDelay: '0.3s', animationDuration: '2.1s'}}></div>
+      
+      {/* Extra scattered lights */}
+      <div className="absolute top-1/5 left-5/6 w-4 h-4 bg-purple-500 rounded-full animate-pulse" style={{animationDelay: '2.0s', animationDuration: '1.1s'}}></div>
+      <div className="absolute top-4/5 right-5/6 w-2 h-2 bg-white rounded-full animate-pulse" style={{animationDelay: '0.9s', animationDuration: '1.8s'}}></div>
+      <div className="absolute top-2/5 left-1/12 w-5 h-5 bg-pink-500 rounded-full animate-pulse" style={{animationDelay: '1.6s', animationDuration: '0.9s'}}></div>
+      <div className="absolute top-3/5 right-1/12 w-3 h-3 bg-purple-400 rounded-full animate-pulse" style={{animationDelay: '2.4s', animationDuration: '1.5s'}}></div>
 
       {/* Main Content */}
-      <main className="relative z-10 flex flex-col items-center justify-center min-h-[calc(100vh-6rem)] px-4 sm:px-0">
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-[calc(100vh-6rem)] px-4 sm:px-0 pt-24 sm:pt-32">
         {/* Hero Section */}
         <div className="text-center mb-8 sm:mb-16">
           <div className="mb-6 sm:mb-8">
@@ -287,19 +319,19 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         </div>
 
          {/* Footer Section with Legal Links */}
-        <footer className="mt-12 pt-8 border-t border-purple-500/20 w-full max-w-6xl px-4">
+        <footer className="mt-8 pt-6 w-full max-w-6xl px-4">
           <div className="text-center">
-            <div className="flex justify-center items-center space-x-6 mb-4 flex-wrap gap-y-2">
+            <div className="flex justify-center items-center space-x-4 mb-3">
               <button
                 onClick={() => navigate('/privacy')}
-                className="text-gray-400 hover:text-purple-400 text-sm transition-colors duration-200 cursor-pointer"
+                className="text-gray-400 hover:text-gray-300 text-sm transition-colors duration-200 cursor-pointer"
               >
                 Privacy Policy
               </button>
-              <span className="text-gray-600 text-sm">•</span>
+              <span className="text-gray-500 text-sm">•</span>
               <button
                 onClick={() => navigate('/terms')}
-                className="text-gray-400 hover:text-purple-400 text-sm transition-colors duration-200 cursor-pointer"
+                className="text-gray-400 hover:text-gray-300 text-sm transition-colors duration-200 cursor-pointer"
               >
                 Terms of Service
               </button>
