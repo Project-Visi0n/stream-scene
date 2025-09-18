@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import { createServer } from 'http';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,10 +32,11 @@ import sharesRoutes from "./routes/shares.js";
 import budgetRoutes from './routes/budget.js';
 import socialAuthRoutes from './routes/socialAuth.js';
 import threadsRoutes from './routes/threads.js';
-import { syncDB } from "./db/index.js";
+import { syncDB, associate } from "./db/index.js";
 import captionRouter from './routes/caption.js';
 import taskRoutes from './routes/tasks.js';
 import contentSchedulerRoutes from './routes/contentScheduler.js';
+import { initializeWebSocket } from './services/WebSocketService.js';
 
 const app = express();
 
@@ -140,6 +142,35 @@ app.use((req, res, next) => {
   next();
 });
 
+// Security headers middleware - add CSP to handle dynamic script loading
+app.use((req, res, next) => {
+  // More permissive CSP that allows Facebook/Meta OAuth flows while maintaining security
+  const csp = [
+    "default-src 'self'",
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https: data:",
+    "style-src 'self' 'unsafe-inline' https:",
+    "font-src 'self' https: data:",
+    "img-src 'self' data: https: blob:",
+    "media-src 'self' https: blob: data:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self' https:",
+    "frame-ancestors 'none'",
+    "connect-src 'self' https: wss: ws: data: blob: https://streamscene.net wss://streamscene.net",
+    "worker-src 'self' blob:",
+    "manifest-src 'self'"
+  ].join('; ');
+  
+  res.setHeader('Content-Security-Policy', csp);
+  
+  // Additional security headers
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  
+  next();
+});
+
 // Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -220,13 +251,21 @@ app.get('*', (req, res) => {
 const PORT = Number(process.env.PORT) || 8000;
 const HOST = '0.0.0.0';
 
+// Create HTTP server
+const server = createServer(app);
+
+// Initialize WebSocket service
+const webSocketService = initializeWebSocket(server);
+
 // Initialize database and start server
+associate(); // Set up model associations
 syncDB().then(() => {
-  app.listen(PORT, HOST, () => {
+  server.listen(PORT, HOST, () => {
     const protocol = isProd ? 'https' : 'http';
     console.log(`Server is running at ${protocol}://localhost:${PORT}`);
     console.log(`External access: ${protocol}://${HOST}:${PORT}`);
     console.log(`Environment: ${isProd ? 'production' : 'development'}`);
+    console.log(`🔌 WebSocket server initialized`);
   });
 }).catch((error) => {
   console.error('Failed to initialize database:', error);
@@ -234,3 +273,4 @@ syncDB().then(() => {
 });
 
 export default app;
+export { webSocketService };

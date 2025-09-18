@@ -7,6 +7,8 @@ import useAuth from '../../hooks/useAuth';
 import ShareModal from '../ShareModal';
 import LoadingScreen from '../LoadingScreen';
 import InlineLoading from '../InlineLoading';
+import FileCarousel from './FileCarousel';
+import FilePreview from './FilePreview';
 
 interface UploadedFile {
   id: string;
@@ -18,6 +20,7 @@ interface UploadedFile {
   tags?: string[];
   uploadedAt: Date;
   fileRecordId?: number; // Database record ID
+  captionUrl?: string; // URL for video captions (VTT format)
 }
 
 const FileUpload: React.FC = () => {
@@ -40,6 +43,9 @@ const FileUpload: React.FC = () => {
   const [shareModalOpen, setShareModalOpen] = useState(false);
   const [selectedFileForShare, setSelectedFileForShare] = useState<UploadedFile | null>(null);
 
+  // File selection state for preview
+  const [selectedFile, setSelectedFile] = useState<UploadedFile | null>(null);
+
   // Load user's files when component mounts or user changes
   useEffect(() => {
     if (user) {
@@ -49,9 +55,22 @@ const FileUpload: React.FC = () => {
       setUploadedFiles([]);
       setAvailableTags([]);
       setSelectedTags([]);
+      setSelectedFile(null);
       setLoading(false);
     }
   }, [user]);
+
+  // Auto-select first file when files are loaded
+  useEffect(() => {
+    if (uploadedFiles.length > 0 && !selectedFile) {
+      setSelectedFile(uploadedFiles[0]);
+    } else if (uploadedFiles.length === 0) {
+      setSelectedFile(null);
+    } else if (selectedFile && !uploadedFiles.find(f => f.id === selectedFile.id)) {
+      // Selected file was deleted, select first available
+      setSelectedFile(uploadedFiles[0] || null);
+    }
+  }, [uploadedFiles, selectedFile]);
 
   const loadUserFiles = async (filterTags?: string[]) => {
     try {
@@ -68,7 +87,8 @@ const FileUpload: React.FC = () => {
         s3Key: record.s3Key,
         tags: record.tags,
         uploadedAt: new Date(record.uploadedAt),
-        fileRecordId: record.id
+        fileRecordId: record.id,
+        captionUrl: record.captionUrl
       }));
       
       setUploadedFiles(files);
@@ -79,6 +99,30 @@ const FileUpload: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Update specific file in state (for real-time caption updates)
+  const updateFileInState = (fileId: string, updates: Partial<UploadedFile>) => {
+    console.log('🔄 updateFileInState called:', { fileId, updates });
+    
+    setUploadedFiles(prevFiles => {
+      const updatedFiles = prevFiles.map(file => 
+        file.id === fileId ? { ...file, ...updates } : file
+      );
+      console.log('📁 Updated uploadedFiles:', updatedFiles.find(f => f.id === fileId));
+      return updatedFiles;
+    });
+    
+    // Update selected file if it matches
+    if (selectedFile && selectedFile.id === fileId) {
+      setSelectedFile(prevFile => {
+        const updated = prevFile ? { ...prevFile, ...updates } : null;
+        console.log('🎯 Updated selectedFile:', updated);
+        return updated;
+      });
+    }
+    
+    console.log('✅ File state update completed for:', fileId);
   };
 
   const loadUserTags = async () => {
@@ -315,216 +359,6 @@ const FileUpload: React.FC = () => {
   };
 
   const { handleDragOver, handleDragLeave, handleDrop } = useDragAndDrop();
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
-
-  // File type utilities
-  const getFileIcon = (type: string) => {
-    if (type.startsWith('video/')) return '🎥';
-    if (type.startsWith('audio/')) return '🎵';
-    if (type.startsWith('image/')) return '🖼️';
-    if (type.startsWith('text/') || type.includes('document') || type.includes('pdf')) return '📄';
-    return '📁';
-  };
-
-  const isVideoFile = (type: string) => type.startsWith('video/');
-  const isAudioFile = (type: string) => type.startsWith('audio/');
-  const isImageFile = (type: string) => type.startsWith('image/');
-  const isTextFile = (type: string) => type.startsWith('text/') || type.includes('pdf');
-  const isPDFFile = (type: string) => type.includes('pdf');
-
-  // Individual file preview components
-  const VideoPreview = ({ url, type }: { url: string; type: string }) => {
-    const [videoError, setVideoError] = useState(false);
-    
-    return (
-      <div className="w-full max-w-md">
-        {!videoError ? (
-          <video 
-            controls 
-            className="w-full rounded-lg shadow-lg bg-black"
-            style={{ maxHeight: '300px' }}
-            crossOrigin="anonymous"
-            onError={(e) => {
-              console.error('Video preview error:', e);
-              setVideoError(true);
-            }}
-            onLoadStart={() => {
-              console.log('Video loading started');
-            }}
-          >
-            <source src={url} type={type} />
-            Your browser does not support the video tag.
-          </video>
-        ) : (
-          <div className="bg-yellow-900/50 border border-yellow-500/50 text-yellow-200 px-3 py-2 rounded text-sm">
-            <p className="mb-2">Video preview not available</p>
-            <a 
-              href={url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:text-blue-300 underline text-xs"
-            >
-              Download video file
-            </a>
-          </div>
-        )}
-      </div>
-    );
-  };  const AudioPreview = ({ url, type, name }: { url: string; type: string; name: string }) => {
-    const [audioError, setAudioError] = useState(false);
-    
-    return (
-      <div className="w-full max-w-md bg-slate-800/50 rounded-lg p-4">
-        <div className="flex items-center gap-3 mb-3">
-          <span className="text-2xl">🎵</span>
-          <span className="text-sm text-gray-300 truncate">{name}</span>
-        </div>
-        {!audioError ? (
-          <audio 
-            controls 
-            className="w-full"
-            crossOrigin="anonymous"
-            onError={(e) => {
-              console.error('Audio preview error:', e);
-              setAudioError(true);
-            }}
-            onLoadStart={() => {
-              console.log('Audio loading started for:', name);
-            }}
-            onCanPlay={() => {
-              console.log('Audio can play:', name);
-            }}
-          >
-            <source src={url} type={type} />
-            Your browser does not support the audio tag.
-          </audio>
-        ) : (
-          <div className="bg-yellow-900/50 border border-yellow-500/50 text-yellow-200 px-3 py-2 rounded text-sm">
-            <p className="mb-2">Audio preview not available</p>
-            <a 
-              href={url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:text-blue-300 underline text-xs"
-            >
-              Download audio file
-            </a>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const ImagePreview = ({ url, name }: { url: string; name: string }) => {
-    const [imageError, setImageError] = useState(false);
-    
-    return (
-      <div className="w-full max-w-md">
-        {!imageError ? (
-          <img 
-            src={url} 
-            alt={name}
-            className="w-full max-h-80 rounded-lg shadow-lg object-contain bg-white/10"
-            crossOrigin="anonymous"
-            onError={(e) => {
-              console.error('Image preview error:', e);
-              setImageError(true);
-            }}
-            onLoad={() => {
-              console.log('Image loaded successfully:', name);
-            }}
-          />
-        ) : (
-          <div className="bg-yellow-900/50 border border-yellow-500/50 text-yellow-200 px-3 py-2 rounded text-sm">
-            <p className="mb-2">Image preview not available</p>
-            <a 
-              href={url} 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-blue-400 hover:text-blue-300 underline text-xs"
-            >
-              View image in new tab
-            </a>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const TextPreview = ({ url, name }: { url: string; name: string }) => (
-    <div className="w-full max-w-md bg-slate-800/50 rounded-lg p-4">
-      <div className="flex items-center gap-3 mb-3">
-        <span className="text-2xl">📄</span>
-        <span className="text-sm text-gray-300 truncate">{name}</span>
-      </div>
-      {isPDFFile(name) ? (
-        <div className="bg-white/10 rounded p-2 text-center">
-          <a 
-            href={url} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="text-blue-400 hover:text-blue-300 underline"
-          >
-            Open PDF in new tab
-          </a>
-        </div>
-      ) : (
-        <iframe
-          src={url}
-          className="w-full h-40 bg-white rounded border-none"
-          title={name}
-          onError={(e) => {
-            console.error('Text preview error:', e);
-          }}
-        />
-      )}
-    </div>
-  );
-
-  const DefaultFilePreview = ({ type, name }: { type: string; name: string }) => (
-    <div className="w-full max-w-md bg-slate-800/50 rounded-lg p-4 min-h-[120px] flex items-center">
-      <div className="flex items-center gap-3 w-full">
-        <span className="text-4xl">{getFileIcon(type)}</span>
-        <div className="flex-1">
-          <div className="text-sm font-medium text-white truncate mb-1" title={name}>{name}</div>
-          <div className="text-xs text-gray-400 mb-2">{type || 'Unknown type'}</div>
-          <div className="text-xs text-blue-400">Click to download</div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderFilePreview = (file: UploadedFile) => {
-  const { type, url, name, s3Key } = file;
-
-  console.log('Rendering preview for file:', { name, type, url: url.substring(0, 50) + '...' });
-
-  // For uploaded files, ensure we use the server proxy URL for preview
-  let previewUrl = url;
-  
-  // If we have an S3 key and the URL is a direct S3 URL, use proxy instead
-  if (s3Key && (url.includes('s3.') || url.includes('amazonaws.com'))) {
-    previewUrl = `/api/s3/proxy/${s3Key}`;
-    console.log('Using proxy URL for preview:', previewUrl);
-  }
-  
-  if (url.startsWith('blob:')) {
-    previewUrl = url; // Keep blob URLs as-is for local previews
-  }
-
-  if (isVideoFile(type)) return <VideoPreview url={previewUrl} type={type} />;
-  if (isAudioFile(type)) return <AudioPreview url={previewUrl} type={type} name={name} />;
-  if (isImageFile(type)) return <ImagePreview url={previewUrl} name={name} />;
-  if (isTextFile(type) || isPDFFile(type)) return <TextPreview url={previewUrl} name={name} />;
-  return <DefaultFilePreview type={type} name={name} />;
-};
 
   // Helper: Clean up local blob URL
   const cleanupLocalUrl = (url: string) => {
@@ -932,112 +766,29 @@ const FileUpload: React.FC = () => {
             )}
           </div>
           
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-            {uploadedFiles.map((file, index) => (
-              <motion.div
-                key={file.id}
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                transition={{ 
-                  duration: 0.5, 
-                  delay: index * 0.1,
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 30
+          {/* Carousel + Preview Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* File Carousel */}
+            <div className="lg:col-span-1">
+              <FileCarousel
+                files={uploadedFiles}
+                selectedFile={selectedFile}
+                onFileSelect={(file) => {
+                  setSelectedFile(file);
                 }}
-                whileHover={{ scale: 1.02, y: -5 }}
-                className="relative bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-4 shadow-xl hover:shadow-2xl transition-shadow duration-300"
-              >
-                {/* Action buttons */}
-                <div className="absolute top-2 right-2 flex space-x-1 z-10">
-                  {/* Share button */}
-                  {file.fileRecordId && (
-                    <motion.button
-                      onClick={() => handleShareFile(file)}
-                      className="w-6 h-6 bg-blue-600/80 hover:bg-blue-600 text-white text-xs rounded-full flex items-center justify-center transition-all duration-200 shadow-lg"
-                      title="Share file"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ duration: 0.4, delay: 0.1 }}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      🔗
-                    </motion.button>
-                  )}
-                  
-                  {/* Remove button */}
-                  <motion.button
-                    onClick={() => removeFile(file.id)}
-                    className="w-6 h-6 bg-red-600/80 hover:bg-red-600 text-white text-xs rounded-full flex items-center justify-center transition-all duration-200 shadow-lg"
-                    title="Delete file"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.4, delay: 0.2 }}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
-                  >
-                    ×
-                  </motion.button>
-                </div>
-
-                {/* File preview */}
-                <div className="mb-3">
-                  {renderFilePreview(file)}
-                </div>
-
-                {/* File info */}
-                <div className="space-y-3">
-                  <div className="text-sm font-medium text-white truncate" title={file.name}>
-                    {file.name}
-                  </div>
-                  <div className="text-xs text-gray-400">
-                    {formatFileSize(file.size)} • {file.uploadedAt.toLocaleDateString()}
-                  </div>
-                  
-                  {/* Tags Section */}
-                  <div className="space-y-2">
-                    {/* Display existing tags */}
-                    {(file.tags || currentFileTags[file.id])?.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-2">
-                        {((currentFileTags[file.id] || file.tags || []) as string[]).map((tag, index) => (
-                          <motion.span
-                            key={index}
-                            className="px-2 py-1 text-xs bg-blue-600 text-white rounded-full flex items-center gap-1"
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.3, delay: index * 0.1 }}
-                          >
-                            {tag}
-                            <motion.button
-                              onClick={() => handleRemoveTag(file.id, tag)}
-                              className="text-white hover:text-red-300 font-bold transition-colors duration-200"
-                              title="Remove tag"
-                              whileHover={{ scale: 1.2 }}
-                              whileTap={{ scale: 0.8 }}
-                            >
-                              ×
-                            </motion.button>
-                          </motion.span>
-                        ))}
-                      </div>
-                    )}
-                    
-                    {/* Auto-saving tag input */}
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="text"
-                        placeholder="Add tag (press Enter)"
-                        onKeyPress={(e) => handleTagKeyPress(e, file.id)}
-                        className="px-2 py-1 text-xs border border-gray-600 bg-gray-700 text-white rounded focus:outline-none focus:border-blue-500"
-                        style={{ width: '120px' }}
-                      />
-                      <span className="text-xs text-gray-400">Press Enter to save</span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
+                onFileShare={handleShareFile}
+                onFileDelete={(file) => removeFile(file.id)}
+              />
+            </div>
+            
+            {/* File Preview */}
+            <div className="lg:col-span-2">
+              <FilePreview 
+                file={selectedFile}
+                className="min-h-[400px]"
+                onFileUpdated={updateFileInState}
+              />
+            </div>
           </div>
         </motion.div>
       )}

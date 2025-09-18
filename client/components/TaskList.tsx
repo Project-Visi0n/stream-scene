@@ -43,9 +43,6 @@ const TaskList: React.FC<TaskListProps> = ({ tasks, onTaskUpdate }) => {
     return new Date(deadline) < new Date();
   };
 
-  // DEBUG: Log tasks to see what we're getting
-  console.log('TaskList received tasks:', tasks);
-
   if (tasks.length === 0) {
     return (
       <div className="text-center py-8 text-gray-800">

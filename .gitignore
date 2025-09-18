@@ -13,6 +13,7 @@ public/bundle.js
 public/bundle.js.LICENSE.txt
 public/index.html
 public/
+!public/favicon*.svg
 
 # Environment files
 .env
@@ -31,4 +32,11 @@ Thumbs.db
 
 # GitHub Actions secrets
 secrets/
-dist/
+
+# Documentation and test files
+docs/
+IOS_SCROLL_FIX_DOCUMENTATION.md
+test-ios-scroll-fix.html
+test-*.js
+test-*.ts
+debug-*.js

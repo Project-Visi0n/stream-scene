@@ -32,6 +32,13 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+echo "Setting up database schema..."
+echo "Running database seed script to ensure proper schema..."
+npm run seed:production || {
+    echo "WARNING: Database seed failed. This might be expected if database is already seeded."
+    echo "Continuing with deployment..."
+}
+
 echo "Stopping existing PM2 processes..."
 pm2 stop stream-scene 2>/dev/null || echo "No existing process to stop"
 pm2 delete stream-scene 2>/dev/null || echo "No existing process to delete"

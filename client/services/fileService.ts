@@ -11,6 +11,7 @@ export interface FileRecord {
   tags?: string[];
   uploadedAt: string;
   updatedAt: string;
+  captionUrl?: string; // URL for video captions (VTT format)
 }
 
 export interface CreateFileRequest {
