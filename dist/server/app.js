@@ -136,7 +136,7 @@ app.use((req, res, next) => {
         "base-uri 'self'",
         "form-action 'self' https:",
         "frame-ancestors 'none'",
-        "connect-src 'self' https: wss: ws: data: blob:",
+        "connect-src 'self' https: wss: ws: data: blob: https://streamscene.net wss://streamscene.net",
         "worker-src 'self' blob:",
         "manifest-src 'self'"
     ].join('; ');

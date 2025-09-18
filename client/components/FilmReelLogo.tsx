@@ -1,16 +1,27 @@
 import React from 'react';
 
-const FilmReelLogo = () => {
+interface FilmReelLogoProps {
+  size?: number;
+  animate?: boolean;
+  className?: string;
+}
+
+const FilmReelLogo: React.FC<FilmReelLogoProps> = ({ 
+  size = 128, 
+  animate = true, 
+  className = '' 
+}) => {
+  // Use percentage-based positioning for better scalability
   const holePositions = [
-    { x: 0, y: -40 },   // top
-    { x: 38, y: -12 },  // top-right
-    { x: 24, y: 32 },   // bottom-right
-    { x: -24, y: 32 },  // bottom-left
-    { x: -38, y: -12 }  // top-left
+    { x: 50.0, y: 15.0 },   // top
+    { x: 83.3, y: 39.2 },   // top-right  
+    { x: 70.6, y: 78.3 },   // bottom-right
+    { x: 29.4, y: 78.3 },   // bottom-left
+    { x: 16.7, y: 39.2 }    // top-left
   ];
 
   return (
-    <div className="flex items-center justify-center">
+    <div className={`flex items-center justify-center ${className}`}>
       <style dangerouslySetInnerHTML={{
         __html: `
           @keyframes spinReel {
@@ -18,18 +29,20 @@ const FilmReelLogo = () => {
             to { transform: rotate(360deg); }
           }
           .spinning-reel {
-            animation: spinReel 4s linear infinite;
+            ${animate ? 'animation: spinReel 4s linear infinite;' : ''}
           }
           .spinning-reel:hover {
-            animation-duration: 1s;
+            ${animate ? 'animation-duration: 1s;' : ''}
           }
         `
       }} />
       <div
-        className="relative w-32 h-32 rounded-full shadow-lg spinning-reel"
+        className={`relative rounded-full shadow-lg ${animate ? 'spinning-reel' : ''}`}
         style={{
+          width: `${size}px`,
+          height: `${size}px`,
           backgroundColor: '#6b7280',
-          border: '4px solid #4b5563',
+          border: `${Math.max(2, size * 0.03125)}px solid #4b5563`, // Scale border with size
         }}
       >
         {holePositions.map((pos, index) => (
@@ -37,11 +50,11 @@ const FilmReelLogo = () => {
             key={index}
             className="absolute rounded-full"
             style={{
-              width: '1.5rem',
-              height: '1.5rem',
+              width: `${size * 0.1875}px`, // 12% of container size
+              height: `${size * 0.1875}px`,
               backgroundColor: '#1e293b',
-              top: `calc(50% + ${pos.y}px)`,
-              left: `calc(50% + ${pos.x}px)`,
+              top: `${pos.y}%`,
+              left: `${pos.x}%`,
               transform: 'translate(-50%, -50%)',
             }}
           />
@@ -49,13 +62,13 @@ const FilmReelLogo = () => {
         <div
           className="absolute rounded-full"
           style={{
-            width: '2rem',
-            height: '2rem',
+            width: `${size * 0.25}px`, // 25% of container size
+            height: `${size * 0.25}px`,
             backgroundColor: '#374151',
             top: '50%',
             left: '50%',
             transform: 'translate(-50%, -50%)',
-            border: '2px solid #4b5563'
+            border: `${Math.max(1, size * 0.015625)}px solid #4b5563` // Scale border with size
           }}
         />
       </div>

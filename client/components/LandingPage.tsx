@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import GoogleLoginButton from './GoogleLoginButton';
 import FilmReelLogo from './FilmReelLogo';
 import useAuth from '../hooks/useAuth';
 
@@ -12,40 +11,65 @@ interface LandingPageProps {
 }
 
 
-// Define a proper type for features
-type Feature = {
-  readonly icon: string;
+// Define a proper interface for features
+interface Feature {
+  readonly icon: React.ReactNode;
   readonly title: string;
   readonly desc: string;
   readonly destination: CurrentView;
   readonly available: boolean;
-};
+}
+
+// SVG Icon Components
+const AIIcon = () => (
+  <svg className="w-8 h-8 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+  </svg>
+);
+
+const BudgetIcon = () => (
+  <svg className="w-8 h-8 text-green-400" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+  </svg>
+);
+
+const SchedulerIcon = () => (
+  <svg className="w-8 h-8 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+  </svg>
+);
+
+const ProjectIcon = () => (
+  <svg className="w-8 h-8 text-orange-400" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+  </svg>
+);
 
 // Features cards, put into alphabetical order for the users
 const FEATURES: Feature[] = [
   { 
-    icon: '🤖', 
+    icon: <AIIcon />, 
     title: 'AI Weekly Planner', 
     desc: 'Smart task scheduling with AI assistance', 
     destination: 'planner' as CurrentView,
     available: true 
   },
   { 
-    icon: '💰', 
+    icon: <BudgetIcon />, 
     title: 'Budget Tracker', 
     desc: 'Keep your finances on track with smart tools',
     destination: 'budget-tracker' as CurrentView,
     available: true 
   },
   { 
-    icon: '📅', 
+    icon: <SchedulerIcon />, 
     title: 'Content Scheduler', 
     desc: 'Plan and schedule your content across platforms',
     destination: 'content-scheduler' as CurrentView,
     available: true 
   },
   { 
-    icon: '📁', 
+    icon: <ProjectIcon />, 
     title: 'Project Center', 
     desc: 'Organize all your creative projects in one place', 
     destination: 'project-center' as CurrentView,
@@ -64,7 +88,11 @@ const LoginPromptPopup: React.FC<{
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
       <div className="bg-gradient-to-br from-slate-800 to-gray-900 border border-purple-500/30 rounded-xl p-6 max-w-sm w-full shadow-2xl shadow-purple-500/20">
         <div className="text-center">
-          <div className="text-4xl mb-4">🔒</div>
+          <div className="flex justify-center mb-4">
+            <svg className="w-10 h-10 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
+              <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+            </svg>
+          </div>
           <h3 className="text-lg font-semibold text-purple-300 mb-2">
             Sign In Required
           </h3>
@@ -129,23 +157,15 @@ const FeatureCard: React.FC<{
         minHeight: '120px'
       }}
     >
-      <div className="text-2xl sm:text-3xl mb-3 flex justify-center" style={{ pointerEvents: 'none' }}>{feature.icon}</div>
+      <div className="flex justify-center mb-3" style={{ pointerEvents: 'none' }}>
+        {feature.icon}
+      </div>
       <h3 className="text-base sm:text-lg font-semibold text-purple-300 mb-2 text-center" style={{ pointerEvents: 'none' }}>
         {feature.title}
       </h3>
       <p className="text-gray-400 text-sm sm:text-sm leading-relaxed text-center" style={{ pointerEvents: 'none' }}>
         {feature.desc}
       </p>
-      <div 
-        className={`mt-3 text-xs font-medium transition-colors text-center ${
-          feature.available 
-            ? 'text-purple-400 group-hover:text-purple-300' 
-            : 'text-gray-500'
-        }`}
-        style={{ pointerEvents: 'none' }}
-      >
-        {feature.available ? 'Click to explore →' : 'Coming soon...'}
-      </div>
     </div>
   );
 };
@@ -183,12 +203,14 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
 
       {/* Simple Navbar */}
       <nav className="relative z-20 p-4 sm:p-6">
-        <div className="flex justify-between items-center">
-          {/* Rocket Logo */}
+        <div className="flex justify-start items-center">
+          {/* Logo */}
           <div className="flex items-center space-x-3">
             <div className="relative group cursor-pointer hover:scale-110 transition-all duration-300">
               <div className="w-10 h-10 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center group-hover:rotate-12 transition-transform duration-300 shadow-lg shadow-purple-500/30">
-                <span className="text-xl" role="img" aria-label="rocket">🚀</span>
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12 2L13.09 8.26L22 9L13.09 9.74L12 16L10.91 9.74L2 9L10.91 8.26L12 2Z"/>
+                </svg>
               </div>
               <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-br from-yellow-400 to-orange-500 rounded-full animate-pulse"></div>
             </div>
@@ -196,9 +218,6 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
               StreamScene
             </span>
           </div>
-
-          {/* Google Login in Right Upper Corner */}
-          <GoogleLoginButton />
         </div>
       </nav>
 
@@ -259,8 +278,8 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           )}
         </div>
 
-        {/* Feature Cards - Mobile-Optimized Grid Layout */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6 w-full max-w-6xl px-4 mb-8 sm:mb-12">
+        {/* Feature Cards - Evenly Spaced Grid Layout */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full max-w-5xl px-4 mb-8 sm:mb-12">
           {FEATURES.map((feature, index) => (
             <FeatureCard 
               key={`feature-${index}`}
