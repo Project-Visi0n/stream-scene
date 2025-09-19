@@ -65,6 +65,8 @@ jobs:
       run: |
         rm -rf node_modules package-lock.json
         npm install
+        # Install platform-specific lightningcss binary for GitHub Actions (ubuntu)
+        npm install lightningcss-linux-x64-gnu --save-optional
       
     - name: Build application
       if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
