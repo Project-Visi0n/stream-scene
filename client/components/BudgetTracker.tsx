@@ -108,11 +108,177 @@ const extractVendorFromText = (text: string): string | null => {
 const BudgetTracker: React.FC = () => {
   // State
   const [activeTab, setActiveTab] = useState('add');
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const [entries, setEntries] = useState<Entry[]>([
+    // Income entries
+    { 
+      id: '1', 
+      type: 'income', 
+      amount: 2847.50, 
+      category: 'Twitch Revenue', 
+      description: 'Monthly subscriber and ad revenue from Twitch', 
+      date: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '1',
+      tags: ['twitch', 'subscriptions', 'ads']
+    },
+    { 
+      id: '2', 
+      type: 'income', 
+      amount: 1200.00, 
+      category: 'Sponsorship', 
+      description: 'NordVPN sponsored content payment', 
+      date: new Date(Date.now() - 12 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '3',
+      tags: ['sponsorship', 'nordvpn']
+    },
+    { 
+      id: '3', 
+      type: 'income', 
+      amount: 486.75, 
+      category: 'Donations', 
+      description: 'Viewer donations and tips from past week', 
+      date: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '1',
+      tags: ['donations', 'tips']
+    },
+    { 
+      id: '4', 
+      type: 'income', 
+      amount: 890.25, 
+      category: 'YouTube Revenue', 
+      description: 'AdSense revenue from uploaded highlights', 
+      date: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '2',
+      tags: ['youtube', 'adsense']
+    },
+    { 
+      id: '5', 
+      type: 'income', 
+      amount: 325.00, 
+      category: 'Merchandise', 
+      description: 'T-shirt and sticker sales from online store', 
+      date: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '4',
+      tags: ['merch', 'clothing']
+    },
+    
+    // Equipment expenses
+    { 
+      id: '6', 
+      type: 'expense', 
+      amount: 899.99, 
+      category: 'Equipment', 
+      description: 'Sony A7 III Camera for better stream quality', 
+      date: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '1',
+      receiptTitle: 'Best Buy Receipt - Sony Camera',
+      ocrScanned: true,
+      ocrConfidence: 0.95,
+      tags: ['camera', 'equipment', 'upgrade']
+    },
+    { 
+      id: '7', 
+      type: 'expense', 
+      amount: 249.99, 
+      category: 'Audio Equipment', 
+      description: 'Audio-Technica AT2020 Microphone', 
+      date: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '1',
+      tags: ['microphone', 'audio', 'quality']
+    },
+    { 
+      id: '8', 
+      type: 'expense', 
+      amount: 89.99, 
+      category: 'Lighting', 
+      description: 'Ring light for better face lighting during streams', 
+      date: new Date(Date.now() - 18 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '1',
+      tags: ['lighting', 'setup']
+    },
+    
+    // Software and subscriptions
+    { 
+      id: '9', 
+      type: 'expense', 
+      amount: 29.99, 
+      category: 'Software', 
+      description: 'Adobe Creative Suite monthly subscription', 
+      date: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '2',
+      tags: ['adobe', 'editing', 'software']
+    },
+    { 
+      id: '10', 
+      type: 'expense', 
+      amount: 9.99, 
+      category: 'Software', 
+      description: 'Streamlabs Prime subscription', 
+      date: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '1',
+      tags: ['streamlabs', 'overlay']
+    },
+    { 
+      id: '11', 
+      type: 'expense', 
+      amount: 14.99, 
+      category: 'Music', 
+      description: 'Epidemic Sound license for stream background music', 
+      date: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '1',
+      tags: ['music', 'license']
+    },
+    
+    // Business expenses
+    { 
+      id: '12', 
+      type: 'expense', 
+      amount: 156.78, 
+      category: 'Internet/Utilities', 
+      description: 'High-speed internet upgrade for better stream quality', 
+      date: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '1',
+      receiptTitle: 'Comcast Bill - Internet Service',
+      ocrScanned: true,
+      ocrConfidence: 0.87,
+      tags: ['internet', 'utilities']
+    },
+    { 
+      id: '13', 
+      type: 'expense', 
+      amount: 450.00, 
+      category: 'Marketing', 
+      description: 'Custom emote design commission from artist', 
+      date: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '5',
+      tags: ['emotes', 'art', 'community']
+    },
+    { 
+      id: '14', 
+      type: 'expense', 
+      amount: 75.00, 
+      category: 'Game Purchase', 
+      description: 'New releases for stream content variety', 
+      date: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '1',
+      tags: ['games', 'content']
+    },
+    { 
+      id: '15', 
+      type: 'expense', 
+      amount: 199.99, 
+      category: 'Office Setup', 
+      description: 'Ergonomic gaming chair for long streaming sessions', 
+      date: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], 
+      projectId: '1',
+      tags: ['furniture', 'comfort', 'health']
+    }
+  ]);
   const [projects, setProjects] = useState<Project[]>([
-    { id: '1', name: 'Client Website', description: 'E-commerce site for ABC Corp', color: '#8b5cf6', isActive: true },
-    { id: '2', name: 'Personal Blog', description: 'My photography blog', color: '#ec4899', isActive: true },
-    { id: '3', name: 'Mobile App', description: 'iOS app development', color: '#06b6d4', isActive: true }
+    { id: '1', name: 'Main Stream Channel', description: 'Primary Twitch streaming content and revenue', color: '#8b5cf6', isActive: true, tags: ['gaming', 'entertainment'] },
+    { id: '2', name: 'YouTube Content', description: 'Highlights and edited content for YouTube monetization', color: '#ec4899', isActive: true, tags: ['youtube', 'editing'] },
+    { id: '3', name: 'Sponsored Content', description: 'Brand partnerships and sponsored stream segments', color: '#06b6d4', isActive: true, tags: ['sponsors', 'marketing'] },
+    { id: '4', name: 'Merchandise Sales', description: 'Custom merch store and promotional items', color: '#f59e0b', isActive: true, tags: ['merch', 'sales'] },
+    { id: '5', name: 'Community Events', description: 'Special events, tournaments, and subscriber perks', color: '#10b981', isActive: true, tags: ['community', 'events'] }
   ]);
 
   const [formData, setFormData] = useState({
@@ -558,7 +724,7 @@ const BudgetTracker: React.FC = () => {
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
           <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
             <BudgetIcon />
-            <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent py-1">
               Budget Tracker
             </span>
           </h1>

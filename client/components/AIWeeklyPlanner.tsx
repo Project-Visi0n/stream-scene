@@ -1316,9 +1316,9 @@ const AIWeeklyPlanner: React.FC = () => {
 
         {/* Header */}
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
-          <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
+          <h1 className="text-4xl font-bold mb-2 flex items-center justify-center leading-relaxed">
             <AIIcon />
-            <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent leading-relaxed py-1">
               AI Weekly Planner
             </span>
           </h1>

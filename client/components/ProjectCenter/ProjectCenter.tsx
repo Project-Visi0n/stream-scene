@@ -24,9 +24,9 @@ const ProjectCenter: React.FC = () => {
       <div className="relative z-10 max-w-7xl mx-auto p-6">
         {/* Header */}
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
-          <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
+          <h1 className="text-4xl font-bold mb-2 flex items-center justify-center leading-relaxed">
             <ProjectIcon />
-            <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent leading-relaxed py-1">
               Project Center
             </span>
           </h1>
