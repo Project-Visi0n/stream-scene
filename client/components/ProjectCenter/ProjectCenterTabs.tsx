@@ -3,10 +3,23 @@ import { motion } from 'framer-motion';
 import FileUpload from './FileUpload';
 import CollaborativeCanvas from '../CollaborativeCanvas';
 
+// Custom SVG Icon Components (matching your navbar and landing page)
+const ProjectIcon = () => (
+  <svg className="w-5 h-5 text-orange-400" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+  </svg>
+);
+
+const FolderIcon = () => (
+  <svg className="w-5 h-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+    <path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" />
+  </svg>
+);
+
 interface Tab {
   id: string;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
   component: React.ReactNode;
 }
 
@@ -22,7 +35,7 @@ const ProjectCenterTabs: React.FC = () => {
     {
       id: 'canvas',
       label: 'Canvas',
-      icon: '🎨',
+      icon: <ProjectIcon />,
       component: (
         <CollaborativeCanvas 
           canvasId="project-center-main" 
@@ -35,7 +48,7 @@ const ProjectCenterTabs: React.FC = () => {
     {
       id: 'files',
       label: 'Files',
-      icon: '📁',
+      icon: <FolderIcon />,
       component: <FileUpload />
     },
   ];
@@ -59,7 +72,7 @@ const ProjectCenterTabs: React.FC = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <span className="text-lg">{tab.icon}</span>
+              {tab.icon}
               <span className="hidden sm:inline">{tab.label}</span>
             </motion.button>
           ))}

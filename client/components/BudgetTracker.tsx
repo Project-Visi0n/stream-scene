@@ -13,6 +13,12 @@ import {
   FaCheckCircle
 } from 'react-icons/fa';
 
+// Custom SVG Icon Components (matching your navbar and landing page)
+const BudgetIcon = () => (
+  <svg className="w-8 h-8 text-green-400" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
+  </svg>
+);
 
 // Types
 type Project = {
@@ -552,10 +558,8 @@ const BudgetTracker: React.FC = () => {
         {/* Header */}
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
           <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
-            <span className="mr-3">
-              <FilmReelLogo />
-            </span>
-            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <BudgetIcon />
+            <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
               Budget Tracker
             </span>
           </h1>
@@ -601,7 +605,7 @@ const BudgetTracker: React.FC = () => {
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl mb-6">
           <div className="border-b border-purple-500/20">
             <div className="flex">
-              <button
+                              <button
                 onClick={() => setActiveTab('add')}
                 className={`px-6 py-4 font-medium transition-all duration-200 ${
                   activeTab === 'add'
@@ -609,7 +613,7 @@ const BudgetTracker: React.FC = () => {
                     : 'text-gray-400 hover:text-purple-300'
                 }`}
               >
-                <span className="inline-block w-5 h-5 mr-2 text-center font-bold"></span>
+                <span className="inline-block w-5 h-5 mr-2 text-center font-bold">+</span>
                 Add Entry
               </button>
               <button
@@ -620,7 +624,7 @@ const BudgetTracker: React.FC = () => {
                     : 'text-gray-400 hover:text-purple-300'
                 }`}
               >
-                <FaClipboardList className="inline-block w-5 h-5 mr-2" />
+                <span className="inline-block w-5 h-5 mr-2 text-center font-bold">📋</span>
                 Transaction History
               </button>
             </div>
@@ -662,7 +666,7 @@ const BudgetTracker: React.FC = () => {
                 {/* Project Association */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-3">
-                    <FaFolder className="inline-block w-4 h-4 mr-2" />
+                    <span className="inline-block w-4 h-4 mr-2 text-center">📁</span>
                     Associate with Project (Optional)
                   </label>
                   
@@ -731,7 +735,7 @@ const BudgetTracker: React.FC = () => {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-3">
-                        <FaRobot className="inline-block w-4 h-4 mr-2" />
+                        <span className="inline-block w-4 h-4 mr-2 text-center">🤖</span>
                         Smart Receipt Scanner
                         <span className="ml-2 text-xs bg-gradient-to-r from-purple-600 to-blue-600 text-white px-2 py-1 rounded-full">
                           AI-Powered OCR
@@ -758,7 +762,7 @@ const BudgetTracker: React.FC = () => {
                             </div>
                           ) : (
                             <div className="space-y-3">
-                              <FaMobile className="text-4xl mx-auto" />
+                              <div className="text-4xl">📱</div>
                               <div>
                                 <button
                                   type="button"
@@ -837,7 +841,10 @@ const BudgetTracker: React.FC = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      <span className="inline-block w-4 h-4 mr-1 text-center font-bold">$</span>
+                      <svg className="inline-block w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.51-1.31c-.562-.649-1.413-1.076-2.353-1.253V5z" clipRule="evenodd" />
+                      </svg>
                       Amount *
                       {formData.ocrScanned && (
                         <span className="ml-2 text-xs bg-gradient-to-r from-emerald-600 to-green-600 text-white px-2 py-1 rounded-full">
@@ -872,7 +879,7 @@ const BudgetTracker: React.FC = () => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      <FaCalendarAlt className="inline-block w-4 h-4 mr-1" />
+                      <span className="inline-block w-4 h-4 mr-1 text-center font-bold">📅</span>
                       Date *
                     </label>
                     <input
@@ -888,7 +895,7 @@ const BudgetTracker: React.FC = () => {
                 {/* Category Chips */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-3">
-                    <FaTag className="inline-block w-4 h-4 mr-2" />
+                    <span className="inline-block w-4 h-4 mr-2 text-center">🏷️</span>
                     Category *
                   </label>
                   
@@ -997,7 +1004,7 @@ const BudgetTracker: React.FC = () => {
                     onClick={handleSubmit}
                     className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 font-medium shadow-lg shadow-purple-500/25"
                   >
-                    <FaSave className="inline-block w-5 h-5 mr-2" />
+                    <span className="inline-block w-5 h-5 mr-2 text-center font-bold">💾</span>
                     Save Entry
                   </button>
                 </div>
