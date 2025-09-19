@@ -182,7 +182,7 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-gray-900 to-black relative overflow-hidden">
+    <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-gray-900 to-black relative overflow-hidden pb-12">
       {/* Background Effects */}
       <div className="absolute inset-0 bg-gradient-to-r from-purple-900/20 via-transparent to-pink-900/20"></div>
       <div className="absolute top-0 left-1/4 w-48 h-48 sm:w-96 sm:h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
@@ -306,7 +306,7 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
         </div>
 
         {/* Feature Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full max-w-5xl px-4 mb-8 sm:mb-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 w-full max-w-5xl px-4 mb-12 sm:mb-16">
           {FEATURES.map((feature, index) => (
             <FeatureCard 
               key={`feature-${index}`}
@@ -318,24 +318,30 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           ))}
         </div>
 
-         {/* Footer Section with Legal Links */}
-        <footer className="mt-8 pt-6 w-full max-w-6xl px-4">
+        {/* Legal Links Section - Moved up and more prominent */}
+        <div className="w-full max-w-6xl px-4 mb-8">
           <div className="text-center">
-            <div className="flex justify-center items-center space-x-4 mb-3">
+            <div className="flex justify-center items-center space-x-6 mb-4">
               <button
                 onClick={() => navigate('/privacy')}
-                className="text-gray-400 hover:text-gray-300 text-sm transition-colors duration-200 cursor-pointer"
+                className="text-gray-400 hover:text-purple-300 text-base transition-colors duration-200 cursor-pointer font-medium"
               >
                 Privacy Policy
               </button>
-              <span className="text-gray-500 text-sm">•</span>
+              <span className="text-gray-500 text-base">•</span>
               <button
                 onClick={() => navigate('/terms')}
-                className="text-gray-400 hover:text-gray-300 text-sm transition-colors duration-200 cursor-pointer"
+                className="text-gray-400 hover:text-purple-300 text-base transition-colors duration-200 cursor-pointer font-medium"
               >
                 Terms of Service
               </button>
             </div>
+          </div>
+        </div>
+
+         {/* Footer Section */}
+        <footer className="w-full max-w-6xl px-4 pb-8">
+          <div className="text-center">
             <p className="text-gray-500 text-sm">
               © {new Date().getFullYear()} StreamScene. All rights reserved.
             </p>
