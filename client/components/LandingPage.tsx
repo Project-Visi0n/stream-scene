@@ -296,7 +296,7 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
           ) : (
             <div className="mb-8">
               <p className="text-lg sm:text-xl text-purple-300 font-medium">
-                Welcome back, {user.firstName}!
+                Welcome, {user.firstName}!
               </p>
               <p className="text-sm sm:text-base text-gray-400 mt-2">
                 Ready to manage your creative projects?
