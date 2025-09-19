@@ -1,7 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { 
+  HiMagnifyingGlass,
+  HiPencilSquare,
+  HiLightBulb,
+  HiCog6Tooth,
+  HiSparkles,
+  HiClock,
+  HiDocumentText,
+  HiChartBarSquare,
+  HiExclamationTriangle
+} from 'react-icons/hi2';
 import TaskForm from './TaskForm';
 import { Task, TaskFormData } from '../types/task';
+
+// Custom SVG Icon Components (matching your navbar and landing page)
+const AIIcon = () => (
+  <svg className="w-8 h-8 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+  </svg>
+);
+
+const SchedulerIcon = () => (
+  <svg className="w-8 h-8 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+  </svg>
+);
+
+// Smaller versions for inline use
+const AIIconSmall = () => (
+  <svg className="w-5 h-5 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+  </svg>
+);
+
+const SchedulerIconSmall = () => (
+  <svg className="w-6 h-6 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
+  </svg>
+);
 
 interface WeeklySchedule {
   id?: string;
@@ -135,7 +172,7 @@ const AIWeeklyPlanner: React.FC = () => {
           // Wrapped in data property
           tasksData = responseData.data;
         } else {
-          console.error('🚨 Unexpected response format:', responseData);
+          console.error('Unexpected response format:', responseData);
           tasksData = [];
         }
 
@@ -159,7 +196,7 @@ const AIWeeklyPlanner: React.FC = () => {
           return true;
         });
         
-        console.log('🎯 Validated tasks:', validTasks.length, 'of', tasksData.length);
+        console.log('Validated tasks:', validTasks.length, 'of', tasksData.length);
         setTasks(validTasks);
       } else {
         console.error('Failed to load tasks');
@@ -857,7 +894,9 @@ const AIWeeklyPlanner: React.FC = () => {
           
           {events.length === 0 && (
             <div className="text-center py-12 text-gray-400">
-              <div className="text-4xl mb-4">📅</div>
+              <div className="mb-4 flex justify-center">
+                <SchedulerIconSmall />
+              </div>
               <h4 className="text-lg font-medium text-white mb-2">No events today</h4>
               <p className="text-sm">Your day is completely free!</p>
             </div>
@@ -898,6 +937,7 @@ const AIWeeklyPlanner: React.FC = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+            <SchedulerIcon />
             Calendar View
           </h2>
           
@@ -964,6 +1004,7 @@ const AIWeeklyPlanner: React.FC = () => {
       <div className="space-y-8">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+            <AIIcon />
             AI Task Suggestions
           </h2>
           <button
@@ -980,7 +1021,10 @@ const AIWeeklyPlanner: React.FC = () => {
                 Analyzing...
               </span>
             ) : (
-              'Analyze & Suggest'
+              <span className="flex items-center gap-2">
+                <HiSparkles className="w-5 h-5" />
+                Analyze & Suggest
+              </span>
             )}
           </button>
         </div>
@@ -990,6 +1034,7 @@ const AIWeeklyPlanner: React.FC = () => {
             {actionableSuggestions.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-4">
+                  <HiPencilSquare className="w-6 h-6 text-blue-400" />
                   <h3 className="text-xl font-bold text-white">Suggested Tasks</h3>
                   <span className="text-sm text-gray-400">({actionableSuggestions.length} actionable items)</span>
                 </div>
@@ -1003,7 +1048,10 @@ const AIWeeklyPlanner: React.FC = () => {
                               task
                             </span>
                             {suggestion.estimatedHours && (
-                              <span className="text-xs text-gray-400">~{suggestion.estimatedHours}h</span>
+                              <span className="flex items-center gap-1 text-xs text-gray-400">
+                                <HiClock className="w-3 h-3" />
+                                {suggestion.estimatedHours}h
+                              </span>
                             )}
                             {suggestion.priority && (
                               <span className={`text-xs px-2 py-1 rounded ${
@@ -1042,6 +1090,7 @@ const AIWeeklyPlanner: React.FC = () => {
             {insights.length > 0 && (
               <div>
                 <div className="flex items-center gap-2 mb-4">
+                  <HiLightBulb className="w-6 h-6 text-yellow-400" />
                   <h3 className="text-xl font-bold text-white">AI Insights</h3>
                   <span className="text-sm text-gray-400">({insights.length} recommendations)</span>
                 </div>
@@ -1067,11 +1116,12 @@ const AIWeeklyPlanner: React.FC = () => {
                           <p className="text-sm text-gray-300 mb-2">{insight.description}</p>
                           <p className="text-xs text-gray-400">{insight.reason}</p>
                         </div>
-                        <div className={`ml-4 px-3 py-1 text-sm rounded ${
+                        <div className={`ml-4 px-3 py-1 text-sm rounded flex items-center gap-1 ${
                           insight.type === 'optimization'
                             ? 'bg-purple-600/20 text-purple-300'
                             : 'bg-green-600/20 text-green-300'
                         }`}>
+                          <HiCog6Tooth className="w-4 h-4" />
                           {insight.type === 'optimization' ? 'Consider This' : 'Manual Schedule'}
                         </div>
                       </div>
@@ -1093,7 +1143,9 @@ const AIWeeklyPlanner: React.FC = () => {
           </div>
         ) : (
           <div className="text-center py-8 text-gray-400">
-            <div className="text-4xl mb-4">🤖</div>
+            <div className="mb-4 flex justify-center">
+              <AIIcon />
+            </div>
             <h3 className="text-lg font-semibold text-white mb-2">Ready for AI Magic?</h3>
             <p className="text-gray-300 text-sm mb-4">Let AI analyze your tasks and calendar to suggest optimizations</p>
             <button
@@ -1147,7 +1199,10 @@ const AIWeeklyPlanner: React.FC = () => {
                     <span className="whitespace-nowrap">Due: {new Date(task.deadline).toLocaleDateString()}</span>
                   )}
                   {task.estimated_hours && (
-                    <span className="whitespace-nowrap">{task.estimated_hours}h estimated</span>
+                    <span className="whitespace-nowrap flex items-center gap-1">
+                      <HiClock className="w-3 h-3" />
+                      {task.estimated_hours}h estimated
+                    </span>
                   )}
                 </div>
               </div>
@@ -1212,8 +1267,8 @@ const AIWeeklyPlanner: React.FC = () => {
         {/* Header */}
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
           <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
-            <span className="mr-3 text-4xl">🤖</span>
-            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <AIIcon />
+            <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
               AI Weekly Planner
             </span>
           </h1>
@@ -1345,7 +1400,10 @@ const AIWeeklyPlanner: React.FC = () => {
                     <div>Deadline: {new Date(selectedTask.deadline).toLocaleDateString()}</div>
                   )}
                   {selectedTask.estimated_hours && (
-                    <div>Estimated time: {selectedTask.estimated_hours} hours</div>
+                    <div className="flex items-center gap-1">
+                      <HiClock className="w-4 h-4" />
+                      Estimated time: {selectedTask.estimated_hours} hours
+                    </div>
                   )}
                   {selectedTask.created_at && (
                     <div>Created: {new Date(selectedTask.created_at).toLocaleDateString()}</div>
@@ -1403,7 +1461,10 @@ const AIWeeklyPlanner: React.FC = () => {
                       Generating...
                     </span>
                   ) : (
-                    'Generate AI Schedule'
+                    <span className="flex items-center gap-2">
+                      <AIIconSmall />
+                      Generate AI Schedule
+                    </span>
                   )}
                 </button>
               </div>
@@ -1423,7 +1484,10 @@ const AIWeeklyPlanner: React.FC = () => {
               {taskToDelete && (
                 <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                   <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full">
-                    <h3 className="text-lg font-bold text-white mb-4">Delete Task</h3>
+                    <div className="flex items-center gap-3 mb-4">
+                      <HiExclamationTriangle className="w-6 h-6 text-red-400" />
+                      <h3 className="text-lg font-bold text-white">Delete Task</h3>
+                    </div>
                     <p className="text-gray-300 mb-6">
                       Are you sure you want to delete "{taskToDelete.title}"? This action cannot be undone.
                     </p>
@@ -1448,7 +1512,10 @@ const AIWeeklyPlanner: React.FC = () => {
 
               <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-2xl font-bold text-white">Your Tasks</h2>
+                  <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                    <HiDocumentText className="w-8 h-8 text-blue-400" />
+                    Your Tasks
+                  </h2>
                   <div className="flex items-center gap-2">
                     {taskFilter !== 'all' && (
                       <div className="flex items-center gap-2">
@@ -1480,7 +1547,9 @@ const AIWeeklyPlanner: React.FC = () => {
                   renderEnhancedTaskList()
                 ) : taskFilter !== 'all' ? (
                   <div className="text-center py-12">
-                    <div className="text-6xl mb-4">🔍</div>
+                    <div className="mb-4">
+                      <HiMagnifyingGlass className="w-16 h-16 mx-auto text-gray-500" />
+                    </div>
                     <h3 className="text-xl font-semibold text-white mb-2">No {taskFilter ? taskFilter.replace('_', ' ') : 'filtered'} tasks</h3>
                     <p className="text-gray-300 mb-6">You don't have any tasks in this category yet.</p>
                     <button
@@ -1492,7 +1561,9 @@ const AIWeeklyPlanner: React.FC = () => {
                   </div>
                 ) : (
                   <div className="text-center py-12">
-                    <div className="text-6xl mb-4">📝</div>
+                    <div className="mb-4">
+                      <HiPencilSquare className="w-16 h-16 mx-auto text-gray-500" />
+                    </div>
                     <h3 className="text-xl font-semibold text-white mb-2">No tasks yet</h3>
                     <p className="text-gray-300 mb-6">Create your first task to get started with AI scheduling!</p>
                     <button
@@ -1508,11 +1579,15 @@ const AIWeeklyPlanner: React.FC = () => {
 
             <div className="space-y-6">
               <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
-                <h2 className="text-2xl font-bold text-white mb-4">AI Weekly Schedule</h2>
+                <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                  <HiChartBarSquare className="w-8 h-8 text-purple-400" />
+                  AI Weekly Schedule
+                </h2>
                 
                 {weeklySchedule ? (
                   <div className="space-y-4">
-                    <div className="text-green-300 font-medium">
+                    <div className="text-green-300 font-medium flex items-center gap-2">
+                      <HiSparkles className="w-5 h-5" />
                       Schedule Generated!
                     </div>
                     
@@ -1529,14 +1604,19 @@ const AIWeeklyPlanner: React.FC = () => {
 
                     {weeklySchedule.aiSuggestions && (
                       <div className="bg-gray-800/50 rounded-lg p-4">
-                        <h4 className="font-medium text-white mb-2">AI Suggestions:</h4>
+                        <h4 className="font-medium text-white mb-2 flex items-center gap-2">
+                          <HiLightBulb className="w-4 h-4 text-yellow-400" />
+                          AI Suggestions:
+                        </h4>
                         <p className="text-gray-300 text-sm">{weeklySchedule.aiSuggestions}</p>
                       </div>
                     )}
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <div className="text-4xl mb-4">🤖</div>
+                    <div className="mb-4 flex justify-center">
+                      <AIIcon />
+                    </div>
                     <h3 className="text-lg font-semibold text-white mb-2">Ready for AI Magic?</h3>
                     <p className="text-gray-300 text-sm mb-4">Add some tasks and let AI create your perfect weekly schedule</p>
                     <button
@@ -1551,7 +1631,10 @@ const AIWeeklyPlanner: React.FC = () => {
               </div>
 
               <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
-                <h3 className="text-lg font-bold text-white mb-3">Pro Tips</h3>
+                <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                  <HiLightBulb className="w-5 h-5 text-yellow-400" />
+                  Pro Tips
+                </h3>
                 <ul className="space-y-2 text-sm text-gray-300">
                   <li>• Mix creative and admin tasks for better balance</li>
                   <li>• Set realistic deadlines for better AI scheduling</li>

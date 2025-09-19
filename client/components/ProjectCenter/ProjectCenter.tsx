@@ -1,6 +1,13 @@
 import React, { useState } from "react";
 import ProjectCenterTabs from "./ProjectCenterTabs";
 
+// Custom SVG Icon Component (matching your navbar and landing page)
+const ProjectIcon = () => (
+  <svg className="w-8 h-8 text-orange-400" fill="currentColor" viewBox="0 0 24 24">
+    <path d="M10 4H4c-1.11 0-2 .89-2 2v12c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2h-8l-2-2z"/>
+  </svg>
+);
+
 const ProjectCenter: React.FC = () => {
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-gray-900 to-black relative overflow-hidden">
@@ -18,8 +25,8 @@ const ProjectCenter: React.FC = () => {
         {/* Header */}
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
           <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
-            <span className="mr-3 text-4xl">🎨</span>
-            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <ProjectIcon />
+            <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
               Project Center
             </span>
           </h1>
