@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import TaskForm from './TaskForm';
+import TagInput from './TagInput';
 import { Task, TaskFormData } from '../types/task';
 
 interface WeeklySchedule {
@@ -56,6 +57,7 @@ const AIWeeklyPlanner: React.FC = () => {
   
   // Task filtering state
   const [taskFilter, setTaskFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed' | 'creative' | 'admin'>('all');
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
   
   // Confirmation dialogs
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
@@ -76,20 +78,37 @@ const AIWeeklyPlanner: React.FC = () => {
     // Ensure tasks is always an array before filtering
     const safeTasksArray = Array.isArray(tasks) ? tasks : [];
     
+    // Apply status/type filter first
+    let filtered: Task[];
     switch (taskFilter) {
       case 'pending':
-        return safeTasksArray.filter(t => t.status === 'pending');
+        filtered = safeTasksArray.filter(t => t.status === 'pending');
+        break;
       case 'in_progress':
-        return safeTasksArray.filter(t => t.status === 'in_progress');
+        filtered = safeTasksArray.filter(t => t.status === 'in_progress');
+        break;
       case 'completed':
-        return safeTasksArray.filter(t => t.status === 'completed');
+        filtered = safeTasksArray.filter(t => t.status === 'completed');
+        break;
       case 'creative':
-        return safeTasksArray.filter(t => t.task_type === 'creative');
+        filtered = safeTasksArray.filter(t => t.task_type === 'creative');
+        break;
       case 'admin':
-        return safeTasksArray.filter(t => t.task_type === 'admin');
+        filtered = safeTasksArray.filter(t => t.task_type === 'admin');
+        break;
       default:
-        return safeTasksArray;
+        filtered = safeTasksArray;
     }
+    
+    // Apply tag filter
+    if (tagFilter.length > 0) {
+      filtered = filtered.filter(task => 
+        task.tags && task.tags.length > 0 && 
+        tagFilter.every(filterTag => task.tags?.includes(filterTag))
+      );
+    }
+    
+    return filtered;
   };
 
   const filteredTasks = getFilteredTasks();
@@ -494,7 +513,8 @@ const AIWeeklyPlanner: React.FC = () => {
       priority: suggestion.priority || 'medium',
       task_type: suggestion.task_type || 'admin',
       deadline: suggestion.suggestedDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      estimated_hours: suggestion.estimatedHours || 1
+      estimated_hours: suggestion.estimatedHours || 1,
+      tags: []
     };
 
     try {

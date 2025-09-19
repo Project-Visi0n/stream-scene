@@ -1,4 +1,17 @@
 import React, { useState, useRef } from 'react';
+import TagInput from './TagInput';
+import FilmReelLogo from './FilmReelLogo';
+import { 
+  FaClipboardList, 
+  FaFolder, 
+  FaRobot, 
+  FaMobile, 
+  FaBolt, 
+  FaCalendarAlt, 
+  FaTag, 
+  FaSave,
+  FaCheckCircle
+} from 'react-icons/fa';
 
 
 // Types
@@ -8,6 +21,7 @@ type Project = {
   description?: string;
   color: string;
   isActive: boolean;
+  tags?: string[];
 };
 
 type Entry = {
@@ -24,6 +38,7 @@ type Entry = {
   ocrConfidence?: number;
   ocrVendor?: string;
   ocrDate?: string;
+  tags?: string[];
 };
 
 // OCR Helper Functions
@@ -105,7 +120,76 @@ const BudgetTracker: React.FC = () => {
     ocrScanned: false,
     ocrConfidence: 0,
     ocrVendor: '',
-    ocrDate: ''
+    ocrDate: '',
+    tags: [] as string[]
+  });
+
+  // Tag filter state
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
+
+  // Toast notification state
+  const [toasts, setToasts] = useState<{
+    id: number;
+    type: 'success' | 'error' | 'warning' | 'info';
+    title: string;
+    message: string;
+  }[]>([]);
+
+  // Confirmation modal state
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    onCancel: () => void;
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    onCancel: () => {}
+  });
+
+  // Toast helper functions
+  const showToast = (type: 'success' | 'error' | 'warning' | 'info', title: string, message: string) => {
+    const id = Date.now();
+    setToasts(prev => [...prev, { id, type, title, message }]);
+    
+    // Auto-remove toast after 5 seconds
+    setTimeout(() => {
+      setToasts(prev => prev.filter(toast => toast.id !== id));
+    }, 5000);
+  };
+
+  const removeToast = (id: number) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
+  const showConfirmation = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm: () => {
+        onConfirm();
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+      },
+      onCancel: () => setConfirmModal(prev => ({ ...prev, isOpen: false }))
+    });
+  };
+
+  // Edit transaction state
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    type: 'expense' as 'income' | 'expense',
+    amount: '',
+    description: '',
+    date: '',
+    category: '',
+    projectId: '',
+    receiptTitle: '',
+    tags: [] as string[]
   });
 
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -130,7 +214,7 @@ const BudgetTracker: React.FC = () => {
   const incomeCategories = ['Freelance Payment', 'Residuals', 'Grant', 'Salary', 'Bonus', 'Donation', 'Other'];
   const expenseCategories = ['Equipment', 'Transportation', 'Software', 'Marketing', 'Office Supplies', 'Personal', 'Food', 'Other'];
 
-  // ✅ LAZY LOAD TESSERACT - Only loads when user actually tries to scan
+  // LAZY LOAD TESSERACT - Only loads when user actually tries to scan
   const loadTesseract = async () => {
     if (tesseractLoaded) return;
     
@@ -265,7 +349,7 @@ const BudgetTracker: React.FC = () => {
 
   const handleSubmit = () => {
     if (!formData.amount || !formData.description || !formData.category) {
-      alert('Please fill in all required fields (Amount, Description, Category)');
+      showToast('error', 'Missing Information', 'Please fill in all required fields (Amount, Description, Category)');
       return;
     }
 
@@ -282,7 +366,8 @@ const BudgetTracker: React.FC = () => {
       ocrScanned: formData.ocrScanned,
       ocrConfidence: formData.ocrConfidence,
       ocrVendor: formData.ocrVendor || undefined,
-      ocrDate: formData.ocrDate || undefined
+      ocrDate: formData.ocrDate || undefined,
+      tags: formData.tags
     };
 
     setEntries(prev => [newEntry, ...prev]);
@@ -299,20 +384,88 @@ const BudgetTracker: React.FC = () => {
       ocrScanned: false,
       ocrConfidence: 0,
       ocrVendor: '',
-      ocrDate: ''
+      ocrDate: '',
+      tags: []
     });
     setReceiptFile(null);
     setReceiptUrl('');
     setScanResult(null);
     setError(null);
 
-    alert('Entry saved successfully!');
+    // Switch to transaction history to show the new entry
+    setActiveTab('history');
+
+    showToast('success', 'Entry Saved', 'Budget entry saved successfully!');
   };
 
   const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this entry?')) {
-      setEntries(prev => prev.filter(entry => entry.id !== id));
+    showConfirmation(
+      'Delete Transaction',
+      'Are you sure you want to delete this entry? This action cannot be undone.',
+      () => {
+        setEntries(prev => prev.filter(entry => entry.id !== id));
+        showToast('success', 'Entry Deleted', 'Transaction deleted successfully');
+      }
+    );
+  };
+
+  const handleEditEntry = (entry: Entry) => {
+    setEditingEntry(entry);
+    setEditFormData({
+      type: entry.type,
+      amount: entry.amount.toString(),
+      description: entry.description,
+      date: entry.date,
+      category: entry.category,
+      projectId: entry.projectId || '',
+      receiptTitle: entry.receiptTitle || '',
+      tags: entry.tags || []
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!editFormData.amount || !editFormData.description || !editFormData.category) {
+      showToast('error', 'Missing Information', 'Please fill in all required fields (Amount, Description, Category)');
+      return;
     }
+
+    if (!editingEntry) return;
+
+    const updatedEntry: Entry = {
+      ...editingEntry,
+      type: editFormData.type,
+      amount: parseFloat(editFormData.amount),
+      description: editFormData.description,
+      date: editFormData.date,
+      category: editFormData.category,
+      projectId: editFormData.projectId || undefined,
+      receiptTitle: editFormData.receiptTitle || undefined,
+      tags: editFormData.tags
+    };
+
+    setEntries(prev => prev.map(entry => 
+      entry.id === editingEntry.id ? updatedEntry : entry
+    ));
+
+    setIsEditModalOpen(false);
+    setEditingEntry(null);
+    showToast('success', 'Entry Updated', 'Transaction updated successfully!');
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditModalOpen(false);
+    setEditingEntry(null);
+    setEditFormData({
+      type: 'expense',
+      amount: '',
+      description: '',
+      date: '',
+      category: '',
+      projectId: '',
+      receiptTitle: '',
+      tags: []
+    });
   };
 
   const handleCreateProject = () => {
@@ -321,7 +474,7 @@ const BudgetTracker: React.FC = () => {
 
   const handleSaveProject = () => {
     if (!newProjectData.name.trim()) {
-      alert('Please enter a project name');
+      showToast('error', 'Missing Information', 'Please enter a project name');
       return;
     }
 
@@ -366,13 +519,20 @@ const BudgetTracker: React.FC = () => {
     };
   };
 
-  const filteredEntries = entries.filter(entry => 
-    searchQuery === '' || 
-    entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    entry.receiptTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    entry.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    projects.find(p => p.id === entry.projectId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredEntries = entries.filter(entry => {
+    // Text search filter
+    const matchesSearch = searchQuery === '' || 
+      entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.receiptTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      entry.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      projects.find(p => p.id === entry.projectId)?.name.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    // Tag filter
+    const matchesTags = tagFilter.length === 0 || 
+      (entry.tags && entry.tags.length > 0 && tagFilter.every(filterTag => entry.tags?.includes(filterTag)));
+    
+    return matchesSearch && matchesTags;
+  });
 
   const totals = calculateTotals();
 
@@ -388,11 +548,13 @@ const BudgetTracker: React.FC = () => {
       <div className="absolute top-40 right-20 w-6 h-6 bg-pink-400/40 rounded-full animate-bounce"></div>
       <div className="absolute bottom-32 left-20 w-3 h-3 bg-purple-300/50 rounded-full animate-ping"></div>
 
-      <div className="relative z-10 max-w-7xl mx-auto p-6">
+      <div className="relative z-10 max-w-7xl mx-auto px-8 py-6">
         {/* Header */}
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
           <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
-            <span className="mr-3 text-4xl">💰</span>
+            <span className="mr-3">
+              <FilmReelLogo />
+            </span>
             <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
               Budget Tracker
             </span>
@@ -447,7 +609,7 @@ const BudgetTracker: React.FC = () => {
                     : 'text-gray-400 hover:text-purple-300'
                 }`}
               >
-                <span className="inline-block w-5 h-5 mr-2 text-center font-bold">+</span>
+                <span className="inline-block w-5 h-5 mr-2 text-center font-bold"></span>
                 Add Entry
               </button>
               <button
@@ -458,7 +620,7 @@ const BudgetTracker: React.FC = () => {
                     : 'text-gray-400 hover:text-purple-300'
                 }`}
               >
-                <span className="inline-block w-5 h-5 mr-2 text-center font-bold">📋</span>
+                <FaClipboardList className="inline-block w-5 h-5 mr-2" />
                 Transaction History
               </button>
             </div>
@@ -468,8 +630,6 @@ const BudgetTracker: React.FC = () => {
             {activeTab === 'add' ? (
               /* Add Entry Form */
               <div className="space-y-6">
-                <h2 className="text-xl font-semibold text-purple-300">Add New Entry</h2>
-                
                 {/* Entry Type */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-3">Entry Type *</label>
@@ -502,7 +662,7 @@ const BudgetTracker: React.FC = () => {
                 {/* Project Association */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-3">
-                    <span className="inline-block w-4 h-4 mr-2 text-center">📁</span>
+                    <FaFolder className="inline-block w-4 h-4 mr-2" />
                     Associate with Project (Optional)
                   </label>
                   
@@ -571,7 +731,7 @@ const BudgetTracker: React.FC = () => {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-3">
-                        <span className="inline-block w-4 h-4 mr-2 text-center">🤖</span>
+                        <FaRobot className="inline-block w-4 h-4 mr-2" />
                         Smart Receipt Scanner
                         <span className="ml-2 text-xs bg-gradient-to-r from-purple-600 to-blue-600 text-white px-2 py-1 rounded-full">
                           AI-Powered OCR
@@ -598,7 +758,7 @@ const BudgetTracker: React.FC = () => {
                             </div>
                           ) : (
                             <div className="space-y-3">
-                              <div className="text-4xl">📱</div>
+                              <FaMobile className="text-4xl mx-auto" />
                               <div>
                                 <button
                                   type="button"
@@ -620,7 +780,9 @@ const BudgetTracker: React.FC = () => {
                                 {!tesseractLoaded && (
                                   <>
                                     <br />
-                                    <span className="text-purple-400">⚡ OCR library loads only when you need it</span>
+                                    <span className="text-purple-400 flex items-center gap-1">
+                                      <FaBolt className="w-3 h-3" /> OCR library loads only when you need it
+                                    </span>
                                   </>
                                 )}
                               </p>
@@ -710,7 +872,7 @@ const BudgetTracker: React.FC = () => {
                   
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      <span className="inline-block w-4 h-4 mr-1 text-center font-bold">📅</span>
+                      <FaCalendarAlt className="inline-block w-4 h-4 mr-1" />
                       Date *
                     </label>
                     <input
@@ -726,7 +888,7 @@ const BudgetTracker: React.FC = () => {
                 {/* Category Chips */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-3">
-                    <span className="inline-block w-4 h-4 mr-2 text-center">🏷️</span>
+                    <FaTag className="inline-block w-4 h-4 mr-2" />
                     Category *
                   </label>
                   
@@ -815,13 +977,27 @@ const BudgetTracker: React.FC = () => {
                   </div>
                 )}
 
+                {/* Tags */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Tags
+                    <span className="text-xs text-gray-500 ml-2">(Optional - organize and categorize entries)</span>
+                  </label>
+                  <TagInput
+                    selectedTags={formData.tags}
+                    onTagsChange={(newTags: string[]) => setFormData(prev => ({ ...prev, tags: newTags }))}
+                    placeholder="Add tags to organize this entry..."
+                    className="w-full"
+                  />
+                </div>
+
                 {/* Submit Button */}
                 <div className="flex justify-end pt-4">
                   <button
                     onClick={handleSubmit}
                     className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 font-medium shadow-lg shadow-purple-500/25"
                   >
-                    <span className="inline-block w-5 h-5 mr-2 text-center font-bold">💾</span>
+                    <FaSave className="inline-block w-5 h-5 mr-2" />
                     Save Entry
                   </button>
                 </div>
@@ -843,6 +1019,29 @@ const BudgetTracker: React.FC = () => {
                     />
                   </div>
                 </div>
+
+                {/* Tag Filter */}
+                <div className="bg-gradient-to-br from-slate-800/30 to-gray-900/30 border border-slate-600/30 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <label className="text-sm font-medium text-gray-300">Filter by Tags</label>
+                    {tagFilter.length > 0 && (
+                      <button
+                        onClick={() => setTagFilter([])}
+                        className="text-xs text-purple-400 hover:text-purple-300 transition-colors"
+                      >
+                        Clear filters
+                      </button>
+                    )}
+                  </div>
+                  <TagInput
+                    selectedTags={tagFilter}
+                    onTagsChange={setTagFilter}
+                    placeholder="Select tags to filter transactions..."
+                    className="w-full"
+                    maxTags={5}
+                    allowCreate={false}
+                  />
+                </div>
                 
                 {filteredEntries.length === 0 ? (
                   <div className="text-center py-12">
@@ -856,14 +1055,16 @@ const BudgetTracker: React.FC = () => {
                   </div>
                 ) : (
                   <div className="bg-gradient-to-br from-slate-800/30 to-gray-900/30 border border-slate-600/30 rounded-xl overflow-hidden">
-                    <table className="min-w-full divide-y divide-slate-600/30">
-                      <thead className="bg-gradient-to-r from-slate-800/50 to-gray-900/50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Project</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Category</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Description</th>
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-slate-600/30">
+                        <thead className="bg-gradient-to-r from-slate-800/50 to-gray-900/50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Project</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Category</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Description</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Tags</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Receipt</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Amount</th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
@@ -873,7 +1074,11 @@ const BudgetTracker: React.FC = () => {
                         {filteredEntries.map((entry) => {
                           const project = projects.find(p => p.id === entry.projectId);
                           return (
-                            <tr key={entry.id} className="hover:bg-slate-700/20 transition-colors">
+                            <tr 
+                              key={entry.id} 
+                              onClick={() => handleEditEntry(entry)}
+                              className="hover:bg-slate-700/20 transition-colors cursor-pointer"
+                            >
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                                 {new Date(entry.date).toLocaleDateString()}
                               </td>
@@ -912,6 +1117,22 @@ const BudgetTracker: React.FC = () => {
                                   </div>
                                 )}
                               </td>
+                              <td className="px-6 py-4 text-sm text-gray-300 max-w-xs">
+                                {entry.tags && entry.tags.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1">
+                                    {entry.tags.map((tag, index) => (
+                                      <span
+                                        key={index}
+                                        className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-900/30 text-purple-300 border border-purple-600/30"
+                                      >
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-gray-500 text-xs">No tags</span>
+                                )}
+                              </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                                 {entry.receiptTitle ? (
                                   <button
@@ -930,18 +1151,33 @@ const BudgetTracker: React.FC = () => {
                                 </span>
                               </td>
                               <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <button
-                                  onClick={() => handleDelete(entry.id)}
-                                  className="text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-800/30 px-3 py-1 rounded-md transition-colors text-xs border border-red-600/30"
-                                >
-                                  Delete
-                                </button>
+                                <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
+                                  <button
+                                    onClick={() => handleEditEntry(entry)}
+                                    className="text-blue-400 hover:text-blue-300 bg-blue-900/20 hover:bg-blue-800/30 p-2 rounded-md transition-colors border border-blue-600/30"
+                                    title="Edit transaction"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(entry.id)}
+                                    className="text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-800/30 p-2 rounded-md transition-colors border border-red-600/30"
+                                    title="Delete transaction"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           );
                         })}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 )}
               </div>
@@ -1025,6 +1261,268 @@ const BudgetTracker: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Edit Transaction Modal */}
+        {isEditModalOpen && editingEntry && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-gradient-to-br from-slate-800 to-gray-900 border border-purple-500/30 rounded-xl p-6 w-full max-w-2xl mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+              <h3 className="text-lg font-semibold text-purple-300 mb-4">Edit Transaction</h3>
+              
+              <div className="space-y-4">
+                {/* Transaction Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
+                  <div className="flex space-x-4">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="income"
+                        checked={editFormData.type === 'income'}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, type: e.target.value as 'income' | 'expense' }))}
+                        className="sr-only"
+                      />
+                      <div className={`px-4 py-2 rounded-lg border cursor-pointer transition-all ${
+                        editFormData.type === 'income'
+                          ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300'
+                          : 'bg-slate-700/50 border-slate-600 text-gray-300 hover:bg-slate-600/50'
+                      }`}>
+                        Income
+                      </div>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="expense"
+                        checked={editFormData.type === 'expense'}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, type: e.target.value as 'income' | 'expense' }))}
+                        className="sr-only"
+                      />
+                      <div className={`px-4 py-2 rounded-lg border cursor-pointer transition-all ${
+                        editFormData.type === 'expense'
+                          ? 'bg-red-600/20 border-red-500 text-red-300'
+                          : 'bg-slate-700/50 border-slate-600 text-gray-300 hover:bg-slate-600/50'
+                      }`}>
+                        Expense
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Amount and Date */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Amount *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editFormData.amount}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, amount: e.target.value }))}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Date *</label>
+                    <input
+                      type="date"
+                      value={editFormData.date}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, date: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300"
+                    />
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Description *</label>
+                  <input
+                    type="text"
+                    value={editFormData.description}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="What was this for?"
+                    className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300"
+                  />
+                </div>
+
+                {/* Category and Project */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Category *</label>
+                    <select
+                      value={editFormData.category}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, category: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300"
+                    >
+                      <option value="">Select category</option>
+                      <option value="freelance">Freelance Work</option>
+                      <option value="equipment">Equipment</option>
+                      <option value="software">Software</option>
+                      <option value="marketing">Marketing</option>
+                      <option value="office">Office Supplies</option>
+                      <option value="travel">Travel</option>
+                      <option value="meals">Meals</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Project (Optional)</label>
+                    <select
+                      value={editFormData.projectId}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, projectId: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300"
+                    >
+                      <option value="">No project</option>
+                      {projects.filter(p => p.isActive).map(project => (
+                        <option key={project.id} value={project.id}>{project.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Tags
+                    <span className="text-xs text-gray-500 ml-2">(Optional - organize and categorize entries)</span>
+                  </label>
+                  <TagInput
+                    selectedTags={editFormData.tags}
+                    onTagsChange={(newTags: string[]) => setEditFormData(prev => ({ ...prev, tags: newTags }))}
+                    placeholder="Add tags to organize this entry..."
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Receipt Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Receipt Title (Optional)</label>
+                  <input
+                    type="text"
+                    value={editFormData.receiptTitle}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, receiptTitle: e.target.value }))}
+                    placeholder="Receipt description"
+                    className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="px-4 py-2 text-gray-400 border border-slate-600 rounded-lg hover:bg-slate-700/50 hover:text-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveEdit}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors shadow-lg shadow-purple-500/25"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmation Modal */}
+        {confirmModal.isOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-gradient-to-br from-slate-800 to-gray-900 border border-red-500/30 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
+              <div className="flex items-center mb-4">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white font-bold text-sm mr-3">
+                  <div className="scale-50">
+                    <FilmReelLogo />
+                  </div>
+                </div>
+                <h3 className="text-lg font-semibold text-red-300">{confirmModal.title}</h3>
+              </div>
+              
+              <p className="text-gray-300 mb-6">{confirmModal.message}</p>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={confirmModal.onCancel}
+                  className="px-4 py-2 text-gray-400 border border-slate-600 rounded-lg hover:bg-slate-700/50 hover:text-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmModal.onConfirm}
+                  className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition-colors shadow-lg shadow-red-500/25"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Toast Notifications */}
+        <div className="fixed top-4 right-4 z-50 space-y-2">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`transform transition-all duration-300 ease-in-out animate-slide-in-right`}
+            >
+              <div className={`bg-gradient-to-r border rounded-lg shadow-lg backdrop-blur-sm p-4 min-w-80 max-w-md ${
+                toast.type === 'success' 
+                  ? 'from-emerald-800/90 to-green-900/90 border-emerald-500/30' 
+                  : toast.type === 'error'
+                  ? 'from-red-800/90 to-red-900/90 border-red-500/30'
+                  : toast.type === 'warning'
+                  ? 'from-yellow-800/90 to-orange-900/90 border-yellow-500/30'
+                  : 'from-blue-800/90 to-indigo-900/90 border-blue-500/30'
+              }`}>
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 mr-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white font-bold text-sm">
+                      <div className="scale-25">
+                        <FilmReelLogo />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className={`text-sm font-medium ${
+                      toast.type === 'success' ? 'text-emerald-100' :
+                      toast.type === 'error' ? 'text-red-100' :
+                      toast.type === 'warning' ? 'text-yellow-100' :
+                      'text-blue-100'
+                    }`}>
+                      {toast.title}
+                    </h4>
+                    <p className={`text-sm mt-1 ${
+                      toast.type === 'success' ? 'text-emerald-200' :
+                      toast.type === 'error' ? 'text-red-200' :
+                      toast.type === 'warning' ? 'text-yellow-200' :
+                      'text-blue-200'
+                    }`}>
+                      {toast.message}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => removeToast(toast.id)}
+                    className={`ml-3 flex-shrink-0 rounded-md p-1.5 hover:bg-black/20 transition-colors ${
+                      toast.type === 'success' ? 'text-emerald-300 hover:text-emerald-200' :
+                      toast.type === 'error' ? 'text-red-300 hover:text-red-200' :
+                      toast.type === 'warning' ? 'text-yellow-300 hover:text-yellow-200' :
+                      'text-blue-300 hover:text-blue-200'
+                    }`}
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
