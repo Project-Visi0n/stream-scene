@@ -3,32 +3,20 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { PostContent, SocialPlatform, ProjectFile, ScheduledPost, CalendarEvent } from '../types/contentScheduler';
 import { getThreadsStatus, scheduleThreadsPost, publishThreadsNowById } from '../services/threads';
+import TagInput from '../components/TagInput';
+import { 
+  FaCalendarAlt, 
+  FaSync, 
+  FaCog, 
+  FaLink,
+  FaTag
+} from 'react-icons/fa';
 
-// Custom SVG Icon Components (matching your navbar and landing page)
-const SchedulerIcon = () => (
-  <svg className="w-8 h-8 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
-  </svg>
-);
-
-// Additional SVG icons for the interface
-const RefreshIcon = () => (
-  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-    <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
-  </svg>
-);
-
-const SettingsIcon = () => (
-  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-    <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-  </svg>
-);
-
-const ConnectionIcon = () => (
-  <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-    <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clipRule="evenodd" />
-  </svg>
-);
+// Replace custom SVG components with React Icons to fix path errors
+const SchedulerIcon = () => <FaCalendarAlt className="w-8 h-8 text-blue-400" />;
+const RefreshIcon = () => <FaSync className="w-4 h-4" />;
+const SettingsIcon = () => <FaCog className="w-4 h-4" />;
+const ConnectionIcon = () => <FaLink className="w-4 h-4 mr-2" />;
 
 const MessageIcon = () => (
   <svg className="inline-block w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -115,6 +103,7 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
   // State management
   const [postContent, setPostContent] = useState<string>('');
   const [selectedFiles, setSelectedFiles] = useState<ProjectFile[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState<string>('');
   const [scheduledTime, setScheduledTime] = useState<string>('');
   const [showFileSelector, setShowFileSelector] = useState(false);
@@ -499,6 +488,23 @@ const loadProjectFiles = async () => {
               <span className={postContent.length > charLimit ? 'text-red-400' : 'text-gray-400'}>
                 {charLimit - postContent.length} remaining (Threads limit)
               </span>
+            </div>
+
+            {/* Tags */}
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-gray-300 mb-3">
+                <FaTag className="inline-block w-4 h-4 mr-2" />
+                Tags (Optional)
+              </label>
+              <TagInput
+                selectedTags={selectedTags}
+                onTagsChange={setSelectedTags}
+                placeholder="Add tags to organize your content..."
+                className="w-full"
+              />
+              <p className="text-xs text-gray-400 mt-2">
+                Tag your content for better organization and searchability
+              </p>
             </div>
           </div>
 
