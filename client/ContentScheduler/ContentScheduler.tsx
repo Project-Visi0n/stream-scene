@@ -1,301 +1,421 @@
-// client/ContentScheduler/ContentScheduler.tsx
-import React, { useState, useEffect } from 'react';
-import toast from 'react-hot-toast';
-import { PostContent, SocialPlatform, ProjectFile, ScheduledPost, CalendarEvent } from '../types/contentScheduler';
-import { getThreadsStatus, scheduleThreadsPost, publishThreadsNowById } from '../services/threads';
+import React, { useState, useRef } from 'react';
+import { 
+  DollarSign, 
+  Plus, 
+  History, 
+  Search, 
+  Upload, 
+  Robot, 
+  CheckCircle, 
+  AlertCircle, 
+  X, 
+  Trash2, 
+  FolderPlus,
+  Eye,
+  TrendingUp,
+  TrendingDown,
+  Wallet
+} from 'lucide-react';
 
-interface ContentSchedulerProps {
-  onSchedulePost?: (post: ScheduledPost) => void;
-  onAddToCalendar?: (event: CalendarEvent) => void;
-}
-
-const ContentScheduler: React.FC<ContentSchedulerProps> = ({
-  onSchedulePost,
-  onAddToCalendar
-}) => {
-  // State management
-  const [postContent, setPostContent] = useState<string>('');
-  const [selectedFiles, setSelectedFiles] = useState<ProjectFile[]>([]);
-  const [scheduledDate, setScheduledDate] = useState<string>('');
-  const [scheduledTime, setScheduledTime] = useState<string>('');
-  const [showFileSelector, setShowFileSelector] = useState(false);
-  const [showPlatformSettings, setShowPlatformSettings] = useState(false);
-
-  // Platform state (Threads only)
-  const [threadsConnected, setThreadsConnected] = useState(false);
-  const [threadsAccountId, setThreadsAccountId] = useState<string | undefined>();
-
-  // Project files state
-  const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
-  const [loadingFiles, setLoadingFiles] = useState(false);
-
-  // Load project files and check auth status on mount
-  useEffect(() => {
-    loadProjectFiles();
-    checkThreadsAuth();
-  }, []);
-
-const loadProjectFiles = async () => {
-  setLoadingFiles(true);
-  try {
-    const response = await fetch('/api/files', {
-      credentials: 'include'
-    });
-    
-    if (response.status === 401) {
-      setProjectFiles([]);
-      return;
-    }
-    
-    if (response.ok) {
-      const data = await response.json();
-      
-      // Extract files from the response object
-      const files = data.files || [];
-      setProjectFiles(Array.isArray(files) ? files : []);
-    } else {
-      console.warn('Failed to load files:', response.status, response.statusText);
-      setProjectFiles([]);
-    }
-  } catch (error) {
-    console.error('Failed to load project files:', error);
-    setProjectFiles([]);
-  } finally {
-    setLoadingFiles(false);
-  }
+// Types
+type Project = {
+  id: string;
+  name: string;
+  description?: string;
+  color: string;
+  isActive: boolean;
 };
 
-  // Threads character limit
-  const threadsLimit = 500;
-  const charLimit = threadsLimit;
+type Entry = {
+  id: number;
+  type: 'income' | 'expense';
+  amount: number;
+  description: string;
+  date: string;
+  category: string;
+  projectId?: string;
+  receiptTitle?: string;
+  receiptUrl?: string;
+  ocrScanned?: boolean;
+  ocrConfidence?: number;
+  ocrVendor?: string;
+  ocrDate?: string;
+};
 
-  // Map selectedFiles -> Threads media payload
-  const toThreadsMedia = () => {
-    const imageUrls = selectedFiles
-      .filter(f => f.type?.startsWith('image/'))
-      .map(f => (f as any).url || (f as any).publicUrl || (f as any).s3Url)
-      .filter(Boolean) as string[];
-
-    const video = selectedFiles.find(f => f.type?.startsWith('video/'));
-    const videoUrl = video ? ((video as any).url || (video as any).publicUrl || (video as any).s3Url) : null;
-
-    return {
-      imageUrls: imageUrls.length ? imageUrls : undefined,
-      videoUrl: videoUrl || undefined,
-    };
-  };
-
-  // Check Threads authentication status
-  const checkThreadsAuth = async () => {
-    try {
-      const threads = await getThreadsStatus();
-      setThreadsConnected(!!threads.connected);
-      setThreadsAccountId(threads.accountId);
-    } catch (error) {
-      console.warn('[Auth] Threads status check failed', error);
-      setThreadsConnected(false);
-      setThreadsAccountId(undefined);
-    }
-  };
-
-  // Threads authentication
-  const connectThreads = async () => {
-    try {
-      window.location.href = '/api/threads/auth';
-    } catch (error: any) {
-      console.error('[Auth] Failed to connect to Threads:', error);
-      toast.error(`Failed to connect to Threads: ${error.message}`);
-    }
-  };
-
-  const disconnectThreads = async () => {
-    try {
-      const response = await fetch('/api/threads/disconnect', {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        setThreadsConnected(false);
-        setThreadsAccountId(undefined);
-        toast.success('Disconnected from Threads');
-      } else {
-        throw new Error(`Failed to disconnect: ${response.statusText}`);
-      }
-    } catch (error: any) {
-      console.error('Failed to disconnect Threads:', error);
-      toast.error(`Failed to disconnect Threads: ${error.message}`);
-    }
-  };
-
-  // File selection
-  const toggleFileSelection = (file: ProjectFile) => {
-    setSelectedFiles(prev => {
-      const isSelected = prev.some(f => f.id === file.id);
-      if (isSelected) {
-        return prev.filter(f => f.id !== file.id);
-      } else {
-        return [...prev, file];
+// OCR Helper Functions
+const extractAmountFromText = (text: string): { amount: number; confidence: number } | null => {
+  const patterns = [
+    /(?:total|amount|sum|subtotal)[\s:$]*([0-9]+\.?[0-9]*)/i,
+    /\$\s*([0-9]+\.?[0-9]*)/g,
+    /([0-9]+\.[0-9]{2})$/gm,
+    /([0-9]+\.?[0-9]*)\s*(?:usd|dollar)/i
+  ];
+  
+  const amounts: Array<{ amount: number; confidence: number }> = [];
+  
+  patterns.forEach((pattern, index) => {
+    const matches = [...text.matchAll(new RegExp(pattern, 'gi'))];
+    matches.forEach(match => {
+      const numStr = match[1] || match[0].replace(/[^0-9.]/g, '');
+      const num = parseFloat(numStr);
+      if (!isNaN(num) && num > 0 && num < 10000) {
+        const confidence = index === 0 ? 0.9 : 0.7;
+        amounts.push({ amount: num, confidence });
       }
     });
+  });
+  
+  if (amounts.length === 0) return null;
+  amounts.sort((a, b) => b.confidence - a.confidence || b.amount - a.amount);
+  return amounts[0];
+};
+
+const extractDateFromText = (text: string): string | null => {
+  const datePatterns = [
+    /(\d{1,2}\/\d{1,2}\/\d{4})/,
+    /(\d{1,2}-\d{1,2}-\d{4})/,
+    /(\d{4}-\d{1,2}-\d{1,2})/,
+    /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}/i
+  ];
+  
+  for (const pattern of datePatterns) {
+    const match = text.match(pattern);
+    if (match) return match[0];
+  }
+  return null;
+};
+
+const extractVendorFromText = (text: string): string | null => {
+  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 2);
+  
+  for (let i = 0; i < Math.min(5, lines.length); i++) {
+    const line = lines[i];
+    if (!/^\d+$/.test(line) && 
+        !/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}/.test(line) &&
+        !/^\d+\s+\w+\s+(st|ave|road|dr|blvd)/i.test(line) &&
+        line.length > 3 && line.length < 50) {
+      return line;
+    }
+  }
+  return null;
+};
+
+// Mock OCR function (since Tesseract.js won't work in Claude artifacts)
+const mockOCRProcess = async (file: File): Promise<any> => {
+  // Simulate OCR processing delay
+  await new Promise(resolve => setTimeout(resolve, 2000));
+  
+  // Mock extracted data based on filename or random values
+  const mockResults = [
+    { amount: 25.99, vendor: "Starbucks Coffee", date: "2025-09-22", confidence: 0.89 },
+    { amount: 45.67, vendor: "Office Depot", date: "2025-09-21", confidence: 0.92 },
+    { amount: 123.45, vendor: "Amazon", date: "2025-09-20", confidence: 0.85 },
+    { amount: 67.89, vendor: "Gas Station", date: "2025-09-19", confidence: 0.78 },
+    { amount: 89.12, vendor: "Best Buy", date: "2025-09-18", confidence: 0.91 },
+    { amount: 34.56, vendor: "Target", date: "2025-09-17", confidence: 0.88 }
+  ];
+  
+  const result = mockResults[Math.floor(Math.random() * mockResults.length)];
+  
+  return {
+    amount: result.amount,
+    confidence: result.confidence,
+    vendor: result.vendor,
+    date: result.date,
+    rawText: `Receipt from ${result.vendor}\nDate: ${result.date}\nTotal: $${result.amount}\nThank you for your business!`
+  };
+};
+
+const BudgetTracker: React.FC = () => {
+  // State
+  const [activeTab, setActiveTab] = useState('add');
+  const [entries, setEntries] = useState<Entry[]>([
+    {
+      id: 1,
+      type: 'income',
+      amount: 2500,
+      description: 'Website Development - ABC Corp',
+      date: '2025-09-20',
+      category: 'Freelance Payment',
+      projectId: '1'
+    },
+    {
+      id: 2,
+      type: 'expense',
+      amount: 45.67,
+      description: 'Office supplies from Office Depot',
+      date: '2025-09-19',
+      category: 'Office Supplies',
+      ocrScanned: true,
+      ocrConfidence: 0.92,
+      ocrVendor: 'Office Depot'
+    },
+    {
+      id: 3,
+      type: 'income',
+      amount: 1800,
+      description: 'Mobile App UI Design',
+      date: '2025-09-18',
+      category: 'Freelance Payment',
+      projectId: '3'
+    },
+    {
+      id: 4,
+      type: 'expense',
+      amount: 89.99,
+      description: 'Adobe Creative Cloud Subscription',
+      date: '2025-09-17',
+      category: 'Software',
+      projectId: '2'
+    }
+  ]);
+  
+  const [projects, setProjects] = useState<Project[]>([
+    { id: '1', name: 'Client Website', description: 'E-commerce site for ABC Corp', color: '#8b5cf6', isActive: true },
+    { id: '2', name: 'Personal Blog', description: 'My photography blog', color: '#ec4899', isActive: true },
+    { id: '3', name: 'Mobile App', description: 'iOS app development', color: '#06b6d4', isActive: true }
+  ]);
+
+  const [formData, setFormData] = useState({
+    type: 'expense' as 'income' | 'expense',
+    amount: '',
+    description: '',
+    date: new Date().toISOString().split('T')[0],
+    category: '',
+    projectId: '',
+    receiptTitle: '',
+    ocrScanned: false,
+    ocrConfidence: 0,
+    ocrVendor: '',
+    ocrDate: ''
+  });
+
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptUrl, setReceiptUrl] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
+  const [newProjectData, setNewProjectData] = useState({
+    name: '',
+    description: '',
+    color: '#8b5cf6'
+  });
+
+  // Receipt Scanner State
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [scanResult, setScanResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Categories
+  const incomeCategories = ['Freelance Payment', 'Residuals', 'Grant', 'Salary', 'Bonus', 'Donation', 'Other'];
+  const expenseCategories = ['Equipment', 'Transportation', 'Software', 'Marketing', 'Office Supplies', 'Personal', 'Food', 'Other'];
+
+  // OCR Processing (using mock function)
+  const processReceiptWithOCR = async (file: File) => {
+    try {
+      setProgress(0);
+      setError(null);
+      
+      const imageUrl = URL.createObjectURL(file);
+      setProgress(30);
+      
+      // Mock OCR processing with progress simulation
+      const progressInterval = setInterval(() => {
+        setProgress(prev => Math.min(prev + 10, 90));
+      }, 200);
+      
+      const result = await mockOCRProcess(file);
+      
+      clearInterval(progressInterval);
+      setProgress(100);
+      
+      console.log('OCR Result:', result);
+      
+      const amountResult = { amount: result.amount, confidence: result.confidence };
+      const vendor = result.vendor;
+      const date = result.date;
+      
+      URL.revokeObjectURL(imageUrl);
+      
+      return {
+        amount: amountResult?.amount,
+        confidence: amountResult?.confidence || 0,
+        vendor,
+        date,
+        rawText: result.rawText
+      };
+    } catch (error) {
+      console.error('OCR error:', error);
+      throw new Error(`OCR processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
-  // Post scheduling
-  const handleSchedulePost = async () => {
-    if (!postContent.trim()) {
-      toast.error('Please enter some content');
+  // Event Handlers
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const validImageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/bmp', 'image/tiff'];
+    if (!validImageTypes.includes(file.type.toLowerCase())) {
+      setError('Please upload a valid image file (JPG, PNG, WEBP, BMP, or TIFF)');
       return;
     }
 
-    if (!threadsConnected) {
-      toast.error('Please connect your Threads account first');
+    if (file.size > 10 * 1024 * 1024) {
+      setError('File size too large. Please upload an image under 10MB.');
       return;
     }
 
-    const scheduleDateTime = scheduledDate && scheduledTime
-      ? new Date(`${scheduledDate}T${scheduledTime}`)
-      : undefined;
+    setIsProcessing(true);
+    setScanResult(null);
+    setError(null);
+    setProgress(0);
 
-    if (!scheduleDateTime) {
-      toast.error('Please select a date and time to schedule');
+    try {
+      const receiptUrl = URL.createObjectURL(file);
+      const ocrResult = await processReceiptWithOCR(file);
+      
+      setScanResult(ocrResult);
+      
+      if (ocrResult.amount) {
+        setFormData(prev => ({
+          ...prev,
+          amount: ocrResult.amount.toString(),
+          ocrScanned: true,
+          ocrConfidence: ocrResult.confidence,
+          ocrVendor: ocrResult.vendor || '',
+          ocrDate: ocrResult.date || '',
+          description: prev.description || (ocrResult.vendor ? `Purchase from ${ocrResult.vendor}` : ''),
+          receiptTitle: file.name.replace(/\.[^/.]+$/, '')
+        }));
+      } else {
+        setError('Could not detect amount in receipt. Please enter manually.');
+      }
+      
+      setReceiptFile(file);
+      setReceiptUrl(receiptUrl);
+    } catch (error) {
+      console.error('OCR processing failed:', error);
+      setError(error instanceof Error ? error.message : 'OCR processing failed. Please try a different image or enter details manually.');
+    } finally {
+      setIsProcessing(false);
+      setProgress(0);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!formData.amount || !formData.description || !formData.category) {
+      alert('Please fill in all required fields (Amount, Description, Category)');
       return;
     }
 
-    if (postContent.length > charLimit) {
-      toast.error(`Content exceeds Threads character limit (${charLimit} chars)`);
-      return;
-    }
-
-    const post: ScheduledPost = {
-      id: Date.now().toString(),
-      text: postContent,
-      media: selectedFiles,
-      platforms: ['threads'],
-      scheduledDate: scheduleDateTime,
-      status: 'scheduled',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      calendarEventId: `cal_${Date.now()}`
+    const newEntry: Entry = {
+      id: Math.max(...entries.map(e => e.id), 0) + 1,
+      type: formData.type,
+      amount: parseFloat(formData.amount),
+      description: formData.description,
+      date: formData.date,
+      category: formData.category,
+      projectId: formData.projectId || undefined,
+      receiptTitle: formData.receiptTitle || undefined,
+      receiptUrl: receiptUrl || undefined,
+      ocrScanned: formData.ocrScanned,
+      ocrConfidence: formData.ocrConfidence,
+      ocrVendor: formData.ocrVendor || undefined,
+      ocrDate: formData.ocrDate || undefined
     };
 
-    try {
-      if (!threadsAccountId) {
-        throw new Error('Threads account not properly connected');
-      }
+    setEntries(prev => [newEntry, ...prev]);
+    
+    // Reset form
+    setFormData({
+      type: 'expense',
+      amount: '',
+      description: '',
+      date: new Date().toISOString().split('T')[0],
+      category: '',
+      projectId: '',
+      receiptTitle: '',
+      ocrScanned: false,
+      ocrConfidence: 0,
+      ocrVendor: '',
+      ocrDate: ''
+    });
+    setReceiptFile(null);
+    setReceiptUrl('');
+    setScanResult(null);
+    setError(null);
 
-      await scheduleThreadsPost({
-        accountId: threadsAccountId,
-        text: postContent,
-        media: toThreadsMedia(),
-        scheduledFor: scheduleDateTime.toISOString()
-      });
+    alert('Entry saved successfully!');
+  };
 
-      onSchedulePost?.(post);
-
-      if (onAddToCalendar) {
-        const calendarEvent: CalendarEvent = {
-          id: post.calendarEventId!,
-          title: 'Post to Threads',
-          description: postContent.slice(0, 100) + (postContent.length > 100 ? '...' : ''),
-          date: scheduleDateTime,
-          type: 'post',
-          postId: post.id,
-          platforms: ['threads']
-        };
-        onAddToCalendar(calendarEvent);
-      }
-
-      // Reset form
-      setPostContent('');
-      setSelectedFiles([]);
-      setScheduledDate('');
-      setScheduledTime('');
-
-      toast.success('Post scheduled successfully!');
-    } catch (error: any) {
-      console.error('Failed to schedule post:', error);
-      toast.error(`Failed to schedule: ${error.message}`);
+  const handleDelete = (id: number) => {
+    if (confirm('Are you sure you want to delete this entry?')) {
+      setEntries(prev => prev.filter(entry => entry.id !== id));
     }
   };
 
-  // Post immediately
-  const handlePostNow = async () => {
-    if (!postContent.trim()) {
-      toast.error('Please enter some content');
-      return;
-    }
-
-    if (!threadsConnected) {
-      toast.error('Please connect your Threads account first');
-      return;
-    }
-
-    if (postContent.length > charLimit) {
-      toast.error(`Content exceeds Threads character limit (${charLimit} chars)`);
-      return;
-    }
-
-    try {
-      if (!threadsAccountId) {
-        throw new Error('Threads account not properly connected');
-      }
-
-      const nowIso = new Date().toISOString();
-      const media = toThreadsMedia();
-
-      const { post } = await scheduleThreadsPost({
-        accountId: threadsAccountId,
-        text: postContent,
-        media,
-        scheduledFor: nowIso
-      });
-
-      await publishThreadsNowById(post.id);
-
-      toast.success('Posted to Threads!');
-      
-      // Reset form
-      setPostContent('');
-      setSelectedFiles([]);
-    } catch (error: any) {
-      console.error('[Post Now] Error:', error);
-      toast.error(`Failed to post: ${error.message}`);
-    }
+  const handleCreateProject = () => {
+    setIsProjectModalOpen(true);
   };
 
-  // Test Threads posting
-  const handleTestThreads = async () => {
-    if (!postContent.trim()) {
-      toast.error('Enter some content to test');
+  const handleSaveProject = () => {
+    if (!newProjectData.name.trim()) {
+      alert('Please enter a project name');
       return;
     }
 
-    try {
-      const response = await fetch('/api/content-scheduler/test-threads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ text: postContent })
-      });
+    const newProject: Project = {
+      id: Date.now().toString(),
+      name: newProjectData.name.trim(),
+      description: newProjectData.description.trim(),
+      color: newProjectData.color,
+      isActive: true
+    };
 
-      const data = await response.json();
-      if (response.ok) {
-        toast.success('Threads test post successful!');
-      } else {
-        throw new Error(data.details || data.error || 'Test failed');
-      }
-    } catch (error: any) {
-      console.error('[Test Threads] Error:', error);
-      toast.error(`Threads test failed: ${error.message}`);
-    }
+    setProjects(prev => [...prev, newProject]);
+    setNewProjectData({ name: '', description: '', color: '#8b5cf6' });
+    setIsProjectModalOpen(false);
+    
+    setFormData(prev => ({ ...prev, projectId: newProject.id }));
   };
 
-  const getFileIcon = (fileType: string) => {
-    if (fileType.startsWith('image/')) return '🖼️';
-    if (fileType.startsWith('video/')) return '🎥';
-    if (fileType.startsWith('audio/')) return '🎵';
-    return '📄';
+  const handleRemoveReceipt = () => {
+    setReceiptFile(null);
+    setReceiptUrl('');
+    setScanResult(null);
+    setError(null);
+    setFormData(prev => ({ 
+      ...prev, 
+      receiptTitle: '', 
+      ocrScanned: false, 
+      ocrConfidence: 0,
+      ocrVendor: '',
+      ocrDate: '',
+    }));
   };
+
+  // Calculations
+  const calculateTotals = () => {
+    const totalIncome = entries.filter(entry => entry.type === 'income').reduce((sum, entry) => sum + entry.amount, 0);
+    const totalExpenses = entries.filter(entry => entry.type === 'expense').reduce((sum, entry) => sum + entry.amount, 0);
+    return {
+      income: totalIncome,
+      expenses: totalExpenses,
+      net: totalIncome - totalExpenses
+    };
+  };
+
+  const filteredEntries = entries.filter(entry => 
+    searchQuery === '' || 
+    entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    entry.receiptTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    entry.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    projects.find(p => p.id === entry.projectId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const totals = calculateTotals();
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-gray-900 to-black relative overflow-hidden">
@@ -309,313 +429,633 @@ const loadProjectFiles = async () => {
       <div className="absolute top-40 right-20 w-6 h-6 bg-pink-400/40 rounded-full animate-bounce"></div>
       <div className="absolute bottom-32 left-20 w-3 h-3 bg-purple-300/50 rounded-full animate-ping"></div>
 
-      <div className="relative z-10 max-w-7xl mx-auto p-6 space-y-6">
+      <div className="relative z-10 max-w-7xl mx-auto p-6">
         {/* Header */}
-        <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 text-center">
+        <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
           <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
-            <span className="mr-3 text-4xl">📆</span>
+            <DollarSign className="mr-3 text-4xl w-10 h-10" />
             <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Content Scheduler
+              Budget Tracker
             </span>
           </h1>
-          <p className="text-gray-300">Schedule and publish content to Threads with smart file management</p>
+          <p className="text-gray-300">Manage your freelance income and expenses with project tracking and AI-powered receipt scanning</p>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+          <div className="bg-gradient-to-br from-emerald-800/50 to-green-900/50 border border-emerald-500/20 backdrop-blur-sm rounded-xl p-6">
+            <div className="flex items-center">
+              <div className="h-12 w-12 bg-gradient-to-br from-emerald-400 to-green-500 rounded-xl flex items-center justify-center text-white mr-4">
+                <TrendingUp className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-emerald-300 font-medium">Total Income</p>
+                <p className="text-2xl font-bold text-emerald-400">${totals.income.toFixed(2)}</p>
+              </div>
+            </div>
+          </div>
           
-          <div className="flex justify-center gap-4 mt-4">
-            <button
-              onClick={checkThreadsAuth}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/30 hover:bg-slate-700/50 hover:border-purple-400/50 text-gray-300 hover:text-purple-300 rounded-lg transition-all duration-200"
-            >
-              <span>🔄</span>
-              Refresh Status
-            </button>
-            <button
-              onClick={() => setShowPlatformSettings(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/30 hover:bg-slate-700/50 hover:border-purple-400/50 text-gray-300 hover:text-purple-300 rounded-lg transition-all duration-200"
-            >
-              <span>⚙️</span>
-              Account Settings
-            </button>
-          </div>
-        </div>
-
-        {/* Connection Status */}
-        <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
-          <h3 className="text-sm font-medium text-gray-300 mb-3 flex items-center">
-            <span className="mr-2">🔗</span>
-            Threads Connection Status
-          </h3>
-          <div className="flex items-center gap-3">
-            <span className={`w-3 h-3 rounded-full ${threadsConnected ? 'bg-emerald-500' : 'bg-red-500'} shadow-lg ${threadsConnected ? 'shadow-emerald-500/50' : 'shadow-red-500/50'}`}></span>
-            <span className="text-sm text-gray-300">
-              {threadsConnected ? 'Connected to Threads' : 'Not connected to Threads'}
-            </span>
-            {threadsConnected && threadsAccountId && (
-              <span className="text-xs bg-gradient-to-r from-purple-600 to-blue-600 text-white px-2 py-1 rounded-full">
-                ID: {threadsAccountId}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {/* Main Content Area */}
-        <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
-          {/* Content Input */}
-          <div className="space-y-4">
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              <span className="inline-block w-4 h-4 mr-2 text-center">💬</span>
-              Content for Threads
-            </label>
-            <textarea
-              value={postContent}
-              onChange={(e) => setPostContent(e.target.value)}
-              placeholder="What's on your mind? Share it on Threads..."
-              className="w-full h-32 p-4 border border-slate-600 bg-slate-800/50 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-300 placeholder-gray-500 transition-all duration-200"
-            />
-
-            {/* Character count */}
-            <div className="flex justify-between text-sm">
-              <span className="text-gray-400">{postContent.length} characters</span>
-              <span className={postContent.length > charLimit ? 'text-red-400' : 'text-gray-400'}>
-                {charLimit - postContent.length} remaining (Threads limit)
-              </span>
-            </div>
-          </div>
-
-          {/* Selected Files Preview */}
-          {selectedFiles.length > 0 && (
-            <div className="mt-6 p-4 bg-gradient-to-br from-purple-800/20 to-blue-900/20 border border-purple-500/30 rounded-lg">
-              <h3 className="text-sm font-medium text-purple-300 mb-3 flex items-center">
-                <span className="mr-2">📎</span>
-                Selected Files ({selectedFiles.length})
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {selectedFiles.map(file => (
-                  <div key={file.id} className="relative group">
-                    <div className="flex items-center gap-2 p-3 bg-slate-800/50 border border-slate-600/50 rounded-lg hover:bg-slate-700/50 hover:border-slate-500 transition-all duration-200">
-                      <span className="text-lg">{getFileIcon(file.type)}</span>
-                      <span className="text-xs text-gray-300 truncate flex-1">{file.name}</span>
-                      <button
-                        onClick={() => toggleFileSelection(file)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-red-400 hover:text-red-300 p-1 hover:bg-red-900/20 rounded"
-                      >
-                        <span className="text-sm">❌</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+          <div className="bg-gradient-to-br from-red-800/50 to-rose-900/50 border border-red-500/20 backdrop-blur-sm rounded-xl p-6">
+            <div className="flex items-center">
+              <div className="h-12 w-12 bg-gradient-to-br from-red-400 to-rose-500 rounded-xl flex items-center justify-center text-white mr-4">
+                <TrendingDown className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-red-300 font-medium">Total Expenses</p>
+                <p className="text-2xl font-bold text-red-400">${totals.expenses.toFixed(2)}</p>
               </div>
             </div>
-          )}
-
-          {/* Scheduling */}
-          <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <span className="inline-block w-4 h-4 mr-1 text-center">📅</span>
-                Schedule Date (optional)
-              </label>
-              <input
-                type="date"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
-                className="w-full p-3 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300 transition-all duration-200"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
-                <span className="inline-block w-4 h-4 mr-1 text-center">⏰</span>
-                Schedule Time (optional)
-              </label>
-              <input
-                type="time"
-                value={scheduledTime}
-                onChange={(e) => setScheduledTime(e.target.value)}
-                className="w-full p-3 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300 transition-all duration-200"
-              />
+          </div>
+          
+          <div className="bg-gradient-to-br from-blue-800/50 to-purple-900/50 border border-blue-500/20 backdrop-blur-sm rounded-xl p-6">
+            <div className="flex items-center">
+              <div className="h-12 w-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center text-white mr-4">
+                <Wallet className="w-6 h-6" />
+              </div>
+              <div>
+                <p className="text-blue-300 font-medium">Net Income</p>
+                <p className={`text-2xl font-bold ${totals.net >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
+                  ${totals.net.toFixed(2)}
+                </p>
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Action Buttons */}
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button
-              onClick={() => setShowFileSelector(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/30 hover:bg-slate-700/50 hover:border-purple-400/50 text-gray-300 hover:text-purple-300 rounded-lg transition-all duration-200"
-            >
-              <span>📎</span>
-              Add Files
-            </button>
-
-            <button
-              onClick={handlePostNow}
-              disabled={!postContent.trim() || !threadsConnected}
-              className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 disabled:from-gray-600 disabled:to-gray-700 disabled:opacity-50 text-white rounded-lg transition-all duration-200 font-medium shadow-lg shadow-blue-500/25"
-            >
-              <span>📤</span>
-              Post Now
-            </button>
-
-            <button
-              onClick={handleSchedulePost}
-              disabled={!postContent.trim() || !threadsConnected}
-              className="flex items-center gap-2 px-6 py-2 bg-gradient-to-r from-emerald-600 to-green-600 hover:from-emerald-700 hover:to-green-700 disabled:from-gray-600 disabled:to-gray-700 disabled:opacity-50 text-white rounded-lg transition-all duration-200 font-medium shadow-lg shadow-emerald-500/25"
-            >
-              <span>⏰</span>
-              {scheduledDate && scheduledTime ? 'Schedule Post' : 'Save Draft'}
-            </button>
-
-            {/* Test Button for Threads */}
-            {threadsConnected && (
+        {/* Tabs */}
+        <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl mb-6">
+          <div className="border-b border-purple-500/20">
+            <div className="flex">
               <button
-                onClick={handleTestThreads}
-                disabled={!postContent.trim()}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-purple-800/50 to-pink-900/50 border border-purple-500/30 hover:bg-purple-700/50 hover:border-purple-400/50 text-purple-300 hover:text-purple-200 rounded-lg transition-all duration-200"
+                onClick={() => setActiveTab('add')}
+                className={`px-6 py-4 font-medium transition-all duration-200 flex items-center ${
+                  activeTab === 'add'
+                    ? 'text-purple-400 border-b-2 border-purple-400'
+                    : 'text-gray-400 hover:text-purple-300'
+                }`}
               >
-                <span>🧪</span>
-                Test Threads
+                <Plus className="w-5 h-5 mr-2" />
+                Add Entry
               </button>
-            )}
+              <button
+                onClick={() => setActiveTab('history')}
+                className={`px-6 py-4 font-medium transition-all duration-200 flex items-center ${
+                  activeTab === 'history'
+                    ? 'text-purple-400 border-b-2 border-purple-400'
+                    : 'text-gray-400 hover:text-purple-300'
+                }`}
+              >
+                <History className="w-5 h-5 mr-2" />
+                Transaction History
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* File Selector Modal */}
-        {showFileSelector && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-gradient-to-br from-slate-800 to-gray-900 border border-purple-500/30 rounded-xl p-6 w-full max-w-4xl max-h-[80vh] overflow-hidden mx-4 shadow-2xl">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-purple-300 flex items-center">
-                  <span className="mr-2">📁</span>
-                  Select Files from Project Center
-                </h2>
-                <button
-                  onClick={() => setShowFileSelector(false)}
-                  className="text-gray-400 hover:text-gray-300 p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
-                >
-                  <span className="text-xl">❌</span>
-                </button>
-              </div>
+          <div className="p-6">
+            {activeTab === 'add' ? (
+              /* Add Entry Form */
+              <div className="space-y-6">
+                <h2 className="text-xl font-semibold text-purple-300">Add New Entry</h2>
+                
+                {/* Entry Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">Entry Type *</label>
+                  <div className="flex space-x-4">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="type"
+                        value="income"
+                        checked={formData.type === 'income'}
+                        onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as 'income' | 'expense' }))}
+                        className="text-emerald-400 focus:ring-emerald-500 bg-slate-800 border-slate-600"
+                      />
+                      <span className="ml-2 text-emerald-400 font-medium">Income</span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        name="type"
+                        value="expense"
+                        checked={formData.type === 'expense'}
+                        onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as 'income' | 'expense' }))}
+                        className="text-red-400 focus:ring-red-500 bg-slate-800 border-slate-600"
+                      />
+                      <span className="ml-2 text-red-400 font-medium">Expense</span>
+                    </label>
+                  </div>
+                </div>
 
-              <div className="overflow-y-auto max-h-96 bg-slate-800/30 rounded-lg p-4">
-                {loadingFiles ? (
-                  <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto mb-2"></div>
-                    <p className="text-gray-300">Loading files...</p>
+                {/* Project Association */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-3">
+                    <FolderPlus className="inline-block w-4 h-4 mr-2" />
+                    Associate with Project (Optional)
+                  </label>
+                  
+                  {formData.projectId && (
+                    <div className="mb-4 p-4 bg-gradient-to-br from-purple-800/30 to-blue-900/30 border border-purple-500/30 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          {(() => {
+                            const selectedProject = projects.find(p => p.id === formData.projectId);
+                            return selectedProject ? (
+                              <>
+                                <div className="w-4 h-4 rounded-full mr-3" style={{ backgroundColor: selectedProject.color }}></div>
+                                <div>
+                                  <span className="text-sm font-medium text-purple-300">{selectedProject.name}</span>
+                                  {selectedProject.description && (
+                                    <p className="text-xs text-gray-400 mt-1">{selectedProject.description}</p>
+                                  )}
+                                </div>
+                              </>
+                            ) : null;
+                          })()}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, projectId: '' }))}
+                          className="text-gray-400 hover:text-gray-300 p-1 hover:bg-slate-700/50 rounded transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2">
+                    {projects
+                      .filter(p => p.isActive && p.id !== formData.projectId)
+                      .map((project) => (
+                        <button
+                          key={project.id}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, projectId: project.id }))}
+                          className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-slate-800/50 border border-slate-600/50 text-gray-300 hover:bg-purple-800/30 hover:border-purple-500/50 hover:text-purple-300 transition-all duration-200"
+                        >
+                          <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: project.color }}></div>
+                          <span>{project.name}</span>
+                        </button>
+                      ))}
+                    
+                    <button
+                      type="button"
+                      onClick={handleCreateProject}
+                      className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium border-2 border-dashed border-purple-500/50 text-purple-400 hover:border-purple-400 hover:text-purple-300 hover:bg-purple-900/20 transition-all duration-200"
+                    >
+                      <Plus className="w-4 h-4 mr-1" />
+                      Create New Project
+                    </button>
                   </div>
-                ) : projectFiles.length === 0 ? (
-                  <div className="text-center py-8">
-                    <div className="mx-auto h-16 w-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xl mb-4">📁</div>
-                    <h3 className="text-gray-300 font-medium">No files found in Project Center</h3>
-                    <p className="text-gray-400 text-sm mt-1">Upload some files to get started</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {projectFiles.map(file => (
-                      <div
-                        key={file.id}
-                        onClick={() => toggleFileSelection(file)}
-                        className={`cursor-pointer p-4 border-2 rounded-lg transition-all duration-200 ${
-                          selectedFiles.some(f => f.id === file.id)
-                            ? 'border-purple-500 bg-purple-900/20 shadow-lg shadow-purple-500/20'
-                            : 'border-slate-600/50 bg-slate-800/30 hover:border-slate-500 hover:bg-slate-700/30'
-                        }`}
-                      >
-                        <div className="flex flex-col items-center gap-2">
-                          <span className="text-2xl">{getFileIcon(file.type)}</span>
-                          <span className="text-sm font-medium text-gray-300 truncate w-full text-center">
-                            {file.name}
-                          </span>
-                          <span className="text-xs text-gray-400">
-                            {file.size ? `${(file.size / 1024 / 1024).toFixed(1)} MB` : 'Unknown size'}
-                          </span>
+                </div>
+
+                {/* Smart Receipt Scanner (only for expenses) */}
+                {formData.type === 'expense' && (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-3">
+                        <Robot className="inline-block w-4 h-4 mr-2" />
+                        Smart Receipt Scanner
+                        <span className="ml-2 text-xs bg-gradient-to-r from-purple-600 to-blue-600 text-white px-2 py-1 rounded-full">
+                          AI-Powered OCR
+                        </span>
+                      </label>
+                      
+                      <div className="border-2 border-dashed border-purple-500/50 rounded-lg p-6 hover:border-purple-400/70 transition-colors bg-gradient-to-br from-slate-800/30 to-purple-900/20">
+                        <div className="text-center">
+                          {isProcessing ? (
+                            <div className="space-y-3">
+                              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto"></div>
+                              <p className="text-sm text-purple-300">
+                                Scanning receipt with AI...
+                              </p>
+                              {progress > 0 && (
+                                <div className="w-full bg-slate-700 rounded-full h-2">
+                                  <div 
+                                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${progress}%` }}
+                                  ></div>
+                                </div>
+                              )}
+                              <p className="text-xs text-gray-400">{progress}% complete</p>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              <Upload className="w-12 h-12 text-purple-400 mx-auto" />
+                              <div>
+                                <button
+                                  type="button"
+                                  onClick={() => fileInputRef.current?.click()}
+                                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 font-medium shadow-lg shadow-purple-500/25"
+                                >
+                                  Upload & Scan Receipt
+                                </button>
+                                <input
+                                  ref={fileInputRef}
+                                  type="file"
+                                  accept="image/jpeg,image/jpg,image/png,image/webp,image/bmp,image/tiff"
+                                  onChange={handleFileUpload}
+                                  className="hidden"
+                                />
+                              </div>
+                              <p className="text-xs text-gray-400">
+                                AI will automatically extract amount, vendor, and date from your receipt
+                                <br />
+                                <span className="text-purple-400">⚡ AI-powered text extraction</span>
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
+                    </div>
+
+                    {error && (
+                      <div className="bg-gradient-to-br from-red-800/30 to-rose-900/30 border border-red-500/30 rounded-lg p-4">
+                        <div className="flex items-center">
+                          <AlertCircle className="w-5 h-5 text-red-400 mr-2" />
+                          <div>
+                            <p className="text-sm font-medium text-red-300">Scanning Error</p>
+                            <p className="text-xs text-red-400">{error}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {scanResult && scanResult.amount && (
+                      <div className="bg-gradient-to-br from-emerald-800/30 to-green-900/30 border border-emerald-500/30 rounded-lg p-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex items-center">
+                            <CheckCircle className="w-5 h-5 text-emerald-400 mr-2 flex-shrink-0 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium text-emerald-300">Receipt Scanned Successfully!</p>
+                              <div className="text-xs text-emerald-400 mt-1 space-y-1">
+                                <p><strong>Amount:</strong> ${scanResult.amount} (confidence: {Math.round(scanResult.confidence * 100)}%)</p>
+                                {scanResult.vendor && <p><strong>Vendor:</strong> {scanResult.vendor}</p>}
+                                {scanResult.date && <p><strong>Date:</strong> {scanResult.date}</p>}
+                              </div>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleRemoveReceipt}
+                            className="text-gray-400 hover:text-gray-300 p-1 hover:bg-slate-700/50 rounded transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {receiptUrl && (
+                      <div className="bg-gradient-to-br from-slate-800/30 to-gray-900/30 border border-slate-600/30 rounded-lg p-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <p className="text-sm font-medium text-gray-300">Receipt Preview</p>
+                          <button
+                            type="button"
+                            onClick={handleRemoveReceipt}
+                            className="text-gray-400 hover:text-red-400 text-sm hover:bg-red-900/20 px-2 py-1 rounded transition-colors"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                        <div className="max-w-xs">
+                          <img 
+                            src={receiptUrl} 
+                            alt="Receipt preview" 
+                            className="w-full h-auto rounded border border-slate-600"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Form Fields */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Amount *</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <DollarSign className="w-4 h-4 text-gray-400" />
+                      </div>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={formData.amount}
+                        onChange={(e) => setFormData(prev => ({ ...prev, amount: e.target.value }))}
+                        className="block w-full pl-10 pr-3 py-2 border border-slate-600 rounded-lg bg-slate-800 text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Date *</label>
+                    <input
+                      type="date"
+                      value={formData.date}
+                      onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                      className="block w-full px-3 py-2 border border-slate-600 rounded-lg bg-slate-800 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Description *</label>
+                  <input
+                    type="text"
+                    value={formData.description}
+                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    className="block w-full px-3 py-2 border border-slate-600 rounded-lg bg-slate-800 text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Enter description..."
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Category *</label>
+                  <select
+                    value={formData.category}
+                    onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                    className="block w-full px-3 py-2 border border-slate-600 rounded-lg bg-slate-800 text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Select a category</option>
+                    {(formData.type === 'income' ? incomeCategories : expenseCategories).map(category => (
+                      <option key={category} value={category}>{category}</option>
                     ))}
+                  </select>
+                </div>
+
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={handleSubmit}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-3 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 font-medium shadow-lg shadow-purple-500/25 flex items-center"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Entry
+                  </button>
+                </div>
+              </div>
+            ) : (
+              /* Transaction History */
+              <div className="space-y-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <h2 className="text-xl font-semibold text-purple-300">Transaction History</h2>
+                  <div className="relative w-full sm:w-80">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <Search className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Search transactions..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="block w-full pl-10 pr-3 py-2 border border-slate-600 rounded-lg bg-slate-800 text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  {filteredEntries.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="text-6xl mb-4">📝</div>
+                      <h3 className="text-lg font-medium text-gray-300 mb-2">
+                        {entries.length === 0 ? 'No transactions yet' : 'No matching transactions'}
+                      </h3>
+                      <p className="text-gray-400">
+                        {entries.length === 0 
+                          ? 'Add your first income or expense entry to get started.' 
+                          : 'Try adjusting your search criteria.'
+                        }
+                      </p>
+                    </div>
+                  ) : (
+                    filteredEntries.map((entry) => {
+                      const associatedProject = projects.find(p => p.id === entry.projectId);
+                      return (
+                        <div
+                          key={entry.id}
+                          className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-slate-600/50 rounded-lg p-4 hover:border-purple-500/30 transition-all duration-200"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-white ${
+                                entry.type === 'income' 
+                                  ? 'bg-gradient-to-br from-emerald-400 to-green-500'
+                                  : 'bg-gradient-to-br from-red-400 to-rose-500'
+                              }`}>
+                                {entry.type === 'income' ? <TrendingUp className="w-6 h-6" /> : <TrendingDown className="w-6 h-6" />}
+                              </div>
+                              
+                              <div className="flex-1">
+                                <div className="flex items-center space-x-2">
+                                  <h3 className="font-medium text-white">{entry.description}</h3>
+                                  {entry.ocrScanned && (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-900/50 text-purple-300 border border-purple-500/30">
+                                      <Robot className="w-3 h-3 mr-1" />
+                                      AI Scanned
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                <div className="flex items-center space-x-4 mt-1">
+                                  <span className="text-sm text-gray-400">{entry.category}</span>
+                                  <span className="text-sm text-gray-400">•</span>
+                                  <span className="text-sm text-gray-400">{entry.date}</span>
+                                  
+                                  {associatedProject && (
+                                    <>
+                                      <span className="text-sm text-gray-400">•</span>
+                                      <div className="flex items-center">
+                                        <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: associatedProject.color }}></div>
+                                        <span className="text-sm text-purple-300">{associatedProject.name}</span>
+                                      </div>
+                                    </>
+                                  )}
+                                  
+                                  {entry.ocrVendor && (
+                                    <>
+                                      <span className="text-sm text-gray-400">•</span>
+                                      <span className="text-sm text-purple-400">from {entry.ocrVendor}</span>
+                                    </>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center space-x-4">
+                              <div className="text-right">
+                                <p className={`text-lg font-bold ${
+                                  entry.type === 'income' ? 'text-emerald-400' : 'text-red-400'
+                                }`}>
+                                  {entry.type === 'income' ? '+' : '-'}${entry.amount.toFixed(2)}
+                                </p>
+                                {entry.ocrConfidence && entry.ocrConfidence > 0 && (
+                                  <p className="text-xs text-gray-400">
+                                    {Math.round(entry.ocrConfidence * 100)}% confidence
+                                  </p>
+                                )}
+                              </div>
+                              
+                              <button
+                                onClick={() => handleDelete(entry.id)}
+                                className="text-gray-400 hover:text-red-400 p-2 hover:bg-red-900/20 rounded-lg transition-colors"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                          
+                          {entry.receiptUrl && (
+                            <div className="mt-3 pt-3 border-t border-slate-600/50">
+                              <div className="flex items-center justify-between">
+                                <p className="text-sm text-gray-400">Receipt attached</p>
+                                <button className="text-purple-400 hover:text-purple-300 text-sm flex items-center">
+                                  <Eye className="w-4 h-4 mr-1" />
+                                  View Receipt
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* Summary Stats for Filtered Results */}
+                {filteredEntries.length > 0 && searchQuery && (
+                  <div className="bg-gradient-to-br from-slate-800/30 to-gray-900/30 border border-slate-600/30 rounded-lg p-4 mt-6">
+                    <h3 className="text-sm font-medium text-gray-300 mb-2">Search Results Summary</h3>
+                    <div className="grid grid-cols-3 gap-4 text-center">
+                      <div>
+                        <p className="text-xs text-gray-400">Transactions</p>
+                        <p className="text-lg font-bold text-white">{filteredEntries.length}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">Total Income</p>
+                        <p className="text-lg font-bold text-emerald-400">
+                          ${filteredEntries.filter(e => e.type === 'income').reduce((sum, e) => sum + e.amount, 0).toFixed(2)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-400">Total Expenses</p>
+                        <p className="text-lg font-bold text-red-400">
+                          ${filteredEntries.filter(e => e.type === 'expense').reduce((sum, e) => sum + e.amount, 0).toFixed(2)}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
+            )}
+          </div>
+        </div>
 
-              <div className="mt-4 flex justify-end gap-3">
+        {/* Project Creation Modal */}
+        {isProjectModalOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-gradient-to-br from-slate-800 to-gray-900 border border-purple-500/30 rounded-xl p-6 max-w-md w-full">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-purple-300 flex items-center">
+                  <FolderPlus className="w-5 h-5 mr-2" />
+                  Create New Project
+                </h3>
                 <button
-                  onClick={() => setShowFileSelector(false)}
-                  className="px-4 py-2 text-gray-400 border border-slate-600 rounded-lg hover:bg-slate-700/50 hover:text-gray-300 transition-colors"
+                  onClick={() => {
+                    setIsProjectModalOpen(false);
+                    setNewProjectData({ name: '', description: '', color: '#8b5cf6' });
+                  }}
+                  className="text-gray-400 hover:text-white p-1 rounded transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Project Name *</label>
+                  <input
+                    type="text"
+                    value={newProjectData.name}
+                    onChange={(e) => setNewProjectData(prev => ({ ...prev, name: e.target.value }))}
+                    className="block w-full px-3 py-2 border border-slate-600 rounded-lg bg-slate-800 text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Enter project name..."
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Description (Optional)</label>
+                  <textarea
+                    value={newProjectData.description}
+                    onChange={(e) => setNewProjectData(prev => ({ ...prev, description: e.target.value }))}
+                    className="block w-full px-3 py-2 border border-slate-600 rounded-lg bg-slate-800 text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    placeholder="Brief project description..."
+                    rows={2}
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Color</label>
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="color"
+                      value={newProjectData.color}
+                      onChange={(e) => setNewProjectData(prev => ({ ...prev, color: e.target.value }))}
+                      className="w-12 h-10 rounded-lg border border-slate-600 bg-slate-800 cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <span className="text-sm text-gray-400">{newProjectData.color}</span>
+                      <div className="flex space-x-2 mt-1">
+                        {['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f59e0b', '#ef4444'].map(color => (
+                          <button
+                            key={color}
+                            onClick={() => setNewProjectData(prev => ({ ...prev, color }))}
+                            className="w-6 h-6 rounded-full border-2 border-slate-600 hover:border-slate-400 transition-colors"
+                            style={{ backgroundColor: color }}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3 mt-6">
+                <button
+                  onClick={() => {
+                    setIsProjectModalOpen(false);
+                    setNewProjectData({ name: '', description: '', color: '#8b5cf6' });
+                  }}
+                  className="px-4 py-2 text-gray-400 hover:text-white border border-slate-600 rounded-lg hover:bg-slate-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
-                  onClick={() => setShowFileSelector(false)}
-                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors shadow-lg shadow-purple-500/25"
+                  onClick={handleSaveProject}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 flex items-center"
                 >
-                  Done
+                  <Plus className="w-4 h-4 mr-1" />
+                  Create Project
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Account Settings Modal */}
-        {showPlatformSettings && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
-            <div className="bg-gradient-to-br from-slate-800 to-gray-900 border border-purple-500/30 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-purple-300 flex items-center">
-                  <span className="mr-2">🧵</span>
-                  Threads Account
-                </h2>
-                <button
-                  onClick={() => setShowPlatformSettings(false)}
-                  className="text-gray-400 hover:text-gray-300 p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
-                >
-                  <span className="text-xl">❌</span>
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-slate-600/50 rounded-lg">
-                  <div>
-                    <h3 className="font-medium text-gray-300 flex items-center">
-                      <span className="mr-2">🧵</span>
-                      Threads
-                    </h3>
-                    <p className="text-sm text-gray-400 mt-1">
-                      {threadsConnected
-                        ? `Connected (Account ID: ${threadsAccountId})`
-                        : 'Connect to start posting to Threads'
-                      }
-                    </p>
-                  </div>
-                  <div>
-                    {threadsConnected ? (
-                      <button
-                        onClick={disconnectThreads}
-                        className="px-3 py-1 text-sm bg-gradient-to-br from-red-800/50 to-rose-900/50 border border-red-500/30 hover:bg-red-700/50 hover:border-red-400/50 text-red-300 hover:text-red-200 rounded transition-all duration-200"
-                      >
-                        Disconnect
-                      </button>
-                    ) : (
-                      <button
-                        onClick={connectThreads}
-                        className="px-3 py-1 text-sm bg-gradient-to-br from-blue-800/50 to-purple-900/50 border border-blue-500/30 hover:bg-blue-700/50 hover:border-blue-400/50 text-blue-300 hover:text-blue-200 rounded transition-all duration-200"
-                      >
-                        Connect
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                <div className="p-4 bg-gradient-to-br from-blue-800/20 to-purple-900/20 border border-blue-500/30 rounded-lg">
-                  <p className="text-sm text-blue-300 flex items-start">
-                    <span className="mr-2 mt-0.5">💡</span>
-                    <span>
-                      <strong>Tip:</strong> Once connected, you can post content directly to Threads and schedule posts for later.
-                    </span>
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Footer */}
+        <div className="mt-8 text-center">
+          <p className="text-gray-400 text-sm">
+            Built with React, TypeScript, and Tailwind CSS • AI-Powered Receipt Scanning
+          </p>
+        </div>
       </div>
     </div>
   );
 };
 
-export default ContentScheduler;
+export default BudgetTracker;

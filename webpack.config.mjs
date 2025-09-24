@@ -73,10 +73,11 @@ export default (env, argv) => {
       fallback: {
         "process": false,
         "buffer": false,
+        "fs": false,
+        "path": false,
       },
-      // Temporarily exclude problematic libraries
+      // Fixed: Removed tesseract.js from alias to allow it to load
       alias: {
-        'tesseract.js': false,
         'fluent-ffmpeg': false,
       }
     },
