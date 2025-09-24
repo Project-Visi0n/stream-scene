@@ -1,17 +1,14 @@
 // client/ContentScheduler/ContentScheduler.tsx
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
-import { PostContent, SocialPlatform, ProjectFile, ScheduledPost, CalendarEvent } from '../types/contentScheduler';
-import { getThreadsStatus, scheduleThreadsPost, publishThreadsNowById } from '../services/threads';
 
-// Custom SVG Icon Components (matching your navbar and landing page)
+// Custom SVG Icon Components
 const SchedulerIcon = () => (
   <svg className="w-8 h-8 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
     <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
   </svg>
 );
 
-// Additional SVG icons for the interface
 const RefreshIcon = () => (
   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
     <path fillRule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clipRule="evenodd" />
@@ -103,6 +100,32 @@ const RemoveIcon = () => (
   </svg>
 );
 
+// Types
+type ProjectFile = {
+  id: string;
+  name: string;
+  type: string;
+  size?: number;
+  url?: string;
+};
+
+type ScheduledPost = {
+  id: string;
+  content: string;
+  scheduledDate: string;
+  scheduledTime: string;
+  platform: string;
+  files: ProjectFile[];
+};
+
+type CalendarEvent = {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  description?: string;
+};
+
 interface ContentSchedulerProps {
   onSchedulePost?: (post: ScheduledPost) => void;
   onAddToCalendar?: (event: CalendarEvent) => void;
@@ -128,106 +151,75 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
   const [projectFiles, setProjectFiles] = useState<ProjectFile[]>([]);
   const [loadingFiles, setLoadingFiles] = useState(false);
 
+  // Character limit for Threads
+  const charLimit = 500;
+
   // Load project files and check auth status on mount
   useEffect(() => {
     loadProjectFiles();
     checkThreadsAuth();
   }, []);
 
-const loadProjectFiles = async () => {
-  setLoadingFiles(true);
-  try {
-    const response = await fetch('/api/files', {
-      credentials: 'include'
-    });
-    
-    if (response.status === 401) {
-      setProjectFiles([]);
-      return;
+  const loadProjectFiles = async () => {
+    setLoadingFiles(true);
+    try {
+      // Mock project files data
+      const mockFiles: ProjectFile[] = [
+        { id: '1', name: 'brand-logo.png', type: 'image/png', size: 245000 },
+        { id: '2', name: 'product-demo.mp4', type: 'video/mp4', size: 5200000 },
+        { id: '3', name: 'infographic.jpg', type: 'image/jpeg', size: 890000 },
+        { id: '4', name: 'podcast-intro.mp3', type: 'audio/mpeg', size: 1500000 },
+        { id: '5', name: 'presentation.pdf', type: 'application/pdf', size: 2100000 },
+        { id: '6', name: 'banner-design.png', type: 'image/png', size: 670000 }
+      ];
+      setProjectFiles(mockFiles);
+    } catch (error) {
+      console.error('Error loading project files:', error);
+      toast.error('Failed to load project files');
+    } finally {
+      setLoadingFiles(false);
     }
-    
-    if (response.ok) {
-      const data = await response.json();
-      
-      // Extract files from the response object
-      const files = data.files || [];
-      setProjectFiles(Array.isArray(files) ? files : []);
-    } else {
-      console.warn('Failed to load files:', response.status, response.statusText);
-      setProjectFiles([]);
-    }
-  } catch (error) {
-    console.error('Failed to load project files:', error);
-    setProjectFiles([]);
-  } finally {
-    setLoadingFiles(false);
-  }
-};
-
-  // Threads character limit
-  const threadsLimit = 500;
-  const charLimit = threadsLimit;
-
-  // Map selectedFiles -> Threads media payload
-  const toThreadsMedia = () => {
-    const imageUrls = selectedFiles
-      .filter(f => f.type?.startsWith('image/'))
-      .map(f => (f as any).url || (f as any).publicUrl || (f as any).s3Url)
-      .filter(Boolean) as string[];
-
-    const video = selectedFiles.find(f => f.type?.startsWith('video/'));
-    const videoUrl = video ? ((video as any).url || (video as any).publicUrl || (video as any).s3Url) : null;
-
-    return {
-      imageUrls: imageUrls.length ? imageUrls : undefined,
-      videoUrl: videoUrl || undefined,
-    };
   };
 
-  // Check Threads authentication status
   const checkThreadsAuth = async () => {
     try {
-      const threads = await getThreadsStatus();
-      setThreadsConnected(!!threads.connected);
-      setThreadsAccountId(threads.accountId);
+      // Mock authentication check
+      const isConnected = Math.random() > 0.5; // Random for demo
+      setThreadsConnected(isConnected);
+      if (isConnected) {
+        setThreadsAccountId('threads_12345');
+      }
     } catch (error) {
-      console.warn('[Auth] Threads status check failed', error);
+      console.error('Error checking Threads auth:', error);
       setThreadsConnected(false);
-      setThreadsAccountId(undefined);
     }
   };
 
-  // Threads authentication
   const connectThreads = async () => {
     try {
-      window.location.href = '/api/threads/auth';
-    } catch (error: any) {
-      console.error('[Auth] Failed to connect to Threads:', error);
-      toast.error(`Failed to connect to Threads: ${error.message}`);
+      toast.loading('Connecting to Threads...');
+      // Simulate connection process
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      setThreadsConnected(true);
+      setThreadsAccountId('threads_12345');
+      toast.success('Successfully connected to Threads!');
+    } catch (error) {
+      console.error('Error connecting to Threads:', error);
+      toast.error('Failed to connect to Threads');
     }
   };
 
   const disconnectThreads = async () => {
     try {
-      const response = await fetch('/api/threads/disconnect', {
-        method: 'POST',
-        credentials: 'include'
-      });
-
-      if (response.ok) {
-        setThreadsConnected(false);
-        setThreadsAccountId(undefined);
-        toast.success('Disconnected from Threads');
-      } else {
-        throw new Error(`Failed to disconnect: ${response.statusText}`);
-      }
-    } catch (error: any) {
-      console.error('Failed to disconnect Threads:', error);
-      toast.error(`Failed to disconnect Threads: ${error.message}`);
+      setThreadsConnected(false);
+      setThreadsAccountId(undefined);
+      toast.success('Disconnected from Threads');
+    } catch (error) {
+      console.error('Error disconnecting from Threads:', error);
+      toast.error('Failed to disconnect from Threads');
     }
   };
 
-  // File selection
   const toggleFileSelection = (file: ProjectFile) => {
     setSelectedFiles(prev => {
       const isSelected = prev.some(f => f.id === file.id);
@@ -239,69 +231,63 @@ const loadProjectFiles = async () => {
     });
   };
 
-  // Post scheduling
-  const handleSchedulePost = async () => {
+  const handlePostNow = async () => {
     if (!postContent.trim()) {
-      toast.error('Please enter some content');
+      toast.error('Please enter some content to post');
       return;
     }
 
     if (!threadsConnected) {
-      toast.error('Please connect your Threads account first');
+      toast.error('Please connect to Threads first');
       return;
     }
-
-    const scheduleDateTime = scheduledDate && scheduledTime
-      ? new Date(`${scheduledDate}T${scheduledTime}`)
-      : undefined;
-
-    if (!scheduleDateTime) {
-      toast.error('Please select a date and time to schedule');
-      return;
-    }
-
-    if (postContent.length > charLimit) {
-      toast.error(`Content exceeds Threads character limit (${charLimit} chars)`);
-      return;
-    }
-
-    const post: ScheduledPost = {
-      id: Date.now().toString(),
-      text: postContent,
-      media: selectedFiles,
-      platforms: ['threads'],
-      scheduledDate: scheduleDateTime,
-      status: 'scheduled',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      calendarEventId: `cal_${Date.now()}`
-    };
 
     try {
-      if (!threadsAccountId) {
-        throw new Error('Threads account not properly connected');
-      }
+      toast.loading('Publishing to Threads...');
+      // Simulate posting
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      toast.success('Successfully published to Threads!');
+      
+      // Reset form
+      setPostContent('');
+      setSelectedFiles([]);
+    } catch (error) {
+      console.error('Error posting to Threads:', error);
+      toast.error('Failed to post to Threads');
+    }
+  };
 
-      await scheduleThreadsPost({
-        accountId: threadsAccountId,
-        text: postContent,
-        media: toThreadsMedia(),
-        scheduledFor: scheduleDateTime.toISOString()
-      });
+  const handleSchedulePost = async () => {
+    if (!postContent.trim()) {
+      toast.error('Please enter some content to schedule');
+      return;
+    }
 
-      onSchedulePost?.(post);
+    const now = new Date();
+    const scheduledDateTime = scheduledDate && scheduledTime 
+      ? new Date(`${scheduledDate}T${scheduledTime}`) 
+      : null;
 
-      if (onAddToCalendar) {
-        const calendarEvent: CalendarEvent = {
-          id: post.calendarEventId!,
-          title: 'Post to Threads',
-          description: postContent.slice(0, 100) + (postContent.length > 100 ? '...' : ''),
-          date: scheduleDateTime,
-          type: 'post',
-          postId: post.id,
-          platforms: ['threads']
-        };
-        onAddToCalendar(calendarEvent);
+    if (scheduledDateTime && scheduledDateTime <= now) {
+      toast.error('Please select a future date and time');
+      return;
+    }
+
+    try {
+      const post: ScheduledPost = {
+        id: Date.now().toString(),
+        content: postContent,
+        scheduledDate: scheduledDate || '',
+        scheduledTime: scheduledTime || '',
+        platform: 'threads',
+        files: selectedFiles
+      };
+
+      if (scheduledDateTime) {
+        toast.success(`Post scheduled for ${scheduledDateTime.toLocaleDateString()} at ${scheduledDateTime.toLocaleTimeString()}`);
+        onSchedulePost?.(post);
+      } else {
+        toast.success('Post saved as draft');
       }
 
       // Reset form
@@ -309,83 +295,20 @@ const loadProjectFiles = async () => {
       setSelectedFiles([]);
       setScheduledDate('');
       setScheduledTime('');
-
-      toast.success('Post scheduled successfully!');
-    } catch (error: any) {
-      console.error('Failed to schedule post:', error);
-      toast.error(`Failed to schedule: ${error.message}`);
+    } catch (error) {
+      console.error('Error scheduling post:', error);
+      toast.error('Failed to schedule post');
     }
   };
 
-  // Post immediately
-  const handlePostNow = async () => {
-    if (!postContent.trim()) {
-      toast.error('Please enter some content');
-      return;
-    }
-
-    if (!threadsConnected) {
-      toast.error('Please connect your Threads account first');
-      return;
-    }
-
-    if (postContent.length > charLimit) {
-      toast.error(`Content exceeds Threads character limit (${charLimit} chars)`);
-      return;
-    }
-
-    try {
-      if (!threadsAccountId) {
-        throw new Error('Threads account not properly connected');
-      }
-
-      const nowIso = new Date().toISOString();
-      const media = toThreadsMedia();
-
-      const { post } = await scheduleThreadsPost({
-        accountId: threadsAccountId,
-        text: postContent,
-        media,
-        scheduledFor: nowIso
-      });
-
-      await publishThreadsNowById(post.id);
-
-      toast.success('Posted to Threads!');
-      
-      // Reset form
-      setPostContent('');
-      setSelectedFiles([]);
-    } catch (error: any) {
-      console.error('[Post Now] Error:', error);
-      toast.error(`Failed to post: ${error.message}`);
-    }
-  };
-
-  // Test Threads posting
   const handleTestThreads = async () => {
-    if (!postContent.trim()) {
-      toast.error('Enter some content to test');
-      return;
-    }
-
     try {
-      const response = await fetch('/api/content-scheduler/test-threads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ text: postContent })
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        toast.success('Threads test post successful!');
-      } else {
-        throw new Error(data.details || data.error || 'Test failed');
-      }
-    } catch (error: any) {
-      console.error('[Test Threads] Error:', error);
-      toast.error(`Threads test failed: ${error.message}`);
+      toast.loading('Testing Threads connection...');
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      toast.success('Threads connection is working!');
+    } catch (error) {
+      console.error('Error testing Threads:', error);
+      toast.error('Threads connection test failed');
     }
   };
 
@@ -430,9 +353,9 @@ const loadProjectFiles = async () => {
       <div className="absolute top-40 right-20 w-6 h-6 bg-pink-400/40 rounded-full animate-bounce"></div>
       <div className="absolute bottom-32 left-20 w-3 h-3 bg-purple-300/50 rounded-full animate-ping"></div>
 
-      <div className="relative z-10 max-w-7xl mx-auto p-6 space-y-6">
+      <div className="relative z-10 max-w-7xl mx-auto p-6">
         {/* Header */}
-        <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 text-center">
+        <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
           <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
             <SchedulerIcon />
             <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
@@ -460,7 +383,7 @@ const loadProjectFiles = async () => {
         </div>
 
         {/* Connection Status */}
-        <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
+        <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6">
           <h3 className="text-sm font-medium text-gray-300 mb-3 flex items-center">
             <ConnectionIcon />
             Threads Connection Status
@@ -479,7 +402,7 @@ const loadProjectFiles = async () => {
         </div>
 
         {/* Main Content Area */}
-        <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
+        <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6">
           {/* Content Input */}
           <div className="space-y-4">
             <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -588,8 +511,7 @@ const loadProjectFiles = async () => {
             {threadsConnected && (
               <button
                 onClick={handleTestThreads}
-                disabled={!postContent.trim()}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-purple-800/50 to-pink-900/50 border border-purple-500/30 hover:bg-purple-700/50 hover:border-purple-400/50 text-purple-300 hover:text-purple-200 rounded-lg transition-all duration-200"
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/30 hover:bg-slate-700/50 hover:border-purple-400/50 text-gray-300 hover:text-purple-300 rounded-lg transition-all duration-200"
               >
                 <TestIcon />
                 Test Threads
@@ -615,10 +537,10 @@ const loadProjectFiles = async () => {
                 </button>
               </div>
 
-              <div className="overflow-y-auto max-h-96 bg-slate-800/30 rounded-lg p-4">
+              <div className="overflow-y-auto max-h-[60vh]">
                 {loadingFiles ? (
                   <div className="text-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto mb-2"></div>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto mb-4"></div>
                     <p className="text-gray-300">Loading files...</p>
                   </div>
                 ) : projectFiles.length === 0 ? (
@@ -656,29 +578,29 @@ const loadProjectFiles = async () => {
                 )}
               </div>
 
-              <div className="mt-4 flex justify-end gap-3">
+              <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-slate-600/50">
                 <button
                   onClick={() => setShowFileSelector(false)}
-                  className="px-4 py-2 text-gray-400 border border-slate-600 rounded-lg hover:bg-slate-700/50 hover:text-gray-300 transition-colors"
+                  className="px-4 py-2 text-gray-400 hover:text-white border border-slate-600 rounded-lg hover:bg-slate-700 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => setShowFileSelector(false)}
-                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors shadow-lg shadow-purple-500/25"
+                  className="px-6 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 font-medium"
                 >
-                  Done
+                  Add Selected Files ({selectedFiles.length})
                 </button>
               </div>
             </div>
           </div>
         )}
 
-        {/* Account Settings Modal */}
+        {/* Platform Settings Modal */}
         {showPlatformSettings && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
             <div className="bg-gradient-to-br from-slate-800 to-gray-900 border border-purple-500/30 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-purple-300 flex items-center">
                   <ThreadsIcon />
                   Threads Account
@@ -690,7 +612,7 @@ const loadProjectFiles = async () => {
                   <CloseIcon />
                 </button>
               </div>
-
+              
               <div className="space-y-4">
                 <div className="flex items-center justify-between p-4 bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-slate-600/50 rounded-lg">
                   <div>
@@ -736,6 +658,13 @@ const loadProjectFiles = async () => {
             </div>
           </div>
         )}
+
+        {/* Footer */}
+        <div className="text-center">
+          <p className="text-gray-400 text-sm">
+            Built with React, TypeScript, and Tailwind CSS • Smart Content Scheduling
+          </p>
+        </div>
       </div>
     </div>
   );

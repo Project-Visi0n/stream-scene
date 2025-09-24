@@ -1,11 +1,28 @@
-import React, { useState, useRef } from 'react';
-
-// Custom SVG Icon Components (matching your navbar and landing page)
-const BudgetIcon = () => (
-  <svg className="w-8 h-8 text-green-400" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
-  </svg>
-);
+import React, { useState, useRef, useEffect } from 'react';
+import Tesseract from 'tesseract.js';
+import {
+  DollarSign as HiCurrencyDollar,
+  Plus as HiPlus,
+  Clock as HiClock,
+  Search as HiMagnifyingGlass,
+  Upload as HiArrowUpTray,
+  Cpu as HiCpuChip,
+  CheckCircle as HiCheckCircle,
+  AlertCircle as HiExclamationCircle,
+  X as HiXMark,
+  Trash as HiTrash,
+  FolderPlus as HiFolderPlus,
+  Eye as HiEye,
+  TrendingUp as HiTrendingUp,
+  TrendingDown as HiTrendingDown,
+  Wallet as HiWallet,
+  Calendar as HiCalendarDays,
+  Tag as HiTag,
+  Smartphone as HiDevicePhoneMobile,
+  Save as HiSave,
+  Check as HiCheck,
+  Pencil as HiPencil,
+} from 'lucide-react';
 
 // Types
 type Project = {
@@ -32,29 +49,29 @@ type Entry = {
   ocrDate?: string;
 };
 
-// OCR Helper Functions
+// ===== OCR Helper Functions =====
 const extractAmountFromText = (text: string): { amount: number; confidence: number } | null => {
   const patterns = [
     /(?:total|amount|sum|subtotal)[\s:$]*([0-9]+\.?[0-9]*)/i,
     /\$\s*([0-9]+\.?[0-9]*)/g,
     /([0-9]+\.[0-9]{2})$/gm,
-    /([0-9]+\.?[0-9]*)\s*(?:usd|dollar)/i
+    /([0-9]+\.?[0-9]*)\s*(?:usd|dollar)/i,
   ];
-  
+
   const amounts: Array<{ amount: number; confidence: number }> = [];
-  
+
   patterns.forEach((pattern, index) => {
     const matches = [...text.matchAll(new RegExp(pattern, 'gi'))];
-    matches.forEach(match => {
-      const numStr = match[1] || match[0].replace(/[^0-9.]/g, '');
+    matches.forEach((match) => {
+      const numStr = (match as any)[1] || (match as any)[0].replace(/[^0-9.]/g, '');
       const num = parseFloat(numStr);
-      if (!isNaN(num) && num > 0 && num < 10000) {
+      if (!isNaN(num) && num > 0 && num < 100000) {
         const confidence = index === 0 ? 0.9 : 0.7;
         amounts.push({ amount: num, confidence });
       }
     });
   });
-  
+
   if (amounts.length === 0) return null;
   amounts.sort((a, b) => b.confidence - a.confidence || b.amount - a.amount);
   return amounts[0];
@@ -65,9 +82,9 @@ const extractDateFromText = (text: string): string | null => {
     /(\d{1,2}\/\d{1,2}\/\d{4})/,
     /(\d{1,2}-\d{1,2}-\d{4})/,
     /(\d{4}-\d{1,2}-\d{1,2})/,
-    /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}/i
+    /(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d{1,2},?\s+\d{4}/i,
   ];
-  
+
   for (const pattern of datePatterns) {
     const match = text.match(pattern);
     if (match) return match[0];
@@ -76,14 +93,20 @@ const extractDateFromText = (text: string): string | null => {
 };
 
 const extractVendorFromText = (text: string): string | null => {
-  const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 2);
-  
+  const lines = text
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.length > 2);
+
   for (let i = 0; i < Math.min(5, lines.length); i++) {
     const line = lines[i];
-    if (!/^\d+$/.test(line) && 
-        !/\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}/.test(line) &&
-        !/^\d+\s+\w+\s+(st|ave|road|dr|blvd)/i.test(line) &&
-        line.length > 3 && line.length < 50) {
+    if (
+      !/^\d+$/.test(line) &&
+      !/\d{1,2}[\/-]\d{1,2}[\/-]\d{4}/.test(line) &&
+      !/^\d+\s+\w+\s+(st|ave|road|dr|blvd)/i.test(line) &&
+      line.length > 3 &&
+      line.length < 50
+    ) {
       return line;
     }
   }
@@ -91,14 +114,43 @@ const extractVendorFromText = (text: string): string | null => {
 };
 
 const BudgetTracker: React.FC = () => {
-  // State
-  const [activeTab, setActiveTab] = useState('add');
-  const [entries, setEntries] = useState<Entry[]>([]);
-  const [projects, setProjects] = useState<Project[]>([
-    { id: '1', name: 'Client Website', description: 'E-commerce site for ABC Corp', color: '#8b5cf6', isActive: true },
-    { id: '2', name: 'Personal Blog', description: 'My photography blog', color: '#ec4899', isActive: true },
-    { id: '3', name: 'Mobile App', description: 'iOS app development', color: '#06b6d4', isActive: true }
-  ]);
+  // === Config for confirm step ===
+  const OCR_CONFIRM_THRESHOLD = 0.92;
+
+  // ===== State (no mock data) =====
+  const [activeTab, setActiveTab] = useState<'add' | 'history'>('add');
+
+  // Load from localStorage on first render
+  const [entries, setEntries] = useState<Entry[]>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('budgetEntries') : null;
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [projects, setProjects] = useState<Project[]>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('budgetProjects') : null;
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Persist to localStorage when entries/projects change
+  useEffect(() => {
+    try {
+      localStorage.setItem('budgetEntries', JSON.stringify(entries));
+    } catch {}
+  }, [entries]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('budgetProjects', JSON.stringify(projects));
+    } catch {}
+  }, [projects]);
 
   const [formData, setFormData] = useState({
     type: 'expense' as 'income' | 'expense',
@@ -111,93 +163,70 @@ const BudgetTracker: React.FC = () => {
     ocrScanned: false,
     ocrConfidence: 0,
     ocrVendor: '',
-    ocrDate: ''
+    ocrDate: '',
   });
 
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptUrl, setReceiptUrl] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
-  const [newProjectData, setNewProjectData] = useState({
-    name: '',
-    description: '',
-    color: '#8b5cf6'
-  });
+  const [newProjectData, setNewProjectData] = useState({ name: '', description: '', color: '#8b5cf6' });
 
   // Receipt Scanner State
   const [isProcessing, setIsProcessing] = useState(false);
   const [scanResult, setScanResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
-  const [tesseractLoaded, setTesseractLoaded] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Confirm step state
+  const [needsConfirm, setNeedsConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const amountInputRef = useRef<HTMLInputElement>(null);
 
   // Categories
   const incomeCategories = ['Freelance Payment', 'Residuals', 'Grant', 'Salary', 'Bonus', 'Donation', 'Other'];
   const expenseCategories = ['Equipment', 'Transportation', 'Software', 'Marketing', 'Office Supplies', 'Personal', 'Food', 'Other'];
 
-  // ✅ LAZY LOAD TESSERACT - Only loads when user actually tries to scan
-  const loadTesseract = async () => {
-    if (tesseractLoaded) return;
-    
-    try {
-      setProgress(10);
-      const Tesseract = await import('tesseract.js');
-      setTesseractLoaded(true);
-      setProgress(20);
-      return Tesseract;
-    } catch (error) {
-      console.error('Failed to load OCR library:', error);
-      throw new Error('Failed to load OCR library. Please try again.');
-    }
-  };
-
-  // OCR Processing with lazy loading
-  const processReceiptWithTesseract = async (file: File) => {
+  // ===== Real OCR Processing using Tesseract.js =====
+  const processReceiptWithOCR = async (file: File) => {
     try {
       setProgress(0);
-      
-      // Load Tesseract dynamically
-      const Tesseract = await loadTesseract();
-      
+      setError(null);
+
       const imageUrl = URL.createObjectURL(file);
-      const worker = await Tesseract.createWorker('eng');
-      
-      try {
-        let progressInterval: NodeJS.Timeout;
-        
-        progressInterval = setInterval(() => {
-          setProgress(prev => {
-            if (prev >= 90) return prev;
-            return prev + Math.random() * 15;
-          });
-        }, 300);
-        
-        const { data: { text } } = await worker.recognize(imageUrl);
-        
-        clearInterval(progressInterval);
-        setProgress(100);
-        
-        console.log('OCR Raw Text:', text);
-        
-        const amountResult = extractAmountFromText(text);
-        const vendor = extractVendorFromText(text);
-        const date = extractDateFromText(text);
-        
-        return {
-          amount: amountResult?.amount,
-          confidence: amountResult?.confidence || 0,
-          vendor,
-          date,
-          rawText: text
-        };
-      } finally {
-        await worker.terminate();
-        URL.revokeObjectURL(imageUrl);
-      }
-    } catch (error) {
-      console.error('Tesseract error:', error);
-      throw new Error(`OCR processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+
+      const result = await Tesseract.recognize(imageUrl, 'eng', {
+        logger: (m: any) => {
+          if (m.status === 'recognizing text' && typeof m.progress === 'number') {
+            setProgress(Math.round(m.progress * 100));
+          }
+        },
+      });
+
+      const rawText: string = result.data?.text || '';
+      // Average confidence fallback
+      const avgConfidence: number =
+        (Array.isArray(result.data?.words) && result.data.words.length
+          ? result.data.words.reduce((s: number, w: any) => s + (w.confidence ?? 0), 0) / result.data.words.length
+          : 70) / 100;
+
+      URL.revokeObjectURL(imageUrl);
+
+      // Parse fields from text
+      const amountGuess = extractAmountFromText(rawText);
+      const vendor = extractVendorFromText(rawText) || undefined;
+      const date = extractDateFromText(rawText) || undefined;
+
+      return {
+        amount: amountGuess?.amount,
+        confidence: amountGuess?.confidence ?? avgConfidence,
+        vendor,
+        date,
+        rawText,
+      };
+    } catch (err: any) {
+      throw new Error(`OCR processing failed: ${err?.message || 'Unknown error'}`);
     }
   };
 
@@ -217,113 +246,111 @@ const BudgetTracker: React.FC = () => {
       return;
     }
 
-    const testImage = new Image();
-    const imageLoadPromise = new Promise<boolean>((resolve) => {
-      testImage.onload = () => resolve(true);
-      testImage.onerror = () => resolve(false);
-      testImage.src = URL.createObjectURL(file);
-    });
-
-    const canLoadImage = await imageLoadPromise;
-    if (!canLoadImage) {
-      setError('Cannot read this image file. Please try a different image.');
-      URL.revokeObjectURL(testImage.src);
-      return;
-    }
-
     setIsProcessing(true);
     setScanResult(null);
     setError(null);
     setProgress(0);
 
     try {
-      const receiptUrl = URL.createObjectURL(file);
-      const ocrResult = await processReceiptWithTesseract(file);
-      
+      const receiptUrlLocal = URL.createObjectURL(file);
+      const ocrResult = await processReceiptWithOCR(file);
+
       setScanResult(ocrResult);
-      
+
       if (ocrResult.amount) {
-        setFormData(prev => ({
+        setFormData((prev) => ({
           ...prev,
-          amount: ocrResult.amount.toString(),
+          amount: ocrResult.amount!.toString(),
           ocrScanned: true,
-          ocrConfidence: ocrResult.confidence,
+          ocrConfidence: ocrResult.confidence || 0,
           ocrVendor: ocrResult.vendor || '',
           ocrDate: ocrResult.date || '',
           description: prev.description || (ocrResult.vendor ? `Purchase from ${ocrResult.vendor}` : ''),
-          receiptTitle: file.name.replace(/\.[^/.]+$/, '')
+          receiptTitle: file.name.replace(/\.[^/.]+$/, ''),
         }));
       } else {
         setError('Could not detect amount in receipt. Please enter manually.');
       }
-      
+
+      // Decide if this needs a quick confirm tap
+      const maybeConfirm = (ocrResult.confidence ?? 0) < OCR_CONFIRM_THRESHOLD || !ocrResult.amount || ocrResult.amount <= 0;
+      setNeedsConfirm(maybeConfirm);
+
       setReceiptFile(file);
-      setReceiptUrl(receiptUrl);
-    } catch (error) {
-      console.error('OCR processing failed:', error);
-      setError(error instanceof Error ? error.message : 'OCR processing failed. Please try a different image or enter details manually.');
+      setReceiptUrl(receiptUrlLocal);
+    } catch (err: any) {
+      setError(err?.message || 'OCR processing failed. Please try a different image or enter details manually.');
     } finally {
       setIsProcessing(false);
-      setProgress(0);
-      URL.revokeObjectURL(testImage.src);
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!formData.amount || !formData.description || !formData.category) {
       alert('Please fill in all required fields (Amount, Description, Category)');
       return;
     }
+    if (needsConfirm) {
+      const proceed = confirm('OCR amount is unconfirmed. Save anyway?');
+      if (!proceed) return;
+    }
 
-    const newEntry: Entry = {
-      id: Math.max(...entries.map(e => e.id), 0) + 1,
-      type: formData.type,
-      amount: parseFloat(formData.amount),
-      description: formData.description,
-      date: formData.date,
-      category: formData.category,
-      projectId: formData.projectId || undefined,
-      receiptTitle: formData.receiptTitle || undefined,
-      receiptUrl: receiptUrl || undefined,
-      ocrScanned: formData.ocrScanned,
-      ocrConfidence: formData.ocrConfidence,
-      ocrVendor: formData.ocrVendor || undefined,
-      ocrDate: formData.ocrDate || undefined
-    };
+    try {
+      setIsSaving(true);
+      const newEntry: Entry = {
+        id: Math.max(...entries.map((e) => e.id), 0) + 1,
+        type: formData.type,
+        amount: parseFloat(formData.amount),
+        description: formData.description,
+        date: formData.date,
+        category: formData.category,
+        projectId: formData.projectId || undefined,
+        receiptTitle: formData.receiptTitle || undefined,
+        receiptUrl: receiptUrl || undefined,
+        ocrScanned: formData.ocrScanned,
+        ocrConfidence: formData.ocrConfidence,
+        ocrVendor: formData.ocrVendor || undefined,
+        ocrDate: formData.ocrDate || undefined,
+      };
 
-    setEntries(prev => [newEntry, ...prev]);
-    
-    // Reset form
-    setFormData({
-      type: 'expense',
-      amount: '',
-      description: '',
-      date: new Date().toISOString().split('T')[0],
-      category: '',
-      projectId: '',
-      receiptTitle: '',
-      ocrScanned: false,
-      ocrConfidence: 0,
-      ocrVendor: '',
-      ocrDate: ''
-    });
-    setReceiptFile(null);
-    setReceiptUrl('');
-    setScanResult(null);
-    setError(null);
+      setEntries((prev) => [newEntry, ...prev]);
 
-    alert('Entry saved successfully!');
+      // Reset form
+      setFormData({
+        type: 'expense',
+        amount: '',
+        description: '',
+        date: new Date().toISOString().split('T')[0],
+        category: '',
+        projectId: '',
+        receiptTitle: '',
+        ocrScanned: false,
+        ocrConfidence: 0,
+        ocrVendor: '',
+        ocrDate: '',
+      });
+      if (receiptUrl) {
+        try {
+          URL.revokeObjectURL(receiptUrl);
+        } catch {}
+      }
+      setReceiptFile(null);
+      setReceiptUrl('');
+      setScanResult(null);
+      setError(null);
+      setNeedsConfirm(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleDelete = (id: number) => {
     if (confirm('Are you sure you want to delete this entry?')) {
-      setEntries(prev => prev.filter(entry => entry.id !== id));
+      setEntries((prev) => prev.filter((entry) => entry.id !== id));
     }
   };
 
-  const handleCreateProject = () => {
-    setIsProjectModalOpen(true);
-  };
+  const handleCreateProject = () => setIsProjectModalOpen(true);
 
   const handleSaveProject = () => {
     if (!newProjectData.name.trim()) {
@@ -336,49 +363,59 @@ const BudgetTracker: React.FC = () => {
       name: newProjectData.name.trim(),
       description: newProjectData.description.trim(),
       color: newProjectData.color,
-      isActive: true
+      isActive: true,
     };
 
-    setProjects(prev => [...prev, newProject]);
+    setProjects((prev) => [...prev, newProject]);
     setNewProjectData({ name: '', description: '', color: '#8b5cf6' });
     setIsProjectModalOpen(false);
-    
-    setFormData(prev => ({ ...prev, projectId: newProject.id }));
+
+    setFormData((prev) => ({ ...prev, projectId: newProject.id }));
   };
 
   const handleRemoveReceipt = () => {
+    if (receiptUrl) {
+      try {
+        URL.revokeObjectURL(receiptUrl);
+      } catch {}
+    }
     setReceiptFile(null);
     setReceiptUrl('');
     setScanResult(null);
     setError(null);
-    setFormData(prev => ({ 
-      ...prev, 
-      receiptTitle: '', 
-      ocrScanned: false, 
+    setFormData((prev) => ({
+      ...prev,
+      receiptTitle: '',
+      ocrScanned: false,
       ocrConfidence: 0,
       ocrVendor: '',
       ocrDate: '',
     }));
+    setNeedsConfirm(false);
   };
 
   // Calculations
   const calculateTotals = () => {
-    const totalIncome = entries.filter(entry => entry.type === 'income').reduce((sum, entry) => sum + entry.amount, 0);
-    const totalExpenses = entries.filter(entry => entry.type === 'expense').reduce((sum, entry) => sum + entry.amount, 0);
+    const totalIncome = entries.filter((entry) => entry.type === 'income').reduce((sum, entry) => sum + entry.amount, 0);
+    const totalExpenses = entries.filter((entry) => entry.type === 'expense').reduce((sum, entry) => sum + entry.amount, 0);
     return {
       income: totalIncome,
       expenses: totalExpenses,
-      net: totalIncome - totalExpenses
+      net: totalIncome - totalExpenses,
     };
   };
 
-  const filteredEntries = entries.filter(entry => 
-    searchQuery === '' || 
-    entry.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    entry.receiptTitle?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    entry.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    projects.find(p => p.id === entry.projectId)?.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const sq = searchQuery.toLowerCase().trim();
+  const filteredEntries = entries.filter((entry) => {
+    const projectName = (projects.find((p) => p.id === entry.projectId)?.name ?? '').toLowerCase();
+    return (
+      sq === '' ||
+      entry.description.toLowerCase().includes(sq) ||
+      (entry.receiptTitle ?? '').toLowerCase().includes(sq) ||
+      entry.category.toLowerCase().includes(sq) ||
+      projectName.includes(sq)
+    );
+  });
 
   const totals = calculateTotals();
 
@@ -388,7 +425,7 @@ const BudgetTracker: React.FC = () => {
       <div className="absolute inset-0 bg-gradient-to-r from-purple-900/20 via-transparent to-pink-900/20"></div>
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-pink-500/10 rounded-full blur-3xl"></div>
-      
+
       {/* Floating Animation Elements */}
       <div className="absolute top-20 left-10 w-4 h-4 bg-purple-400/40 rounded-full animate-pulse"></div>
       <div className="absolute top-40 right-20 w-6 h-6 bg-pink-400/40 rounded-full animate-bounce"></div>
@@ -398,10 +435,8 @@ const BudgetTracker: React.FC = () => {
         {/* Header */}
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
           <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
-            <BudgetIcon />
-            <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Budget Tracker
-            </span>
+            <HiCurrencyDollar className="mr-3 text-4xl w-10 h-10 text-purple-400" />
+            <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">Budget Tracker</span>
           </h1>
           <p className="text-gray-300">Manage your freelance income and expenses with project tracking and AI-powered receipt scanning</p>
         </div>
@@ -410,32 +445,36 @@ const BudgetTracker: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div className="bg-gradient-to-br from-emerald-800/50 to-green-900/50 border border-emerald-500/20 backdrop-blur-sm rounded-xl p-6">
             <div className="flex items-center">
-              <div className="h-12 w-12 bg-gradient-to-br from-emerald-400 to-green-500 rounded-xl flex items-center justify-center text-white font-bold text-lg mr-4">↗</div>
+              <div className="h-12 w-12 bg-gradient-to-br from-emerald-400 to-green-500 rounded-xl flex items-center justify-center text-white mr-4">
+                <HiTrendingUp className="w-6 h-6" />
+              </div>
               <div>
                 <p className="text-emerald-300 font-medium">Total Income</p>
                 <p className="text-2xl font-bold text-emerald-400">${totals.income.toFixed(2)}</p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-gradient-to-br from-red-800/50 to-rose-900/50 border border-red-500/20 backdrop-blur-sm rounded-xl p-6">
             <div className="flex items-center">
-              <div className="h-12 w-12 bg-gradient-to-br from-red-400 to-rose-500 rounded-xl flex items-center justify-center text-white font-bold text-lg mr-4">↘</div>
+              <div className="h-12 w-12 bg-gradient-to-br from-red-400 to-rose-500 rounded-xl flex items-center justify-center text-white mr-4">
+                <HiTrendingDown className="w-6 h-6" />
+              </div>
               <div>
                 <p className="text-red-300 font-medium">Total Expenses</p>
                 <p className="text-2xl font-bold text-red-400">${totals.expenses.toFixed(2)}</p>
               </div>
             </div>
           </div>
-          
+
           <div className="bg-gradient-to-br from-blue-800/50 to-purple-900/50 border border-blue-500/20 backdrop-blur-sm rounded-xl p-6">
             <div className="flex items-center">
-              <div className="h-12 w-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center text-white font-bold text-lg mr-4">$</div>
+              <div className="h-12 w-12 bg-gradient-to-br from-blue-400 to-purple-500 rounded-xl flex items-center justify-center text-white mr-4">
+                <HiWallet className="w-6 h-6" />
+              </div>
               <div>
                 <p className="text-blue-300 font-medium">Net Income</p>
-                <p className={`text-2xl font-bold ${totals.net >= 0 ? 'text-blue-400' : 'text-red-400'}`}>
-                  ${totals.net.toFixed(2)}
-                </p>
+                <p className={`text-2xl font-bold ${totals.net >= 0 ? 'text-blue-400' : 'text-red-400'}`}>${totals.net.toFixed(2)}</p>
               </div>
             </div>
           </div>
@@ -445,30 +484,22 @@ const BudgetTracker: React.FC = () => {
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl mb-6">
           <div className="border-b border-purple-500/20">
             <div className="flex">
-                              <button
+              <button
                 onClick={() => setActiveTab('add')}
-                className={`px-6 py-4 font-medium transition-all duration-200 ${
-                  activeTab === 'add'
-                    ? 'text-purple-400 border-b-2 border-purple-400'
-                    : 'text-gray-400 hover:text-purple-300'
+                className={`px-6 py-4 font-medium transition-all duration-200 flex items-center ${
+                  activeTab === 'add' ? 'text-purple-400 border-b-2 border-purple-400' : 'text-gray-400 hover:text-purple-300'
                 }`}
               >
-                <svg className="inline-block w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
+                <HiPlus className="w-5 h-5 mr-2" />
                 Add Entry
               </button>
               <button
                 onClick={() => setActiveTab('history')}
-                className={`px-6 py-4 font-medium transition-all duration-200 ${
-                  activeTab === 'history'
-                    ? 'text-purple-400 border-b-2 border-purple-400'
-                    : 'text-gray-400 hover:text-purple-300'
+                className={`px-6 py-4 font-medium transition-all duration-200 flex items-center ${
+                  activeTab === 'history' ? 'text-purple-400 border-b-2 border-purple-400' : 'text-gray-400 hover:text-purple-300'
                 }`}
               >
-                <svg className="inline-block w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" clipRule="evenodd" />
-                </svg>
+                <HiClock className="w-5 h-5 mr-2" />
                 Transaction History
               </button>
             </div>
@@ -479,7 +510,7 @@ const BudgetTracker: React.FC = () => {
               /* Add Entry Form */
               <div className="space-y-6">
                 <h2 className="text-xl font-semibold text-purple-300">Add New Entry</h2>
-                
+
                 {/* Entry Type */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-3">Entry Type *</label>
@@ -490,7 +521,7 @@ const BudgetTracker: React.FC = () => {
                         name="type"
                         value="income"
                         checked={formData.type === 'income'}
-                        onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as 'income' | 'expense' }))}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, type: e.target.value as 'income' | 'expense' }))}
                         className="text-emerald-400 focus:ring-emerald-500 bg-slate-800 border-slate-600"
                       />
                       <span className="ml-2 text-emerald-400 font-medium">Income</span>
@@ -501,7 +532,7 @@ const BudgetTracker: React.FC = () => {
                         name="type"
                         value="expense"
                         checked={formData.type === 'expense'}
-                        onChange={(e) => setFormData(prev => ({ ...prev, type: e.target.value as 'income' | 'expense' }))}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, type: e.target.value as 'income' | 'expense' }))}
                         className="text-red-400 focus:ring-red-500 bg-slate-800 border-slate-600"
                       />
                       <span className="ml-2 text-red-400 font-medium">Expense</span>
@@ -512,26 +543,22 @@ const BudgetTracker: React.FC = () => {
                 {/* Project Association */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-3">
-                    <svg className="inline-block w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
-                    </svg>
+                    <HiFolderPlus className="inline-block w-4 h-4 mr-2" />
                     Associate with Project (Optional)
                   </label>
-                  
+
                   {formData.projectId && (
                     <div className="mb-4 p-4 bg-gradient-to-br from-purple-800/30 to-blue-900/30 border border-purple-500/30 rounded-lg">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center">
                           {(() => {
-                            const selectedProject = projects.find(p => p.id === formData.projectId);
+                            const selectedProject = projects.find((p) => p.id === formData.projectId);
                             return selectedProject ? (
                               <>
                                 <div className="w-4 h-4 rounded-full mr-3" style={{ backgroundColor: selectedProject.color }}></div>
                                 <div>
                                   <span className="text-sm font-medium text-purple-300">{selectedProject.name}</span>
-                                  {selectedProject.description && (
-                                    <p className="text-xs text-gray-400 mt-1">{selectedProject.description}</p>
-                                  )}
+                                  {selectedProject.description && <p className="text-xs text-gray-400 mt-1">{selectedProject.description}</p>}
                                 </div>
                               </>
                             ) : null;
@@ -539,12 +566,10 @@ const BudgetTracker: React.FC = () => {
                         </div>
                         <button
                           type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, projectId: '' }))}
+                          onClick={() => setFormData((prev) => ({ ...prev, projectId: '' }))}
                           className="text-gray-400 hover:text-gray-300 p-1 hover:bg-slate-700/50 rounded transition-colors"
                         >
-                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                          </svg>
+                          <HiXMark className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
@@ -552,27 +577,25 @@ const BudgetTracker: React.FC = () => {
 
                   <div className="flex flex-wrap gap-2">
                     {projects
-                      .filter(p => p.isActive && p.id !== formData.projectId)
+                      .filter((p) => p.isActive && p.id !== formData.projectId)
                       .map((project) => (
                         <button
                           key={project.id}
                           type="button"
-                          onClick={() => setFormData(prev => ({ ...prev, projectId: project.id }))}
+                          onClick={() => setFormData((prev) => ({ ...prev, projectId: project.id }))}
                           className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium bg-slate-800/50 border border-slate-600/50 text-gray-300 hover:bg-purple-800/30 hover:border-purple-500/50 hover:text-purple-300 transition-all duration-200"
                         >
                           <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: project.color }}></div>
                           <span>{project.name}</span>
                         </button>
                       ))}
-                    
+
                     <button
                       type="button"
                       onClick={handleCreateProject}
                       className="inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium border-2 border-dashed border-purple-500/50 text-purple-400 hover:border-purple-400 hover:text-purple-300 hover:bg-purple-900/20 transition-all duration-200"
                     >
-                      <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-                      </svg>
+                      <HiPlus className="w-4 h-4 mr-1" />
                       Create New Project
                     </button>
                   </div>
@@ -583,44 +606,34 @@ const BudgetTracker: React.FC = () => {
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-3">
-                        <svg className="inline-block w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.293l-3-3a1 1 0 00-1.414 1.414L10.586 9.5H7a1 1 0 100 2h3.586l-1.293 1.293a1 1 0 101.414 1.414l3-3a1 1 0 000-1.414z" clipRule="evenodd" />
-                        </svg>
+                        <HiCpuChip className="inline-block w-4 h-4 mr-2" />
                         Smart Receipt Scanner
-                        <span className="ml-2 text-xs bg-gradient-to-r from-purple-600 to-blue-600 text-white px-2 py-1 rounded-full">
-                          AI-Powered OCR
-                        </span>
+                        <span className="ml-2 text-xs bg-gradient-to-r from-purple-600 to-blue-600 text-white px-2 py-1 rounded-full">AI-Powered OCR</span>
                       </label>
-                      
+
                       <div className="border-2 border-dashed border-purple-500/50 rounded-lg p-6 hover:border-purple-400/70 transition-colors bg-gradient-to-br from-slate-800/30 to-purple-900/20">
                         <div className="text-center">
                           {isProcessing ? (
                             <div className="space-y-3">
                               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-400 mx-auto"></div>
-                              <p className="text-sm text-purple-300">
-                                {!tesseractLoaded ? 'Loading AI scanner...' : 'Scanning receipt with AI...'}
-                              </p>
+                              <p className="text-sm text-purple-300">Scanning receipt with AI...</p>
                               {progress > 0 && (
                                 <div className="w-full bg-slate-700 rounded-full h-2">
-                                  <div 
-                                    className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300"
-                                    style={{ width: `${progress}%` }}
-                                  ></div>
+                                  <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
                                 </div>
                               )}
                               <p className="text-xs text-gray-400">{progress}% complete</p>
                             </div>
                           ) : (
                             <div className="space-y-3">
-                              <svg className="mx-auto w-12 h-12 text-purple-400" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                              </svg>
+                              <HiDevicePhoneMobile className="text-4xl mx-auto text-purple-400" />
                               <div>
                                 <button
                                   type="button"
                                   onClick={() => fileInputRef.current?.click()}
-                                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 font-medium shadow-lg shadow-purple-500/25"
+                                  className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 font-medium shadow-lg shadow-purple-500/25 inline-flex items-center"
                                 >
+                                  <HiArrowUpTray className="w-4 h-4 mr-2" />
                                   Upload & Scan Receipt
                                 </button>
                                 <input
@@ -633,12 +646,8 @@ const BudgetTracker: React.FC = () => {
                               </div>
                               <p className="text-xs text-gray-400">
                                 AI will automatically extract amount, vendor, and date from your receipt
-                                {!tesseractLoaded && (
-                                  <>
-                                    <br />
-                                    <span className="text-purple-400">⚡ OCR library loads only when you need it</span>
-                                  </>
-                                )}
+                                <br />
+                                <span className="text-purple-400">⚡ AI-powered text extraction</span>
                               </p>
                             </div>
                           )}
@@ -649,9 +658,7 @@ const BudgetTracker: React.FC = () => {
                     {error && (
                       <div className="bg-gradient-to-br from-red-800/30 to-rose-900/30 border border-red-500/30 rounded-lg p-4">
                         <div className="flex items-center">
-                          <svg className="w-5 h-5 text-red-400 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                          </svg>
+                          <HiExclamationCircle className="w-5 h-5 text-red-400 mr-2" />
                           <div>
                             <p className="text-sm font-medium text-red-300">Scanning Error</p>
                             <p className="text-xs text-red-400">{error}</p>
@@ -663,23 +670,25 @@ const BudgetTracker: React.FC = () => {
                     {scanResult && scanResult.amount && (
                       <div className="bg-gradient-to-br from-emerald-800/30 to-green-900/30 border border-emerald-500/30 rounded-lg p-4">
                         <div className="flex items-start">
-                          <svg className="w-5 h-5 text-emerald-400 mr-2 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                          </svg>
+                          <HiCheckCircle className="w-5 h-5 text-emerald-400 mr-2 mt-0.5" />
                           <div className="flex-1">
                             <p className="text-sm font-medium text-emerald-300 mb-1">Receipt Scanned Successfully!</p>
                             <div className="space-y-1 text-xs text-emerald-400">
-                              <p><strong>Amount:</strong> ${scanResult.amount.toFixed(2)} ({Math.round((scanResult.confidence || 0) * 100)}% confidence)</p>
+                              <p>
+                                <strong>Amount:</strong> ${scanResult.amount.toFixed(2)} ({Math.round((scanResult.confidence || 0) * 100)}% confidence)
+                              </p>
                               {scanResult.vendor && (
-                                <p><strong>Vendor:</strong> {scanResult.vendor}</p>
+                                <p>
+                                  <strong>Vendor:</strong> {scanResult.vendor}
+                                </p>
                               )}
                               {scanResult.date && (
-                                <p><strong>Date:</strong> {scanResult.date}</p>
+                                <p>
+                                  <strong>Date:</strong> {scanResult.date}
+                                </p>
                               )}
                             </div>
-                            <p className="text-xs text-emerald-400 mt-2">
-                              You can still edit the amount below if needed
-                            </p>
+                            <p className="text-xs text-emerald-400 mt-2">You can still edit the amount below if needed</p>
                           </div>
                         </div>
                       </div>
@@ -689,12 +698,10 @@ const BudgetTracker: React.FC = () => {
 
                 {/* Amount and Date */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Amount column */}
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      <svg className="inline-block w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.51-1.31c-.562-.649-1.413-1.076-2.353-1.253V5z" clipRule="evenodd" />
-                      </svg>
+                      <HiCurrencyDollar className="inline-block w-4 h-4 mr-1" />
                       Amount *
                       {formData.ocrScanned && (
                         <span className="ml-2 text-xs bg-gradient-to-r from-emerald-600 to-green-600 text-white px-2 py-1 rounded-full">
@@ -702,43 +709,84 @@ const BudgetTracker: React.FC = () => {
                         </span>
                       )}
                     </label>
+
                     <input
+                      ref={amountInputRef}
                       type="number"
                       name="amount"
                       value={formData.amount}
-                      onChange={(e) => setFormData(prev => ({ 
-                        ...prev, 
-                        amount: e.target.value,
-                        ocrScanned: prev.amount === e.target.value ? prev.ocrScanned : false
-                      }))}
+                      onChange={(e) =>
+                        setFormData((prev) => {
+                          if (needsConfirm) setNeedsConfirm(false);
+                          return {
+                            ...prev,
+                            amount: e.target.value,
+                            ocrScanned: prev.amount === e.target.value ? prev.ocrScanned : false,
+                          };
+                        })
+                      }
                       step="0.01"
                       min="0"
                       placeholder="0.00"
                       className={`w-full px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 ${
-                        formData.ocrScanned 
-                          ? 'border border-emerald-500/50 bg-emerald-900/20 text-emerald-300' 
+                        formData.ocrScanned
+                          ? 'border border-emerald-500/50 bg-emerald-900/20 text-emerald-300'
                           : 'border border-slate-600 bg-slate-800/50 text-gray-300'
                       }`}
                     />
-                    {formData.ocrScanned && (
-                      <p className="mt-1 text-xs text-emerald-400">
-                        Amount automatically extracted from receipt. You can edit if needed.
-                      </p>
+
+                    {needsConfirm && (
+                      <div
+                        className="mt-3 inline-flex items-center gap-2 text-sm
+                                   bg-slate-900 border border-white/20
+                                   rounded-lg px-3 py-2 text-white shadow
+                                   ring-1 ring-white/10"
+                        role="status"
+                        aria-live="polite"
+                      >
+                        <span className="opacity-95">
+                          Confirm total:&nbsp;
+                          <span className="font-semibold tracking-wide">${formData.amount || '0.00'}</span>
+                        </span>
+
+                        <button
+                          type="button"
+                          onClick={() => setNeedsConfirm(false)}
+                          className="inline-flex items-center gap-1 rounded-md
+                                     bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800
+                                     text-white px-3 py-1.5 text-sm font-medium
+                                     focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300"
+                        >
+                          <HiCheck className="w-4 h-4" />
+                          Yes
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => amountInputRef.current?.focus()}
+                          className="inline-flex items-center gap-1 rounded-md
+                                     bg-slate-700 hover:bg-slate-600 active:bg-slate-500
+                                     text-white px-3 py-1.5 text-sm font-medium
+                                     focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-300"
+                        >
+                          <HiPencil className="w-4 h-4" />
+                          Edit
+                        </button>
+                      </div>
                     )}
                   </div>
-                  
+
+                  {/* Date column */}
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
-                      <svg className="inline-block w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
-                      </svg>
+                      <HiCalendarDays className="inline-block w-4 h-4 mr-1" />
                       Date *
                     </label>
                     <input
                       type="date"
                       name="date"
                       value={formData.date}
-                      onChange={(e) => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, date: e.target.value }))}
                       className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300 transition-all duration-200"
                     />
                   </div>
@@ -747,38 +795,27 @@ const BudgetTracker: React.FC = () => {
                 {/* Category Chips */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-3">
-                    <svg className="inline-block w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M17.707 9.293a1 1 0 010 1.414l-7 7a1 1 0 01-1.414 0l-7-7A.997.997 0 012 10V5a3 3 0 013-3h5c.256 0 .512.098.707.293l7 7zM5 6a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                    </svg>
+                    <HiTag className="inline-block w-4 h-4 mr-2" />
                     Category *
                   </label>
-                  
+
                   <div className="flex flex-wrap gap-2">
                     {(formData.type === 'income' ? incomeCategories : expenseCategories).map((category) => (
                       <button
                         key={category}
                         type="button"
-                        onClick={() => setFormData(prev => ({ 
-                          ...prev, 
-                          category: prev.category === category ? '' : category 
-                        }))}
+                        onClick={() => setFormData((prev) => ({ ...prev, category: prev.category === category ? '' : category }))}
                         className={`inline-flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 cursor-pointer select-none border ${
                           formData.category === category
                             ? formData.type === 'income'
-                              ? "bg-gradient-to-br from-emerald-800/50 to-green-900/50 text-emerald-300 border-emerald-500/50 shadow-lg shadow-emerald-500/20"
-                              : "bg-gradient-to-br from-red-800/50 to-rose-900/50 text-red-300 border-red-500/50 shadow-lg shadow-red-500/20"
-                            : "bg-slate-800/50 text-gray-300 border-slate-600/50 hover:bg-slate-700/50 hover:border-slate-500"
+                              ? 'bg-gradient-to-br from-emerald-800/50 to-green-900/50 text-emerald-300 border-emerald-500/50 shadow-lg shadow-emerald-500/20'
+                              : 'bg-gradient-to-br from-red-800/50 to-rose-900/50 text-red-300 border-red-500/50 shadow-lg shadow-red-500/20'
+                            : 'bg-slate-800/50 text-gray-300 border-slate-600/50 hover:bg-slate-700/50 hover:border-slate-500'
                         }`}
                       >
                         <span className="truncate max-w-32">{category}</span>
                         {formData.category === category && (
-                          <svg
-                            className={`ml-2 h-4 w-4 ${formData.type === 'income' ? 'text-emerald-400' : 'text-red-400'}`}
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
-                          </svg>
+                          <HiCheckCircle className={`ml-2 h-4 w-4 ${formData.type === 'income' ? 'text-emerald-400' : 'text-red-400'}`} />
                         )}
                       </button>
                     ))}
@@ -798,7 +835,7 @@ const BudgetTracker: React.FC = () => {
                   <textarea
                     name="description"
                     value={formData.description}
-                    onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, description: e.target.value }))}
                     rows={3}
                     placeholder="Enter description..."
                     className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300 placeholder-gray-500 transition-all duration-200"
@@ -810,9 +847,7 @@ const BudgetTracker: React.FC = () => {
                   <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-slate-600/50 rounded-lg p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
-                        <svg className="w-8 h-8 text-emerald-400 mr-3" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
-                        </svg>
+                        <HiEye className="w-8 h-8 text-emerald-400 mr-3" />
                         <div>
                           <p className="text-sm font-medium text-gray-300">{receiptFile.name}</p>
                           <p className="text-xs text-gray-400">Receipt uploaded & scanned successfully</p>
@@ -829,10 +864,7 @@ const BudgetTracker: React.FC = () => {
                         className="text-red-400 hover:text-red-300 px-2 py-1 rounded hover:bg-red-900/20 transition-colors"
                         title="Remove receipt and clear OCR data"
                       >
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M9 2a1 1 0 000 2h2a1 1 0 100-2H9z" clipRule="evenodd" />
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
+                        <HiTrash className="w-4 h-4" />
                       </button>
                     </div>
                   </div>
@@ -842,12 +874,24 @@ const BudgetTracker: React.FC = () => {
                 <div className="flex justify-end pt-4">
                   <button
                     onClick={handleSubmit}
-                    className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 font-medium shadow-lg shadow-purple-500/25"
+                    disabled={isSaving}
+                    className={`inline-flex items-center px-6 py-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200 font-medium shadow-lg shadow-purple-500/25 ${
+                      isSaving
+                        ? 'bg-slate-700/60 text-gray-300 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:from-purple-700 hover:to-pink-700'
+                    }`}
                   >
-                    <svg className="inline-block w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293zM9 4a1 1 0 012 0v2H9V4z" />
-                    </svg>
-                    Save Entry
+                    {isSaving ? (
+                      <span className="inline-flex items-center">
+                        <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>
+                        Saving...
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center">
+                        <HiSave className="w-5 h-5 mr-2" />
+                        Save Entry
+                      </span>
+                    )}
                   </button>
                 </div>
               </div>
@@ -856,117 +900,118 @@ const BudgetTracker: React.FC = () => {
               <div className="space-y-6">
                 <div className="flex justify-between items-center">
                   <h2 className="text-xl font-semibold text-purple-300">Recent Transactions</h2>
-                  
+
                   {/* Search Box */}
                   <div className="w-64">
-                    <input
-                      type="text"
-                      placeholder="Search transactions, projects..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300 placeholder-gray-500 transition-all duration-200"
-                    />
+                    <div className="relative">
+                      <HiMagnifyingGlass className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <input
+                        type="text"
+                        placeholder="Search transactions, projects..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300 placeholder-gray-500 transition-all duration-200"
+                      />
+                    </div>
                   </div>
                 </div>
-                
+
                 {filteredEntries.length === 0 ? (
                   <div className="text-center py-12">
-                    <div className="mx-auto h-16 w-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xl mb-4">$</div>
-                    <h3 className="mt-2 text-sm font-medium text-gray-300">
-                      {searchQuery ? 'No transactions match your search' : 'No transactions yet'}
-                    </h3>
+                    <div className="mx-auto h-16 w-16 bg-gradient-to-br from-purple-600 to-pink-600 rounded-full flex items-center justify-center text-white font-bold text-xl mb-4">
+                      <HiCurrencyDollar className="w-8 h-8" />
+                    </div>
+                    <h3 className="mt-2 text-sm font-medium text-gray-300">{searchQuery ? 'No transactions match your search' : 'No transactions yet'}</h3>
                     <p className="mt-1 text-sm text-gray-400">
                       {searchQuery ? 'Try a different search term' : 'Get started by adding your first income or expense entry.'}
                     </p>
                   </div>
                 ) : (
                   <div className="bg-gradient-to-br from-slate-800/30 to-gray-900/30 border border-slate-600/30 rounded-xl overflow-hidden">
-                    <table className="min-w-full divide-y divide-slate-600/30">
-                      <thead className="bg-gradient-to-r from-slate-800/50 to-gray-900/50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Project</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Category</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Description</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Receipt</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Amount</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-600/20">
-                        {filteredEntries.map((entry) => {
-                          const project = projects.find(p => p.id === entry.projectId);
-                          return (
-                            <tr key={entry.id} className="hover:bg-slate-700/20 transition-colors">
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                {new Date(entry.date).toLocaleDateString()}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                  entry.type === 'income' 
-                                    ? 'bg-emerald-800/50 text-emerald-300 border border-emerald-600/30' 
-                                    : 'bg-red-800/50 text-red-300 border border-red-600/30'
-                                }`}>
-                                  {entry.type === 'income' ? 'Income' : 'Expense'}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                {project ? (
-                                  <div className="flex items-center">
-                                    <div 
-                                      className="w-3 h-3 rounded-full mr-2"
-                                      style={{ backgroundColor: project.color }}
-                                    ></div>
-                                    <span className="text-xs">{project.name}</span>
-                                  </div>
-                                ) : (
-                                  <span className="text-gray-500 text-xs">No project</span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                {entry.category}
-                              </td>
-                              <td className="px-6 py-4 text-sm text-gray-300 max-w-xs">
-                                <div className="truncate">{entry.description}</div>
-                                {entry.ocrScanned && (
-                                  <div className="flex items-center mt-1">
-                                    <span className="text-xs bg-gradient-to-r from-blue-600 to-purple-600 text-white px-2 py-0.5 rounded-full">
-                                      AI-scanned ({Math.round((entry.ocrConfidence || 0) * 100)}%)
-                                    </span>
-                                  </div>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                {entry.receiptTitle ? (
-                                  <button
-                                    onClick={() => entry.receiptUrl && window.open(entry.receiptUrl, '_blank')}
-                                    className="text-purple-400 hover:text-purple-300 underline text-xs transition-colors"
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-slate-600/30">
+                        <thead className="bg-gradient-to-r from-slate-800/50 to-gray-900/50">
+                          <tr>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Type</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Project</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Category</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Description</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Receipt</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Amount</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-600/20">
+                          {filteredEntries.map((entry) => {
+                            const project = projects.find((p) => p.id === entry.projectId);
+                            return (
+                              <tr key={entry.id} className="hover:bg-slate-700/20 transition-colors">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{new Date(entry.date).toLocaleDateString()}</td>
+                                <td className="px-6 py-4 whitespace-nowrap">
+                                  <span
+                                    className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                      entry.type === 'income'
+                                        ? 'bg-emerald-800/50 text-emerald-300 border border-emerald-600/30'
+                                        : 'bg-red-800/50 text-red-300 border border-red-600/30'
+                                    }`}
                                   >
-                                    {entry.receiptTitle}
+                                    {entry.type === 'income' ? 'Income' : 'Expense'}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                  {project ? (
+                                    <div className="flex items-center">
+                                      <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: project.color }}></div>
+                                      <span className="text-xs">{project.name}</span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-500 text-xs">No project</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{entry.category}</td>
+                                <td className="px-6 py-4 text-sm text-gray-300 max-w-xs">
+                                  <div className="truncate">{entry.description}</div>
+                                  {entry.ocrScanned && (
+                                    <div className="flex items-center mt-1">
+                                      <span className="text-xs bg-gradient-to-r from-blue-600 to-purple-600 text-white px-2 py-0.5 rounded-full">
+                                        AI-scanned ({Math.round((entry.ocrConfidence || 0) * 100)}%)
+                                      </span>
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                  {entry.receiptTitle ? (
+                                    <button
+                                      onClick={() => entry.receiptUrl && window.open(entry.receiptUrl, '_blank')}
+                                      className="text-purple-400 hover:text-purple-300 underline text-xs transition-colors"
+                                    >
+                                      {entry.receiptTitle}
+                                    </button>
+                                  ) : (
+                                    <span className="text-gray-500 text-xs">No receipt</span>
+                                  )}
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                  <span className={entry.type === 'income' ? 'text-emerald-400' : 'text-red-400'}>
+                                    {entry.type === 'income' ? '+' : '-'}${entry.amount.toFixed(2)}
+                                  </span>
+                                </td>
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                  <button
+                                    onClick={() => handleDelete(entry.id)}
+                                    className="text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-800/30 px-3 py-1 rounded-md transition-colors text-xs border border-red-600/30 inline-flex items-center"
+                                  >
+                                    <HiTrash className="w-3 h-3 mr-1" />
+                                    Delete
                                   </button>
-                                ) : (
-                                  <span className="text-gray-500 text-xs">No receipt</span>
-                                )}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <span className={entry.type === 'income' ? 'text-emerald-400' : 'text-red-400'}>
-                                  {entry.type === 'income' ? '+' : '-'}${entry.amount.toFixed(2)}
-                                </span>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                <button
-                                  onClick={() => handleDelete(entry.id)}
-                                  className="text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-800/30 px-3 py-1 rounded-md transition-colors text-xs border border-red-600/30"
-                                >
-                                  Delete
-                                </button>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </div>
@@ -978,17 +1023,29 @@ const BudgetTracker: React.FC = () => {
         {isProjectModalOpen && (
           <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
             <div className="bg-gradient-to-br from-slate-800 to-gray-900 border border-purple-500/30 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
-              <h3 className="text-lg font-semibold text-purple-300 mb-4">Create New Project</h3>
-              
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-purple-300 flex items-center">
+                  <HiFolderPlus className="w-5 h-5 mr-2" />
+                  Create New Project
+                </h3>
+                <button
+                  onClick={() => {
+                    setIsProjectModalOpen(false);
+                    setNewProjectData({ name: '', description: '', color: '#8b5cf6' });
+                  }}
+                  className="text-gray-400 hover:text-white p-1 rounded transition-colors"
+                >
+                  <HiXMark className="w-5 h-5" />
+                </button>
+              </div>
+
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Project Name *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Project Name *</label>
                   <input
                     type="text"
                     value={newProjectData.name}
-                    onChange={(e) => setNewProjectData(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e) => setNewProjectData((prev) => ({ ...prev, name: e.target.value }))}
                     placeholder="e.g., Client Website, Personal Blog"
                     className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300 placeholder-gray-500"
                     autoFocus
@@ -996,12 +1053,10 @@ const BudgetTracker: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Description (Optional)
-                  </label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Description (Optional)</label>
                   <textarea
                     value={newProjectData.description}
-                    onChange={(e) => setNewProjectData(prev => ({ ...prev, description: e.target.value }))}
+                    onChange={(e) => setNewProjectData((prev) => ({ ...prev, description: e.target.value }))}
                     placeholder="Optional project description"
                     rows={2}
                     className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300 placeholder-gray-500"
@@ -1009,15 +1064,13 @@ const BudgetTracker: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Color
-                  </label>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Color</label>
                   <div className="flex space-x-2">
-                    {['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6366f1'].map(color => (
+                    {['#8b5cf6', '#ec4899', '#06b6d4', '#10b981', '#f59e0b', '#ef4444', '#6366f1'].map((color) => (
                       <button
                         key={color}
                         type="button"
-                        onClick={() => setNewProjectData(prev => ({ ...prev, color }))}
+                        onClick={() => setNewProjectData((prev) => ({ ...prev, color }))}
                         className={`w-8 h-8 rounded-full border-2 hover:scale-110 transition-transform ${
                           newProjectData.color === color ? 'border-purple-400 ring-2 ring-purple-400/30' : 'border-gray-600'
                         }`}
@@ -1041,8 +1094,9 @@ const BudgetTracker: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleSaveProject}
-                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors shadow-lg shadow-purple-500/25"
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors shadow-lg shadow-purple-500/25 flex items-center"
                   >
+                    <HiPlus className="w-4 h-4 mr-1" />
                     Create Project
                   </button>
                 </div>

@@ -30,6 +30,7 @@ const App: React.FC = () => {
 
     const currentRoute = location.pathname;
     const matchedView = routeToViewMap[currentRoute];
+    
     if (matchedView) {
       setCurrentView(matchedView);
     }
