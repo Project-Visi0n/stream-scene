@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Tesseract from 'tesseract.js';
 import {
   DollarSign as HiCurrencyDollar,
@@ -117,35 +117,40 @@ const BudgetTracker: React.FC = () => {
   // === Config for confirm step ===
   const OCR_CONFIRM_THRESHOLD = 0.92;
 
-  // State
+  // ===== State (no mock data) =====
   const [activeTab, setActiveTab] = useState<'add' | 'history'>('add');
-  const [entries, setEntries] = useState<Entry[]>([
-    {
-      id: 1,
-      type: 'income',
-      amount: 2500,
-      description: 'Website Development - ABC Corp',
-      date: '2025-09-20',
-      category: 'Freelance Payment',
-      projectId: '1',
-    },
-    {
-      id: 2,
-      type: 'expense',
-      amount: 45.67,
-      description: 'Office supplies from Office Depot',
-      date: '2025-09-19',
-      category: 'Office Supplies',
-      ocrScanned: true,
-      ocrConfidence: 0.92,
-      ocrVendor: 'Office Depot',
-    },
-  ]);
-  const [projects, setProjects] = useState<Project[]>([
-    { id: '1', name: 'Client Website', description: 'E-commerce site for ABC Corp', color: '#8b5cf6', isActive: true },
-    { id: '2', name: 'Personal Blog', description: 'My photography blog', color: '#ec4899', isActive: true },
-    { id: '3', name: 'Mobile App', description: 'iOS app development', color: '#06b6d4', isActive: true },
-  ]);
+
+  // Load from localStorage on first render
+  const [entries, setEntries] = useState<Entry[]>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('budgetEntries') : null;
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [projects, setProjects] = useState<Project[]>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('budgetProjects') : null;
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  // Persist to localStorage when entries/projects change
+  useEffect(() => {
+    try {
+      localStorage.setItem('budgetEntries', JSON.stringify(entries));
+    } catch {}
+  }, [entries]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('budgetProjects', JSON.stringify(projects));
+    } catch {}
+  }, [projects]);
 
   const [formData, setFormData] = useState({
     type: 'expense' as 'income' | 'expense',
@@ -865,7 +870,7 @@ const BudgetTracker: React.FC = () => {
                   </div>
                 )}
 
-                {/* Submit Button with lucide-react icon */}
+                {/* Submit Button */}
                 <div className="flex justify-end pt-4">
                   <button
                     onClick={handleSubmit}
