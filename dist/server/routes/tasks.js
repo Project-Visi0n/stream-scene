@@ -64,6 +64,17 @@ const requireAuth = (req, res, next) => {
             console.log('JWT verification failed:', error);
         }
     }
+    // DEMO MODE: For presentation purposes, create a default user in development
+    if (!user && process.env.NODE_ENV === 'development') {
+        console.log('🎭 DEMO MODE: Creating default user for presentation');
+        user = {
+            id: 1,
+            email: 'demo@streamscene.com',
+            name: 'StreamScene Demo User',
+            isDemoUser: true
+        };
+        req.user = user;
+    }
     if (!user) {
         console.log('Authentication failed - no user found in any source');
         return res.status(401).json({
@@ -271,19 +282,37 @@ router.get('/', requireAuth, async (req, res) => {
             created_at: t.created_at
         })));
         // Serialize tasks to clean objects
-        const cleanTasks = tasks.map(task => ({
-            id: task.id,
-            title: task.title,
-            description: task.description,
-            priority: task.priority,
-            task_type: task.task_type,
-            status: task.status,
-            deadline: task.deadline ? task.deadline.toISOString() : null,
-            estimated_hours: task.estimated_hours,
-            user_id: task.user_id,
-            created_at: task.created_at ? task.created_at.toISOString() : new Date().toISOString(),
-            updated_at: task.updated_at ? task.updated_at.toISOString() : new Date().toISOString()
-        }));
+        const cleanTasks = tasks.map(task => {
+            // Helper function to safely convert dates
+            const safeToISOString = (dateValue) => {
+                if (!dateValue)
+                    return new Date().toISOString();
+                // If it's already a Date object
+                if (dateValue instanceof Date) {
+                    return isNaN(dateValue.getTime()) ? new Date().toISOString() : dateValue.toISOString();
+                }
+                // If it's a string, try to parse it
+                if (typeof dateValue === 'string') {
+                    const parsed = new Date(dateValue);
+                    return isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+                }
+                // Fallback to current date
+                return new Date().toISOString();
+            };
+            return {
+                id: task.id,
+                title: task.title,
+                description: task.description,
+                priority: task.priority,
+                task_type: task.task_type,
+                status: task.status,
+                deadline: task.deadline ? safeToISOString(task.deadline) : null,
+                estimated_hours: task.estimated_hours,
+                user_id: task.user_id,
+                created_at: safeToISOString(task.created_at),
+                updated_at: safeToISOString(task.updated_at)
+            };
+        });
         console.log(`Found ${tasks.length} tasks for user ${userId}`);
         res.json({
             message: `Found ${tasks.length} tasks`,

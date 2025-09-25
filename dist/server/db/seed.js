@@ -274,6 +274,66 @@ async function seed(forceRecreate = false) {
       VALUES ('Welcome to StreamScene', 'Explore the collaborative features and get started with your first project!', 'medium', 'admin', 'pending', DATE_ADD(NOW(), INTERVAL 7 DAY), 2, 1);
     `);
         console.log('✅ Welcome task created');
+        // Add comprehensive Twitch content creator tasks for presentation demo
+        console.log('🎮 Adding Twitch content creator seed data...');
+        // Get current date and calculate relative dates
+        const now = new Date();
+        const getCurrentDate = () => now.toISOString().slice(0, 19).replace('T', ' ');
+        const getDateOffset = (days) => {
+            const date = new Date(now);
+            date.setDate(date.getDate() + days);
+            return date.toISOString().slice(0, 19).replace('T', ' ');
+        };
+        // Week 1 - Current week tasks
+        await sequelize.query(`
+      INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) VALUES
+      ('Stream Setup & Testing', 'Test new overlay design and check audio levels before tonight stream', 'high', 'creative', 'in_progress', '${getCurrentDate()}', 3, 1),
+      ('Valorant Tournament Stream', 'Stream the ranked Valorant tournament with viewer predictions', 'high', 'creative', 'pending', '${getDateOffset(1)}', 4, 1),
+      ('Sponsor Content: NordVPN', 'Create sponsored segment for NordVPN integration during stream', 'medium', 'admin', 'pending', '${getDateOffset(2)}', 2, 1),
+      ('Community Discord Event', 'Host movie night in Discord for subscribers', 'medium', 'creative', 'pending', '${getDateOffset(3)}', 3, 1),
+      ('YouTube Highlights Edit', 'Edit best moments from this week streams for YouTube', 'medium', 'creative', 'pending', '${getDateOffset(4)}', 5, 1),
+      ('TikTok Short Content', 'Create 3 TikTok shorts from funny stream moments', 'low', 'creative', 'pending', '${getDateOffset(5)}', 2, 1),
+      ('Week 1 Analytics Review', 'Review Twitch analytics and plan improvements for next week', 'medium', 'admin', 'pending', '${getDateOffset(6)}', 1, 1);
+    `);
+        // Week 2 tasks
+        await sequelize.query(`
+      INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) VALUES
+      ('Minecraft Building Stream', 'Continue building the castle project with chat suggestions', 'high', 'creative', 'pending', '${getDateOffset(8)}', 6, 1),
+      ('Collaboration with StreamerBuddy', 'Duo streams with StreamerBuddy for Among Us content', 'high', 'creative', 'pending', '${getDateOffset(9)}', 4, 1),
+      ('Emote Design Commission', 'Review and approve new subscriber emotes from artist', 'medium', 'admin', 'pending', '${getDateOffset(10)}', 2, 1),
+      ('IRL Cooking Stream Setup', 'Set up kitchen camera for cooking stream this weekend', 'medium', 'creative', 'pending', '${getDateOffset(11)}', 3, 1),
+      ('Sponsor Meeting: HyperX', 'Video call with HyperX for potential headset sponsorship', 'high', 'admin', 'pending', '${getDateOffset(12)}', 1, 1),
+      ('Stream Deck Customization', 'Program new buttons for sound effects and quick commands', 'low', 'admin', 'pending', '${getDateOffset(13)}', 2, 1);
+    `);
+        // Week 3 tasks  
+        await sequelize.query(`
+      INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) VALUES
+      ('Horror Game Marathon', '8-hour horror game marathon for Halloween content', 'high', 'creative', 'pending', '${getDateOffset(15)}', 8, 1),
+      ('Subscriber Goal Celebration', 'Plan special celebration stream for hitting 50K followers', 'high', 'creative', 'pending', '${getDateOffset(16)}', 4, 1),
+      ('Overlay Update Project', 'Work with designer on new seasonal overlay themes', 'medium', 'creative', 'pending', '${getDateOffset(17)}', 3, 1),
+      ('Tax Document Organization', 'Organize receipts and income statements for Q3 taxes', 'high', 'admin', 'pending', '${getDateOffset(18)}', 4, 1),
+      ('New Game Research', 'Research trending games for next month content', 'low', 'admin', 'pending', '${getDateOffset(19)}', 2, 1),
+      ('Merchandise Store Update', 'Upload new t-shirt designs to merch store', 'medium', 'admin', 'pending', '${getDateOffset(20)}', 3, 1);
+    `);
+        // Week 4 tasks
+        await sequelize.query(`
+      INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) VALUES
+      ('Monthly Subscriber Stream', 'Special subscriber-only Q&A and game night', 'high', 'creative', 'pending', '${getDateOffset(22)}', 5, 1),
+      ('Equipment Upgrade Research', 'Research new camera and lighting equipment for studio', 'medium', 'admin', 'pending', '${getDateOffset(23)}', 3, 1),
+      ('Brand Partnership Outreach', 'Reach out to 5 gaming brands for potential partnerships', 'medium', 'admin', 'pending', '${getDateOffset(24)}', 4, 1),
+      ('Community Guidelines Update', 'Update Discord and chat rules for better moderation', 'low', 'admin', 'pending', '${getDateOffset(25)}', 2, 1),
+      ('End of Month Report', 'Compile growth metrics and revenue report for the month', 'high', 'admin', 'pending', '${getDateOffset(26)}', 3, 1);
+    `);
+        // Completed tasks from previous weeks
+        await sequelize.query(`
+      INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) VALUES
+      ('Setup New Webcam', 'Install and configure the new 4K webcam for better stream quality', 'high', 'admin', 'completed', '${getDateOffset(-3)}', 2, 1),
+      ('Plan Weekly Schedule', 'Create streaming schedule for the week and post to social media', 'medium', 'admin', 'completed', '${getDateOffset(-5)}', 1, 1),
+      ('Edit YouTube Video', 'Edit and upload last week best moments compilation', 'medium', 'creative', 'completed', '${getDateOffset(-7)}', 4, 1),
+      ('Sponsor Content Review', 'Review and approve sponsor script for energy drink placement', 'high', 'admin', 'completed', '${getDateOffset(-2)}', 1, 1),
+      ('Community Poll Creation', 'Create Twitter poll for next game to play on stream', 'low', 'creative', 'completed', '${getDateOffset(-1)}', 1, 1);
+    `);
+        console.log('✅ Twitch content creator tasks created');
         console.log('🎊 Database seeding completed successfully!');
         console.log('📊 Summary:');
         console.log('   - 10 tables created with proper foreign key relationships');

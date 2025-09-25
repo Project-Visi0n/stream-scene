@@ -78,6 +78,45 @@ router.get('/google/callback', (req, res, next) => {
         });
     })(req, res, next);
 });
+// Demo login for development/presentation (controlled by environment)
+router.post('/demo-login', async (req, res) => {
+    // Allow demo login in development OR if ALLOW_DEMO_LOGIN is set to true
+    const isDemoAllowed = process.env.NODE_ENV === 'development' || process.env.ALLOW_DEMO_LOGIN === 'true';
+    if (!isDemoAllowed) {
+        return res.status(403).json({ error: 'Demo login disabled' });
+    }
+    try {
+        // Import User model
+        const { User } = await import('../models/User.js');
+        // Find the demo user created in seed data
+        const demoUser = await User.findOne({
+            where: { email: 'allblk13@gmail.com' }
+        });
+        if (!demoUser) {
+            return res.status(404).json({ error: 'Demo user not found. Please run seed script first.' });
+        }
+        // Log in the demo user
+        req.logIn(demoUser, (err) => {
+            if (err) {
+                console.error('Demo login error:', err);
+                return res.status(500).json({ error: 'Demo login failed' });
+            }
+            console.log('Demo login successful for:', demoUser.email);
+            res.json({
+                message: 'Demo login successful',
+                user: {
+                    id: demoUser.id,
+                    email: demoUser.email,
+                    name: demoUser.name
+                }
+            });
+        });
+    }
+    catch (error) {
+        console.error('Demo login error:', error);
+        res.status(500).json({ error: 'Demo login failed' });
+    }
+});
 // Get current authenticated user
 router.get('/user', (req, res) => {
     var _a, _b, _c;
