@@ -1,6 +1,8 @@
 // client/ContentScheduler/ContentScheduler.tsx
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { FaTag } from 'react-icons/fa';
+import TagInput from '../components/TagInput';
 
 // Custom SVG Icon Components
 const SchedulerIcon = () => (
