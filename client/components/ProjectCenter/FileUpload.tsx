@@ -72,6 +72,69 @@ const FileUpload: React.FC = () => {
     }
   }, [uploadedFiles, selectedFile]);
 
+  // Window-level drag and drop functionality
+  useEffect(() => {
+    const handleWindowDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      if (e.dataTransfer?.types.includes('Files')) {
+        setIsDragging(true);
+      }
+    };
+
+    const handleWindowDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      if (e.dataTransfer?.types.includes('Files')) {
+        setIsDragging(true);
+      }
+    };
+
+    const handleWindowDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      // Only set dragging to false if we're leaving the window entirely
+      if (!e.relatedTarget || 
+          (e.relatedTarget as Element)?.nodeName === 'HTML' ||
+          !(document.body.contains(e.relatedTarget as Node))) {
+        setIsDragging(false);
+      }
+    };
+
+    const handleWindowDrop = (e: DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      if (e.dataTransfer?.files && user) {
+        handleFileSelect(e.dataTransfer.files);
+      }
+    };
+
+    // Prevent default drag behavior on document
+    const preventDefaults = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    if (user) {
+      // Add event listeners to document for better coverage
+      document.addEventListener('dragover', handleWindowDragOver);
+      document.addEventListener('dragenter', handleWindowDragEnter);
+      document.addEventListener('dragleave', handleWindowDragLeave);
+      document.addEventListener('drop', handleWindowDrop);
+      
+      // Prevent default behavior
+      document.addEventListener('dragover', preventDefaults);
+      document.addEventListener('drop', preventDefaults);
+    }
+
+    // Cleanup event listeners
+    return () => {
+      document.removeEventListener('dragover', handleWindowDragOver);
+      document.removeEventListener('dragenter', handleWindowDragEnter);
+      document.removeEventListener('dragleave', handleWindowDragLeave);
+      document.removeEventListener('drop', handleWindowDrop);
+      document.removeEventListener('dragover', preventDefaults);
+      document.removeEventListener('drop', preventDefaults);
+    };
+  }, [user]); // Re-run when user changes
+
   const loadUserFiles = async (filterTags?: string[]) => {
     try {
       setLoading(true);
@@ -520,6 +583,26 @@ const FileUpload: React.FC = () => {
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6 space-y-6">
+      {/* Full Window Drag Overlay */}
+      {isDragging && user && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-purple-900/30 backdrop-blur-sm flex items-center justify-center pointer-events-none"
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-slate-800/90 border-2 border-dashed border-purple-400 rounded-2xl p-12 text-center"
+          >
+            <div className="text-6xl mb-4">📁</div>
+            <h3 className="text-2xl font-bold text-purple-300 mb-2">Drop files anywhere</h3>
+            <p className="text-gray-300">Release to upload your files</p>
+          </motion.div>
+        </motion.div>
+      )}
+
       {/* Authentication Check */}
       {!user && (
         <motion.div
