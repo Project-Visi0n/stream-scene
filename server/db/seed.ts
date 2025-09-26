@@ -270,19 +270,33 @@ async function seed(forceRecreate = false) {
     // Insert initial data
     console.log('🌱 Inserting initial seed data...');
     
-    // Insert test user
+    // Insert test users
     await sequelize.query(`
       INSERT IGNORE INTO \`users\` (\`id\`, \`email\`, \`name\`, \`google_id\`, \`created_at\`, \`updated_at\`) 
       VALUES (1, 'admin@streamscene.net', 'StreamScene Admin', 'streamscene-admin-001', NOW(), NOW());
     `);
     console.log('✅ Admin user created');
 
-    // Create a default canvas
+    // Insert specific user: allblk13@gmail.com
+    await sequelize.query(`
+      INSERT IGNORE INTO \`users\` (\`id\`, \`email\`, \`name\`, \`google_id\`, \`created_at\`, \`updated_at\`) 
+      VALUES (2, 'allblk13@gmail.com', 'AllBlk Creator', 'allblk-creator-13', NOW(), NOW());
+    `);
+    console.log('✅ AllBlk user created');
+
+    // Create default canvases
     await sequelize.query(`
       INSERT IGNORE INTO \`canvases\` (\`id\`, \`userId\`, \`name\`, \`description\`, \`canvasData\`, \`isPublic\`, \`allowAnonymousEdit\`) 
       VALUES ('project-center-main', 1, 'Project Center Main Canvas', 'Default canvas for project collaboration', '{"objects":[],"background":"#ffffff","version":"4.6.0"}', true, true);
     `);
     console.log('✅ Default canvas created');
+
+    // Create canvas for AllBlk user
+    await sequelize.query(`
+      INSERT IGNORE INTO \`canvases\` (\`id\`, \`userId\`, \`name\`, \`description\`, \`canvasData\`, \`isPublic\`, \`allowAnonymousEdit\`) 
+      VALUES ('allblk-creative-workspace', 2, 'AllBlk Creative Workspace', 'Creative collaboration space for content planning', '{"objects":[],"background":"#1a1a2e","version":"4.6.0"}', true, true);
+    `);
+    console.log('✅ AllBlk canvas created');
 
     // Create a welcome task using direct SQL for consistency
     await sequelize.query(`
@@ -359,11 +373,69 @@ async function seed(forceRecreate = false) {
     
     console.log('✅ Twitch content creator tasks created');
 
+    // Add comprehensive seed data for AllBlk user (allblk13@gmail.com)
+    console.log('🎨 Adding AllBlk creator seed data...');
+    
+    // Current week tasks for AllBlk
+    await sequelize.query(`
+      INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) VALUES
+      ('Video Script: Tech Review', 'Write script for new iPhone 16 review video', 'high', 'creative', 'in_progress', '${getCurrentDate()}', 4, 2),
+      ('Thumbnail Design', 'Create eye-catching thumbnail for iPhone review video', 'high', 'creative', 'pending', '${getDateOffset(1)}', 2, 2),
+      ('Brand Partnership: Sony', 'Finalize partnership agreement with Sony for camera gear', 'high', 'admin', 'pending', '${getDateOffset(2)}', 3, 2),
+      ('YouTube Shorts Strategy', 'Plan 5 YouTube Shorts for increased engagement this week', 'medium', 'creative', 'pending', '${getDateOffset(3)}', 3, 2),
+      ('Instagram Reel Content', 'Create behind-the-scenes reel from latest photoshoot', 'medium', 'creative', 'pending', '${getDateOffset(4)}', 2, 2),
+      ('Email Newsletter', 'Draft monthly newsletter for subscribers with exclusive content', 'low', 'admin', 'pending', '${getDateOffset(5)}', 2, 2);
+    `);
+
+    // Week 2 tasks for AllBlk
+    await sequelize.query(`
+      INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) VALUES
+      ('Collaboration: TechGuru23', 'Plan joint video with TechGuru23 about AI trends', 'high', 'creative', 'pending', '${getDateOffset(8)}', 5, 2),
+      ('Product Unboxing Series', 'Film unboxing video for latest MacBook Pro', 'high', 'creative', 'pending', '${getDateOffset(9)}', 3, 2),
+      ('Podcast Guest Appearance', 'Record interview for TechTalk Podcast about content creation', 'medium', 'admin', 'pending', '${getDateOffset(10)}', 2, 2),
+      ('Analytics Deep Dive', 'Analyze YouTube performance and optimize content strategy', 'medium', 'admin', 'pending', '${getDateOffset(11)}', 4, 2),
+      ('Website Content Update', 'Update portfolio website with latest projects and testimonials', 'low', 'admin', 'pending', '${getDateOffset(12)}', 3, 2),
+      ('Social Media Audit', 'Review and optimize all social media profiles for consistency', 'low', 'admin', 'pending', '${getDateOffset(13)}', 2, 2);
+    `);
+
+    // Week 3 tasks for AllBlk
+    await sequelize.query(`
+      INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) VALUES
+      ('Video Series Planning', 'Plan 10-part series about sustainable technology', 'high', 'creative', 'pending', '${getDateOffset(15)}', 6, 2),
+      ('Conference Speaking Prep', 'Prepare presentation for upcoming Tech Innovation Conference', 'high', 'admin', 'pending', '${getDateOffset(16)}', 8, 2),
+      ('Equipment Upgrade Research', 'Research and compare new camera equipment for studio setup', 'medium', 'admin', 'pending', '${getDateOffset(17)}', 4, 2),
+      ('Community Challenge Launch', 'Launch monthly creative challenge for followers', 'medium', 'creative', 'pending', '${getDateOffset(18)}', 3, 2),
+      ('Merchandise Design', 'Design new merchandise line for online store', 'low', 'creative', 'pending', '${getDateOffset(19)}', 5, 2);
+    `);
+
+    // Week 4 tasks for AllBlk
+    await sequelize.query(`
+      INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) VALUES
+      ('Monthly Content Review', 'Review month performance and plan next month strategy', 'high', 'admin', 'pending', '${getDateOffset(22)}', 4, 2),
+      ('Live Stream Setup', 'Set up equipment for weekly live streaming on YouTube', 'medium', 'creative', 'pending', '${getDateOffset(23)}', 3, 2),
+      ('Sponsor Content: NordVPN', 'Create sponsored content for NordVPN partnership', 'medium', 'creative', 'pending', '${getDateOffset(24)}', 2, 2),
+      ('Tutorial Video: Video Editing', 'Create tutorial on advanced video editing techniques', 'low', 'creative', 'pending', '${getDateOffset(25)}', 6, 2);
+    `);
+
+    // Completed tasks for AllBlk (recent accomplishments)
+    await sequelize.query(`
+      INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) VALUES
+      ('Q4 Content Calendar', 'Plan complete content calendar for October-December', 'high', 'admin', 'completed', '${getDateOffset(-3)}', 6, 2),
+      ('Brand Kit Update', 'Updated logo, colors, and brand guidelines', 'medium', 'creative', 'completed', '${getDateOffset(-5)}', 4, 2),
+      ('SEO Optimization', 'Optimized all video titles and descriptions for better discovery', 'medium', 'admin', 'completed', '${getDateOffset(-7)}', 5, 2),
+      ('Subscriber Milestone Video', 'Created special thank you video for 100K subscribers', 'low', 'creative', 'completed', '${getDateOffset(-10)}', 3, 2);
+    `);
+
+    console.log('✅ AllBlk creator tasks created');
+
     console.log('🎊 Database seeding completed successfully!');
     console.log('📊 Summary:');
     console.log('   - 10 tables created with proper foreign key relationships');
     console.log('   - Fixed userId foreign key type mismatch (INTEGER UNSIGNED)');
-    console.log('   - Sample data inserted (admin user, default canvas, welcome task)');
+    console.log('   - Sample data inserted for 2 users:');
+    console.log('     • admin@streamscene.net (Twitch content creator data)');
+    console.log('     • allblk13@gmail.com (Tech/creative content creator data)');
+    console.log('   - Default canvases and comprehensive task data created');
     console.log('   - Database ready for production use');
     
   } catch (err) {
