@@ -23,6 +23,7 @@ import {
   Check as HiCheck,
   Pencil as HiPencil,
 } from 'lucide-react';
+import TagInput from './TagInput';
 
 // Types
 type Project = {
