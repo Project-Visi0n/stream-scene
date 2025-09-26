@@ -203,6 +203,38 @@ const BudgetTracker: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
 
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => void 0,
+    onCancel: () => void 0,
+  });
+
+  // Toast Notifications State
+  const [toasts, setToasts] = useState<{
+    id: string;
+    type: 'success' | 'error' | 'info';
+    title: string;
+    message: string;
+  }[]>([]);
+
+  // Toast Functions
+  const showToast = (type: 'success' | 'error' | 'info', title: string, message: string) => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, type, title, message }]);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      removeToast(id);
+    }, 5000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
+
   // Categories
   const incomeCategories = ['Freelance Payment', 'Residuals', 'Grant', 'Salary', 'Bonus', 'Donation', 'Other'];
   const expenseCategories = ['Equipment', 'Transportation', 'Software', 'Marketing', 'Office Supplies', 'Personal', 'Food', 'Other'];
@@ -364,10 +396,19 @@ const BudgetTracker: React.FC = () => {
     }
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this entry?')) {
-      setEntries((prev) => prev.filter((entry) => entry.id !== id));
-    }
+  const handleDelete = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Entry',
+      message: 'Are you sure you want to delete this entry? This action cannot be undone.',
+      onConfirm: () => {
+        setEntries((prev) => prev.filter((entry) => entry.id !== id));
+        setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => void 0, onCancel: () => void 0 });
+      },
+      onCancel: () => {
+        setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => void 0, onCancel: () => void 0 });
+      },
+    });
   };
 
   const handleCreateProject = () => setIsProjectModalOpen(true);
@@ -1430,21 +1471,26 @@ const BudgetTracker: React.FC = () => {
                   ? 'from-emerald-800/90 to-green-900/90 border-emerald-500/30' 
                   : toast.type === 'error'
                   ? 'from-red-800/90 to-red-900/90 border-red-500/30'
-                  : toast.type === 'warning'
-                  ? 'from-yellow-800/90 to-orange-900/90 border-yellow-500/30'
+
                   : 'from-blue-800/90 to-indigo-900/90 border-blue-500/30'
               }`}>
                 <div className="flex items-start">
                   <div className="flex-shrink-0 mr-3">
                     <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white font-bold text-sm">
-                      <FaFilm className="w-4 h-4" />
+                      {toast.type === 'success' ? (
+                        <HiCheckCircle className="w-4 h-4" />
+                      ) : toast.type === 'error' ? (
+                        <HiExclamationCircle className="w-4 h-4" />
+                      ) : (
+                        <HiCurrencyDollar className="w-4 h-4" />
+                      )}
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
                     <h4 className={`text-sm font-medium ${
                       toast.type === 'success' ? 'text-emerald-100' :
                       toast.type === 'error' ? 'text-red-100' :
-                      toast.type === 'warning' ? 'text-yellow-100' :
+
                       'text-blue-100'
                     }`}>
                       {toast.title}
@@ -1452,7 +1498,7 @@ const BudgetTracker: React.FC = () => {
                     <p className={`text-sm mt-1 ${
                       toast.type === 'success' ? 'text-emerald-200' :
                       toast.type === 'error' ? 'text-red-200' :
-                      toast.type === 'warning' ? 'text-yellow-200' :
+
                       'text-blue-200'
                     }`}>
                       {toast.message}
@@ -1463,11 +1509,11 @@ const BudgetTracker: React.FC = () => {
                     className={`ml-3 flex-shrink-0 rounded-md p-1.5 hover:bg-black/20 transition-colors ${
                       toast.type === 'success' ? 'text-emerald-300 hover:text-emerald-200' :
                       toast.type === 'error' ? 'text-red-300 hover:text-red-200' :
-                      toast.type === 'warning' ? 'text-yellow-300 hover:text-yellow-200' :
+
                       'text-blue-300 hover:text-blue-200'
                     }`}
                   >
-                    <FaTimes className="w-4 h-4" />
+                    <HiXMark className="w-4 h-4" />
                   </button>
                 </div>
               </div>

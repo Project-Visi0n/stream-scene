@@ -131,7 +131,7 @@ router.delete('/delete/:key(*)', async (req, res) => {
   }
 });
 
-// Proxy route to serve S3 files with proper CORS headers
+// Proxy route to serve S3 files with proper CORS headers and range request support
 router.get('/proxy/:key(*)', async (req, res) => {
   const key = req.params.key;
   const env = getEnvVars();
@@ -149,45 +149,67 @@ router.get('/proxy/:key(*)', async (req, res) => {
       },
     });
 
-    const command = new GetObjectCommand({
+    // First, get the object metadata to get the total size
+    const headCommand = new HeadObjectCommand({
       Bucket: env.BUCKET_NAME,
       Key: key,
     });
 
-    const response = await s3Client.send(command);
+    const headResponse = await s3Client.send(headCommand);
+    const totalSize = headResponse.ContentLength || 0;
+    const mimeType = mime.lookup(key) || headResponse.ContentType || 'application/octet-stream';
+
+    // Handle range requests for video streaming/seeking
+    const range = req.headers.range;
+    let start = 0;
+    let end = totalSize - 1;
+
+    if (range) {
+      const parts = range.replace(/bytes=/, "").split("-");
+      start = parseInt(parts[0], 10) || 0;
+      end = parts[1] ? parseInt(parts[1], 10) : totalSize - 1;
+      
+      // Ensure end doesn't exceed file size
+      end = Math.min(end, totalSize - 1);
+    }
+
+    // Fetch the specific range from S3
+    const getCommand = new GetObjectCommand({
+      Bucket: env.BUCKET_NAME,
+      Key: key,
+      Range: range ? `bytes=${start}-${end}` : undefined,
+    });
+
+    const response = await s3Client.send(getCommand);
     
     if (!response.Body) {
       return res.status(404).json({ error: 'File not found' });
     }
 
-    // Use mime-types to determine the correct Content-Type
-    const mimeType = mime.lookup(key) || response.ContentType || 'application/octet-stream';
+    const chunkSize = (end - start) + 1;
 
-    // Set appropriate headers with better video support
-    res.set({
+    // Set appropriate headers
+    const headers: Record<string, string> = {
       'Content-Type': mimeType,
-      'Content-Length': response.ContentLength?.toString() || '',
       'Cache-Control': 'public, max-age=3600',
       'Access-Control-Allow-Origin': '*',
       'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Range',
-      'Accept-Ranges': 'bytes', // Important for video seeking
-    });
+      'Accept-Ranges': 'bytes',
+    };
 
-    // Handle range requests for video streaming
-    const range = req.headers.range;
-    if (range && response.ContentLength) {
-      const parts = range.replace(/bytes=/, "").split("-");
-      const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : response.ContentLength - 1;
-      const chunksize = (end - start) + 1;
-      
+    if (range) {
+      // Partial content response
       res.status(206);
-      res.set({
-        'Content-Range': `bytes ${start}-${end}/${response.ContentLength}`,
-        'Content-Length': chunksize.toString(),
-      });
+      headers['Content-Range'] = `bytes ${start}-${end}/${totalSize}`;
+      headers['Content-Length'] = chunkSize.toString();
+    } else {
+      // Full content response
+      res.status(200);
+      headers['Content-Length'] = totalSize.toString();
     }
+
+    res.set(headers);
 
     // Stream the file
     const stream = response.Body as NodeJS.ReadableStream;
