@@ -273,7 +273,7 @@ const FileUpload: React.FC = () => {
     });
   };
 
-  // S3 upload handler
+  // S3 upload handler with real progress tracking
   const handleS3Upload = async (file: File): Promise<{ url: string; s3Key?: string }> => {
     console.log('[FileUpload] handleS3Upload: Checking S3 config...');
     if (!isS3Configured()) {
@@ -288,31 +288,49 @@ const FileUpload: React.FC = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/s3/upload', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include' // Add this for session handling
-      });
-
-      console.log('[FileUpload] Upload response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[FileUpload] Upload failed:', response.status, errorText);
+      // Use XMLHttpRequest for progress tracking
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
         
-        try {
-          const errorJson = JSON.parse(errorText);
-          throw new Error(errorJson.error || `Upload failed: ${response.status}`);
-        } catch {
-          throw new Error(`Upload failed: ${response.status} ${errorText}`);
-        }
-      }
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 90; // Reserve 10% for processing
+            setUploadProgress(Math.round(percentComplete));
+            console.log(`Upload progress: ${percentComplete.toFixed(1)}%`);
+          }
+        });
 
-      const data = await response.json();
-      console.log('[FileUpload] Upload successful:', data);
-      
-      // Use the backend's returned URL and key (which will be .mp4 if converted)
-      return { url: data.url, s3Key: data.key };
+        xhr.addEventListener('load', async () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              setUploadProgress(95); // Almost done, processing...
+              const data = JSON.parse(xhr.responseText);
+              console.log('[FileUpload] Upload successful:', data);
+              setUploadProgress(100); // Complete
+              resolve({ url: data.url, s3Key: data.key });
+            } catch (parseError) {
+              reject(new Error('Failed to parse upload response'));
+            }
+          } else {
+            try {
+              const errorData = JSON.parse(xhr.responseText);
+              reject(new Error(errorData.error || `Upload failed: ${xhr.status}`));
+            } catch {
+              reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
+            }
+          }
+        });
+
+        xhr.addEventListener('error', () => {
+          reject(new Error('Upload failed due to network error'));
+        });
+
+        xhr.open('POST', '/api/s3/upload');
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.withCredentials = true; // For session handling
+        xhr.send(formData);
+      });
       
     } catch (s3Error) {
       console.error('[FileUpload] S3 upload failed:', s3Error);
