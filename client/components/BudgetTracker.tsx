@@ -160,6 +160,7 @@ const BudgetTracker: React.FC = () => {
     category: '',
     projectId: '',
     receiptTitle: '',
+    tags: [] as string[],
     ocrScanned: false,
     ocrConfidence: 0,
     ocrVendor: '',
@@ -171,6 +172,24 @@ const BudgetTracker: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [newProjectData, setNewProjectData] = useState({ name: '', description: '', color: '#8b5cf6' });
+  
+  // Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    type: 'expense' as 'income' | 'expense',
+    amount: '',
+    description: '',
+    date: new Date().toISOString().split('T')[0],
+    category: '',
+    projectId: '',
+    receiptTitle: '',
+    tags: [] as string[],
+    ocrScanned: false,
+    ocrConfidence: 0,
+    ocrVendor: '',
+    ocrDate: '',
+  });
 
   // Receipt Scanner State
   const [isProcessing, setIsProcessing] = useState(false);
@@ -324,6 +343,7 @@ const BudgetTracker: React.FC = () => {
         category: '',
         projectId: '',
         receiptTitle: '',
+        tags: [],
         ocrScanned: false,
         ocrConfidence: 0,
         ocrVendor: '',
@@ -392,6 +412,77 @@ const BudgetTracker: React.FC = () => {
       ocrDate: '',
     }));
     setNeedsConfirm(false);
+  };
+
+  // Edit handlers
+  const handleEditEntry = (entry: Entry) => {
+    setEditingEntry(entry);
+    setEditFormData({
+      type: entry.type,
+      amount: entry.amount.toString(),
+      description: entry.description,
+      date: entry.date,
+      category: entry.category,
+      projectId: entry.projectId || '',
+      receiptTitle: entry.receiptTitle || '',
+      tags: entry.tags || [],
+      ocrScanned: entry.ocrScanned || false,
+      ocrConfidence: entry.ocrConfidence || 0,
+      ocrVendor: '',
+      ocrDate: '',
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditModalOpen(false);
+    setEditingEntry(null);
+    setEditFormData({
+      type: 'expense',
+      amount: '',
+      description: '',
+      date: new Date().toISOString().split('T')[0],
+      category: '',
+      projectId: '',
+      receiptTitle: '',
+      tags: [],
+      ocrScanned: false,
+      ocrConfidence: 0,
+      ocrVendor: '',
+      ocrDate: '',
+    });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingEntry || !editFormData.amount || !editFormData.description || !editFormData.category) {
+      return;
+    }
+
+    const updatedEntry: Entry = {
+      ...editingEntry,
+      type: editFormData.type,
+      amount: parseFloat(editFormData.amount),
+      description: editFormData.description,
+      date: editFormData.date,
+      category: editFormData.category,
+      projectId: editFormData.projectId || undefined,
+      receiptTitle: editFormData.receiptTitle || undefined,
+      tags: editFormData.tags,
+      ocrScanned: editFormData.ocrScanned,
+      ocrConfidence: editFormData.ocrConfidence,
+    };
+
+    setEntries(prev => prev.map(entry => 
+      entry.id === editingEntry.id ? updatedEntry : entry
+    ));
+
+    // Save to localStorage
+    const updatedEntries = entries.map(entry => 
+      entry.id === editingEntry.id ? updatedEntry : entry
+    );
+    localStorage.setItem('budgetEntries', JSON.stringify(updatedEntries));
+
+    handleCancelEdit();
   };
 
   // Calculations
@@ -1012,13 +1103,22 @@ const BudgetTracker: React.FC = () => {
                                   </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                  <button
-                                    onClick={() => handleDelete(entry.id)}
-                                    className="text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-800/30 px-3 py-1 rounded-md transition-colors text-xs border border-red-600/30 inline-flex items-center"
-                                  >
-                                    <HiTrash className="w-3 h-3 mr-1" />
-                                    Delete
-                                  </button>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleEditEntry(entry)}
+                                      className="text-blue-400 hover:text-blue-300 bg-blue-900/20 hover:bg-blue-800/30 px-3 py-1 rounded-md transition-colors text-xs border border-blue-600/30 inline-flex items-center"
+                                    >
+                                      <HiPencil className="w-3 h-3 mr-1" />
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(entry.id)}
+                                      className="text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-800/30 px-3 py-1 rounded-md transition-colors text-xs border border-red-600/30 inline-flex items-center"
+                                    >
+                                      <HiTrash className="w-3 h-3 mr-1" />
+                                      Delete
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             );

@@ -542,8 +542,8 @@ const FileUpload: React.FC = () => {
         />
       )}
 
-      {/* Upload Area - Only show if user is logged in */}
-      {user && !loading && (
+      {/* Upload Area - Show prominently when no files, compact when files exist */}
+      {user && !loading && uploadedFiles.length === 0 && (
         <motion.div
           className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 backdrop-blur-sm ${
             isDragging 
@@ -712,17 +712,17 @@ const FileUpload: React.FC = () => {
       </motion.div>
       )}
 
-      {/* Uploaded Files Display */}
+      {/* New Layout: Preview First, Upload Second, Carousel Third */}
       {user && !loading && uploadedFiles.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
+          {/* Tag Filter Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h3 className="text-xl font-semibold text-white">Uploaded Files ({uploadedFiles.length})</h3>
+            <h3 className="text-xl font-semibold text-white">Your Files ({uploadedFiles.length})</h3>
             
-            {/* Tag Filter */}
             {availableTags.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 <span className="text-sm text-gray-400">Filter by tags:</span>
@@ -766,39 +766,112 @@ const FileUpload: React.FC = () => {
             )}
           </div>
           
-          {/* Carousel + Preview Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* File Carousel */}
-            <div className="lg:col-span-1">
-              <FileCarousel
-                files={uploadedFiles}
-                selectedFile={selectedFile}
-                onFileSelect={(file) => {
-                  setSelectedFile(file);
-                }}
-                onFileShare={handleShareFile}
-                onFileDelete={(file) => removeFile(file.id)}
-              />
+          {/* 1. File Preview - Most Prominent */}
+          <div className="w-full">
+            <FilePreview 
+              file={selectedFile}
+              className="min-h-[500px]"
+              onFileUpdated={updateFileInState}
+            />
+          </div>
+
+          {/* 2. Horizontal Upload Section - Middle */}
+          <motion.div
+            className={`bg-slate-800/30 rounded-lg border-2 border-dashed p-4 transition-colors ${
+              isDragging ? 'border-purple-400 bg-purple-900/20' : 'border-gray-600'
+            }`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4 text-center sm:text-left">
+                <div className="text-purple-400 flex-shrink-0">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <div className="text-lg font-medium text-white">Add More Files</div>
+                  <div className="text-sm text-gray-400">Drag & drop anywhere or click to upload</div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  onChange={(e) => handleFileSelect(e.target.files)}
+                  className="hidden"
+                  accept="*/*"
+                />
+                <motion.button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isUploading}
+                  whileHover={!isUploading ? { scale: 1.05 } : {}}
+                  whileTap={!isUploading ? { scale: 0.95 } : {}}
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Select Files
+                    </>
+                  )}
+                </motion.button>
+              </div>
             </div>
             
-            {/* File Preview */}
-            <div className="lg:col-span-2">
-              <FilePreview 
-                file={selectedFile}
-                className="min-h-[400px]"
-                onFileUpdated={updateFileInState}
-              />
-            </div>
+            {/* Upload Progress */}
+            {isUploading && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-gray-300">Uploading...</span>
+                  <span className="text-purple-400">{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </motion.div>
+
+          {/* 3. Horizontal File Carousel - Bottom */}
+          <div className="w-full">
+            <FileCarousel
+              files={uploadedFiles}
+              selectedFile={selectedFile}
+              onFileSelect={(file) => {
+                setSelectedFile(file);
+              }}
+              onFileShare={handleShareFile}
+              onFileDelete={(file) => removeFile(file.id)}
+              className="horizontal-carousel"
+            />
           </div>
         </motion.div>
       )}
 
       {/* Share Modal */}
-      {selectedFileForShare && (
+      {selectedFileForShare && selectedFileForShare.fileRecordId && (
         <ShareModal
           isOpen={shareModalOpen}
           onClose={handleCloseShareModal}
-          fileId={selectedFileForShare.fileRecordId!}
+          fileId={selectedFileForShare.fileRecordId}
           fileName={selectedFileForShare.name}
           onShareCreated={handleShareCreated}
         />
