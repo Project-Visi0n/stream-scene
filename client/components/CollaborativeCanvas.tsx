@@ -780,24 +780,12 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
           
           // Handle both array and object responses
           const files = Array.isArray(filesResponse) ? filesResponse : (filesResponse.files || []);
-          console.log('Files array:', files);
-          
-          // Debug: log each file to see its structure
-          files.forEach((file: any, index: number) => {
-            console.log(`File ${index}:`, {
-              name: file.name,
-              type: file.type,
-              tags: file.tags,
-              hasCanvasTag: file.tags && file.tags.includes('canvas')
-            });
-          });
           
           const canvasFiles = files.filter((file: any) => 
             file.type === 'image/png' && 
             file.tags && 
             file.tags.includes('canvas')
           );
-          console.log('Filtered canvas files:', canvasFiles.length);
 
           // If no files with 'canvas' tag, try a broader filter for PNG files
           if (canvasFiles.length === 0) {

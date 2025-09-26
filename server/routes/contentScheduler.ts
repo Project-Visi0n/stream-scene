@@ -12,17 +12,6 @@ interface AuthenticatedRequest extends Request {
 
 const router = Router();
 
-// Debug logging middleware
-router.use((req, res, next) => {
-  console.log(`[Content Scheduler] ${req.method} ${req.path}`, {
-    hasSession: !!req.session,
-    hasXAuth: !!req.session?.xAuth,
-    hasThreadsAuth: !!req.session?.threadsAuth,
-    bodyKeys: Object.keys(req.body || {})
-  });
-  next();
-});
-
 interface ScheduledPost {
   id: string;
   text: string;
@@ -384,37 +373,6 @@ function schedulePost(post: ScheduledPost) {
     timezone: "America/New_York"
   } as any);
 }
-
-// Debug endpoint
-router.get('/debug/auth', (req, res) => {
-  res.json({
-    session: {
-      exists: !!req.session,
-      id: req.sessionID
-    },
-    xAuth: req.session?.xAuth ? {
-      platform: req.session.xAuth.platform,
-      userId: req.session.xAuth.userId,
-      username: req.session.xAuth.username,
-      hasAccessToken: !!req.session.xAuth.accessToken,
-      hasTokenSecret: !!req.session.xAuth.tokenSecret
-    } : null,
-    threadsAuth: req.session?.threadsAuth ? {
-      platform: req.session.threadsAuth.platform,
-      userId: req.session.threadsAuth.userId,
-      username: req.session.threadsAuth.username,
-      hasAccessToken: !!req.session.threadsAuth.accessToken,
-      connectedAt: req.session.threadsAuth.connectedAt
-    } : null,
-    env: {
-      hasTwitterKey: !!process.env.TWITTER_CONSUMER_KEY,
-      hasTwitterSecret: !!process.env.TWITTER_CONSUMER_SECRET,
-      hasThreadsId: !!process.env.THREADS_CLIENT_ID,
-      hasThreadsSecret: !!process.env.THREADS_CLIENT_SECRET,
-      baseUrl: process.env.BASE_URL
-    }
-  });
-});
 
 // Test endpoint for Threads posting
 router.post('/test-threads', async (req, res) => {

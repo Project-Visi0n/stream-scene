@@ -103,25 +103,9 @@ router.post('/upload', requireAuth, async (req: Request, res: Response) => {
     const userId = (req.user as any).id;
     const { name, originalName, type, size, s3Key, url, tags } = req.body;
 
-    // Debug logging
-    console.log('[FILES] Upload endpoint received:', {
-      userId,
-      name,
-      originalName,
-      type,
-      size,
-      s3Key,
-      url,
-      tags,
-      bodyKeys: Object.keys(req.body)
-    });
-
     if (!name || !type || !size || !url) {
-      console.log('[FILES] Missing required fields:', { name: !!name, type: !!type, size: !!size, url: !!url });
       return res.status(400).json({ 
-        error: 'Missing required file information',
-        received: { name: !!name, type: !!type, size: !!size, url: !!url },
-        body: req.body
+        error: 'Missing required file information'
       });
     }
 
