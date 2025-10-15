@@ -1,43 +1,9 @@
 import express from 'express';
 import { Task } from '../models/Task.js';
 const router = express.Router();
-// Debug endpoint to check auth details
-router.get('/debug/auth', (req, res) => {
-    var _a;
-    console.log('=== TASK AUTH DEBUG ===');
-    console.log('Session ID:', req.sessionID);
-    console.log('Session data:', req.session);
-    console.log('User object:', req.user);
-    console.log('Is authenticated:', (_a = req.isAuthenticated) === null || _a === void 0 ? void 0 : _a.call(req));
-    console.log('Cookies:', req.headers.cookie);
-    console.log('User-Agent:', req.headers['user-agent']);
-    console.log('Referer:', req.headers.referer);
-    console.log('Request headers:', req.headers);
-    const userInfo = req.user;
-    res.json({
-        authenticated: !!req.user,
-        user: req.user || null,
-        userId: (userInfo === null || userInfo === void 0 ? void 0 : userInfo.id) || null,
-        sessionId: req.sessionID,
-        debug: {
-            hasSession: !!req.session,
-            hasUser: !!req.user,
-            userType: typeof req.user,
-            userKeys: req.user ? Object.keys(req.user) : null,
-            sessionKeys: req.session ? Object.keys(req.session) : null
-        }
-    });
-});
 // Enhanced middleware check with detailed debugging
 const requireAuth = (req, res, next) => {
     var _a, _b, _c;
-    console.log('=== AUTH DEBUG START ===');
-    console.log('req.user:', req.user);
-    console.log('req.session:', req.session);
-    console.log('req.headers.authorization:', req.headers.authorization);
-    console.log('req.headers.cookie:', req.headers.cookie);
-    console.log('req.cookies:', req.cookies);
-    console.log('=== AUTH DEBUG END ===');
     // Check multiple possible auth sources
     let user = null;
     // Option 1: Check req.user (Passport.js style)
@@ -91,113 +57,6 @@ const requireAuth = (req, res, next) => {
     console.log('Authentication successful for user:', user.id || user.email || 'unknown');
     next();
 };
-// Debug endpoint to check what tasks are returned
-router.get('/debug/tasks', requireAuth, async (req, res) => {
-    const user = req.user;
-    const userId = user === null || user === void 0 ? void 0 : user.id;
-    console.log('=== TASK DEBUG ===');
-    console.log('User ID for task query:', userId);
-    console.log('User object:', user);
-    try {
-        // Get ALL tasks first (this is dangerous but for debugging)
-        const allTasks = await Task.findAll({
-            limit: 10
-        });
-        console.log('ALL TASKS (first 10):', allTasks.map(t => ({
-            id: t.id,
-            title: t.title,
-            user_id: t.user_id,
-            created_at: t.created_at
-        })));
-        // Get user-specific tasks
-        const userTasks = await Task.findAll({
-            where: { user_id: userId },
-            limit: 10
-        });
-        console.log('USER TASKS:', userTasks.map(t => ({
-            id: t.id,
-            title: t.title,
-            user_id: t.user_id,
-            created_at: t.created_at
-        })));
-        res.json({
-            userId,
-            totalTasks: allTasks.length,
-            userSpecificTasks: userTasks.length,
-            allTasksSample: allTasks.slice(0, 5).map(t => ({
-                id: t.id,
-                title: t.title,
-                user_id: t.user_id
-            })),
-            userTasks: userTasks.map(t => ({
-                id: t.id,
-                title: t.title,
-                user_id: t.user_id
-            }))
-        });
-    }
-    catch (error) {
-        console.error('Debug task query error:', error);
-        res.status(500).json({ error: 'Debug query failed' });
-    }
-});
-// DEBUG ENDPOINT - Remove this in production!
-router.get('/debug-auth', (req, res) => {
-    var _a;
-    console.log('=== DEBUG AUTH ENDPOINT ===');
-    const debugInfo = {
-        timestamp: new Date().toISOString(),
-        user: req.user,
-        session: req.session,
-        authenticated: !!req.user || !!((_a = req.session) === null || _a === void 0 ? void 0 : _a.user),
-        headers: {
-            authorization: req.headers.authorization,
-            cookie: req.headers.cookie,
-            'user-agent': req.headers['user-agent']
-        },
-        cookies: req.cookies,
-        sessionID: req.sessionID,
-        ip: req.ip
-    };
-    console.log('Debug info:', JSON.stringify(debugInfo, null, 2));
-    res.json(debugInfo);
-});
-// TEST ENDPOINT - Create a test user and task (Remove in production!)
-router.post('/test-setup', async (req, res) => {
-    try {
-        // This is a testing endpoint - create a fake user session
-        const testUser = {
-            id: 1,
-            email: 'test@example.com',
-            name: 'Test User'
-        };
-        // Initialize session if it doesn't exist
-        if (!req.session) {
-            console.log('Warning: Session not initialized. Make sure session middleware is configured.');
-            return res.status(500).json({
-                error: 'Session not configured',
-                solution: 'Ensure express-session middleware is properly set up'
-            });
-        }
-        // Set user in session (adjust based on your auth system)
-        req.session.user = testUser;
-        req.user = testUser;
-        console.log('Test user session created:', testUser);
-        res.json({
-            message: 'Test user session created',
-            user: testUser,
-            sessionId: req.sessionID,
-            nextSteps: [
-                'Now try: curl -X POST http://localhost:8000/api/tasks/test-task -b cookies.txt',
-                'Or visit: curl http://localhost:8000/api/tasks/debug-auth -b cookies.txt'
-            ]
-        });
-    }
-    catch (error) {
-        console.error('Test setup failed:', error);
-        res.status(500).json({ error: 'Test setup failed' });
-    }
-});
 // TEST TASK CREATION - Create a test task with fake user
 router.post('/test-task', async (req, res) => {
     try {
@@ -261,13 +120,7 @@ router.get('/', requireAuth, async (req, res) => {
     var _a;
     try {
         const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
-        console.log('=== FETCHING TASKS ===');
-        console.log('User ID:', userId);
-        console.log('User object:', req.user);
-        console.log('Session ID:', req.sessionID);
-        console.log('Request headers:', req.headers);
         if (!userId) {
-            console.log('❌ No user ID found, returning 401');
             return res.status(401).json({ error: 'User not authenticated' });
         }
         const tasks = await Task.findAll({
@@ -333,13 +186,7 @@ router.post('/', requireAuth, async (req, res) => {
     var _a, _b;
     try {
         const userId = (_a = req.user) === null || _a === void 0 ? void 0 : _a.id;
-        console.log('=== TASK CREATION DEBUG ===');
-        console.log('Creating task for user:', userId);
-        console.log('User object:', req.user);
-        console.log('Request body:', req.body);
-        console.log('Headers:', req.headers);
         if (!userId) {
-            console.log('❌ User ID not found in request');
             return res.status(401).json({ error: 'User not authenticated' });
         }
         // Check if user exists in database

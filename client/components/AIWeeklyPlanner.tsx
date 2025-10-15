@@ -68,7 +68,7 @@ type TaskSortOption = 'priority' | 'deadline' | 'created' | 'type';
 const AIWeeklyPlanner: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isFormVisible, setIsFormVisible] = useState(false);
-  const [taskFilter, setTaskFilter] = useState<'all' | 'pending' | 'in-progress' | 'completed'>('all');
+  const [taskFilter, setTaskFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed' | 'creative' | 'admin'>('all');
   const [selectedTagsFilter, setSelectedTagsFilter] = useState<string[]>([]);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
@@ -144,11 +144,17 @@ const AIWeeklyPlanner: React.FC = () => {
       case 'pending':
         filtered = tasks.filter(task => task.status === 'pending');
         break;
-      case 'in-progress':
-        filtered = tasks.filter(task => task.status === 'in-progress');
+      case 'in_progress':
+        filtered = tasks.filter(task => task.status === 'in_progress');
         break;
       case 'completed':
         filtered = tasks.filter(task => task.status === 'completed');
+        break;
+      case 'creative':
+        filtered = tasks.filter(task => task.task_type === 'creative');
+        break;
+      case 'admin':
+        filtered = tasks.filter(task => task.task_type === 'admin');
         break;
       default:
         filtered = tasks;

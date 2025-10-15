@@ -5,45 +5,10 @@ const router = express.Router();
 router.get('/test', (req, res) => {
     res.json({ message: 'Auth routes are working!' });
 });
-// Add debug middleware to see ALL requests
-router.use((req, res, next) => {
-    console.log(`[AUTH] ${req.method} ${req.path}`, {
-        query: req.query,
-        headers: req.get('host'),
-        session: req.sessionID
-    });
-    next();
-});
 // Initiate Google OAuth
-router.get('/google', (req, res, next) => {
-    console.log('=== Google OAuth Debug ===');
-    console.log('Host:', req.get('host'));
-    console.log('Protocol:', req.protocol);
-    console.log('Original URL:', req.originalUrl);
-    console.log('Full URL:', `${req.protocol}://${req.get('host')}${req.originalUrl}`);
-    // Remove these sensitive logs in production:
-    // console.log('Client ID:', process.env.GOOGLE_CLIENT_ID?.substring(0, 10) + '...');
-    // console.log('Callback URL:', process.env.GOOGLE_CALLBACK_URL);
-    console.log('OAuth initiation started...');
-    next();
-}, passport.authenticate('google', { scope: ['profile', 'email'] }));
-// Google OAuth callback - Enhanced debugging
+router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+// Google OAuth callback
 router.get('/google/callback', (req, res, next) => {
-    console.log('=== Google Callback Started ===');
-    console.log('Query params:', req.query);
-    // Check for OAuth errors from Google
-    if (req.query.error) {
-        console.error('Google returned error:', req.query.error);
-        return res.redirect(`/?error=${req.query.error}`);
-    }
-    // Check for authorization code
-    if (!req.query.code) {
-        console.error('No authorization code in callback');
-        return res.redirect('/?error=no_code');
-    }
-    console.log('Authorization code received, proceeding to authenticate...');
-    next();
-}, (req, res, next) => {
     passport.authenticate('google', (err, user, info) => {
         console.log('=== Passport Authenticate Result ===');
         console.log('Error:', err);
@@ -119,13 +84,7 @@ router.post('/demo-login', async (req, res) => {
 });
 // Get current authenticated user
 router.get('/user', (req, res) => {
-    var _a, _b, _c;
-    console.log('=== AUTH CHECK DEBUG ===');
-    console.log('Session ID:', req.sessionID);
-    console.log('Session data:', req.session);
-    console.log('User object:', req.user);
-    console.log('Is authenticated:', (_a = req.isAuthenticated) === null || _a === void 0 ? void 0 : _a.call(req));
-    console.log('Cookies:', req.headers.cookie);
+    var _a, _b;
     let userData = null;
     if (req.user) {
         // Cast to User type to access getters
@@ -134,8 +93,8 @@ router.get('/user', (req, res) => {
             id: user.id,
             email: user.email,
             name: user.name,
-            firstName: user.firstName || ((_b = user.name) === null || _b === void 0 ? void 0 : _b.split(' ')[0]) || '',
-            lastName: user.lastName || ((_c = user.name) === null || _c === void 0 ? void 0 : _c.split(' ').slice(1).join(' ')) || '',
+            firstName: user.firstName || ((_a = user.name) === null || _a === void 0 ? void 0 : _a.split(' ')[0]) || '',
+            lastName: user.lastName || ((_b = user.name) === null || _b === void 0 ? void 0 : _b.split(' ').slice(1).join(' ')) || '',
             google_id: user.google_id,
             created_at: user.created_at,
             updated_at: user.updated_at
@@ -154,8 +113,6 @@ router.get('/user', (req, res) => {
 });
 // Logout endpoint
 router.post('/logout', (req, res) => {
-    console.log('=== Logout Debug ===');
-    console.log('User before logout:', req.user);
     req.logout((err) => {
         if (err) {
             console.error('Logout error:', err);

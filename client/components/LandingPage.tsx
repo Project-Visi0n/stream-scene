@@ -246,6 +246,28 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       <div className="absolute top-2/5 left-1/12 w-5 h-5 bg-pink-500 rounded-full animate-pulse" style={{animationDelay: '1.6s', animationDuration: '0.9s'}}></div>
       <div className="absolute top-3/5 right-1/12 w-3 h-3 bg-purple-400 rounded-full animate-pulse" style={{animationDelay: '2.4s', animationDuration: '1.5s'}}></div>
 
+      {/* Logout Button - Top Right */}
+      {user && (
+        <div className="absolute top-4 right-4 z-20">
+          <button
+            onClick={async () => {
+              try {
+                await fetch('/auth/logout', {
+                  method: 'POST',
+                  credentials: 'include'
+                });
+                window.location.reload(); // Refresh to update auth state
+              } catch (error) {
+                console.error('Logout failed:', error);
+              }
+            }}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl"
+          >
+            Logout
+          </button>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 sm:px-0 pt-24 sm:pt-32">
         {/* Hero Section */}
