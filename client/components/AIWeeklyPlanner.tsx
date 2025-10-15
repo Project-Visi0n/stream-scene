@@ -11,34 +11,23 @@ import {
   HiChartBarSquare,
   HiExclamationTriangle
 } from 'react-icons/hi2';
+import { 
+  FaRobot,
+  FaCalendarAlt,
+  FaBrain,
+  FaTasks,
+  FaCheckCircle,
+  FaTimes
+} from 'react-icons/fa';
 import TaskForm from './TaskForm';
+import TagInput from './TagInput';
 import { Task, TaskFormData } from '../types/task';
 
-// Custom SVG Icon Components (matching your navbar and landing page)
-const AIIcon = () => (
-  <svg className="w-8 h-8 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-  </svg>
-);
-
-const SchedulerIcon = () => (
-  <svg className="w-8 h-8 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
-  </svg>
-);
-
-// Smaller versions for inline use
-const AIIconSmall = () => (
-  <svg className="w-5 h-5 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-  </svg>
-);
-
-const SchedulerIconSmall = () => (
-  <svg className="w-6 h-6 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
-  </svg>
-);
+// Replace the problematic custom SVG components with React Icons
+const AIIcon = () => <FaRobot className="w-8 h-8 text-purple-400" />;
+const SchedulerIcon = () => <FaCalendarAlt className="w-8 h-8 text-blue-400" />;
+const AIIconSmall = () => <FaBrain className="w-5 h-5 text-purple-400" />;
+const SchedulerIconSmall = () => <FaCalendarAlt className="w-6 h-6 text-blue-400" />;
 
 interface WeeklySchedule {
   id?: string;
@@ -77,43 +66,11 @@ type CalendarView = 'monthly' | 'weekly' | 'daily';
 type TaskSortOption = 'priority' | 'deadline' | 'created' | 'type';
 
 const AIWeeklyPlanner: React.FC = () => {
-  // Mock data for demo
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: 1,
-      title: 'Design new landing page',
-      description: 'Create wireframes and mockups for the new product landing page',
-      priority: 'high',
-      task_type: 'creative',
-      status: 'pending',
-      deadline: '2025-09-25',
-      estimated_hours: 4,
-      created_at: '2025-09-19'
-    },
-    {
-      id: 2,
-      title: 'Review quarterly reports',
-      description: 'Analyze Q3 performance metrics and prepare summary',
-      priority: 'medium',
-      task_type: 'admin',
-      status: 'in_progress',
-      deadline: '2025-09-22',
-      estimated_hours: 2,
-      created_at: '2025-09-18'
-    },
-    {
-      id: 3,
-      title: 'Client presentation prep',
-      description: 'Prepare slides and demo for client meeting',
-      priority: 'high',
-      task_type: 'creative',
-      status: 'pending',
-      deadline: '2025-09-21',
-      estimated_hours: 3,
-      created_at: '2025-09-17'
-    }
-  ]);
-
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isFormVisible, setIsFormVisible] = useState(false);
+  const [taskFilter, setTaskFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed' | 'creative' | 'admin'>('all');
+  const [selectedTagsFilter, setSelectedTagsFilter] = useState<string[]>([]);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [isGeneratingSchedule, setIsGeneratingSchedule] = useState(false);
@@ -129,7 +86,6 @@ const AIWeeklyPlanner: React.FC = () => {
   const [calendarView, setCalendarView] = useState<CalendarView>('monthly');
   
   // Task filtering and sorting state
-  const [taskFilter, setTaskFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed' | 'creative' | 'admin'>('all');
   const [taskSort, setTaskSort] = useState<TaskSortOption>('priority');
   const [expandedStats, setExpandedStats] = useState<string | null>(null);
   
@@ -175,32 +131,43 @@ const AIWeeklyPlanner: React.FC = () => {
     });
   };
 
-  // Filter tasks based on current filter
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
   const getFilteredTasks = () => {
-    const safeTasksArray = Array.isArray(tasks) ? tasks : [];
-    let filtered;
+    if (!tasks || tasks.length === 0) return [];
     
+    // Apply status/type filter first
+    let filtered;
     switch (taskFilter) {
       case 'pending':
-        filtered = safeTasksArray.filter(t => t.status === 'pending');
+        filtered = tasks.filter(task => task.status === 'pending');
         break;
       case 'in_progress':
-        filtered = safeTasksArray.filter(t => t.status === 'in_progress');
+        filtered = tasks.filter(task => task.status === 'in_progress');
         break;
       case 'completed':
-        filtered = safeTasksArray.filter(t => t.status === 'completed');
+        filtered = tasks.filter(task => task.status === 'completed');
         break;
       case 'creative':
-        filtered = safeTasksArray.filter(t => t.task_type === 'creative');
+        filtered = tasks.filter(task => task.task_type === 'creative');
         break;
       case 'admin':
-        filtered = safeTasksArray.filter(t => t.task_type === 'admin');
+        filtered = tasks.filter(task => task.task_type === 'admin');
         break;
       default:
-        filtered = safeTasksArray;
+        filtered = tasks;
     }
     
-    return sortTasks(filtered, taskSort);
+    // Apply tag filter if any tags are selected
+    if (selectedTagsFilter.length > 0) {
+      filtered = filtered.filter(task => 
+        task.tags && task.tags.some(tag => selectedTagsFilter.includes(tag))
+      );
+    }
+    
+    return filtered;
   };
 
   const filteredTasks = getFilteredTasks();
@@ -590,7 +557,8 @@ const AIWeeklyPlanner: React.FC = () => {
       priority: suggestion.priority || 'medium',
       task_type: suggestion.task_type || 'admin',
       deadline: suggestion.suggestedDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      estimated_hours: suggestion.estimatedHours || 1
+      estimated_hours: suggestion.estimatedHours || 1,
+      tags: []
     };
 
     try {
@@ -1354,9 +1322,9 @@ const AIWeeklyPlanner: React.FC = () => {
 
         {/* Header */}
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
-          <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
+          <h1 className="text-4xl font-bold mb-2 flex items-center justify-center leading-relaxed">
             <AIIcon />
-            <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent leading-relaxed py-1">
               AI Weekly Planner
             </span>
           </h1>
@@ -1761,8 +1729,8 @@ const AIWeeklyPlanner: React.FC = () => {
             <div className="space-y-6">
               <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
                 <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                  <HiChartBarSquare className="w-8 h-8 text-purple-400" />
-                  AI Weekly Schedule
+                  <HiDocumentText className="w-8 h-8 text-blue-400" />
+                  Your Weekly Schedule
                 </h2>
                 
                 {weeklySchedule ? (

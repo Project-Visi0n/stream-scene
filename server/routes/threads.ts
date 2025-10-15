@@ -1,20 +1,6 @@
 import { Router } from 'express';
 const router = Router();
 
-// Test endpoint for debugging - moved to top
-router.get('/test-simple', (req, res) => {
-  res.json({ message: 'Threads routes are working' });
-});
-
-// Debug environment variables
-router.get('/debug-env', (req, res) => {
-  res.json({
-    hasClientId: !!process.env.THREADS_CLIENT_ID,
-    hasClientSecret: !!process.env.THREADS_CLIENT_SECRET,
-    nodeEnv: process.env.NODE_ENV
-  });
-});
-
 // Initiate Threads OAuth
 router.get('/auth', (req, res) => {
   const threadsClientId = process.env.THREADS_CLIENT_ID;
@@ -311,30 +297,6 @@ router.post('/disconnect', (req, res) => {
   } catch (error) {
     console.error('[Threads Disconnect] Error:', error);
     res.status(500).json({ error: 'Failed to disconnect' });
-  }
-});
-
-// Test endpoint for debugging
-router.post('/test', async (req, res) => {
-  try {
-    const { text } = req.body;
-    
-    if (!req.session?.threadsAuth) {
-      return res.status(400).json({ error: 'Threads not connected' });
-    }
-
-    res.json({ 
-      success: true, 
-      message: 'Test successful',
-      sessionAuth: {
-        connected: true,
-        userId: req.session.threadsAuth.userId,
-        username: req.session.threadsAuth.username
-      }
-    });
-  } catch (error) {
-    console.error('[Threads Test] Error:', error);
-    res.status(500).json({ error: 'Test failed', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 

@@ -23,6 +23,7 @@ import {
   Check as HiCheck,
   Pencil as HiPencil,
 } from 'lucide-react';
+import TagInput from './TagInput';
 
 // Types
 type Project = {
@@ -31,22 +32,21 @@ type Project = {
   description?: string;
   color: string;
   isActive: boolean;
+  tags?: string[];
 };
 
 type Entry = {
-  id: number;
+  id: string;
   type: 'income' | 'expense';
   amount: number;
+  category: string;
   description: string;
   date: string;
-  category: string;
   projectId?: string;
   receiptTitle?: string;
-  receiptUrl?: string;
   ocrScanned?: boolean;
   ocrConfidence?: number;
-  ocrVendor?: string;
-  ocrDate?: string;
+  tags?: string[];
 };
 
 // ===== OCR Helper Functions =====
@@ -160,6 +160,7 @@ const BudgetTracker: React.FC = () => {
     category: '',
     projectId: '',
     receiptTitle: '',
+    tags: [] as string[],
     ocrScanned: false,
     ocrConfidence: 0,
     ocrVendor: '',
@@ -171,6 +172,24 @@ const BudgetTracker: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [newProjectData, setNewProjectData] = useState({ name: '', description: '', color: '#8b5cf6' });
+  
+  // Edit Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingEntry, setEditingEntry] = useState<Entry | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    type: 'expense' as 'income' | 'expense',
+    amount: '',
+    description: '',
+    date: new Date().toISOString().split('T')[0],
+    category: '',
+    projectId: '',
+    receiptTitle: '',
+    tags: [] as string[],
+    ocrScanned: false,
+    ocrConfidence: 0,
+    ocrVendor: '',
+    ocrDate: '',
+  });
 
   // Receipt Scanner State
   const [isProcessing, setIsProcessing] = useState(false);
@@ -183,6 +202,38 @@ const BudgetTracker: React.FC = () => {
   const [needsConfirm, setNeedsConfirm] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const amountInputRef = useRef<HTMLInputElement>(null);
+
+  // Confirmation Modal State
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => void 0,
+    onCancel: () => void 0,
+  });
+
+  // Toast Notifications State
+  const [toasts, setToasts] = useState<{
+    id: string;
+    type: 'success' | 'error' | 'info';
+    title: string;
+    message: string;
+  }[]>([]);
+
+  // Toast Functions
+  const showToast = (type: 'success' | 'error' | 'info', title: string, message: string) => {
+    const id = Date.now().toString();
+    setToasts(prev => [...prev, { id, type, title, message }]);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+      removeToast(id);
+    }, 5000);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  };
 
   // Categories
   const incomeCategories = ['Freelance Payment', 'Residuals', 'Grant', 'Salary', 'Bonus', 'Donation', 'Other'];
@@ -287,7 +338,7 @@ const BudgetTracker: React.FC = () => {
 
   const handleSubmit = async () => {
     if (!formData.amount || !formData.description || !formData.category) {
-      alert('Please fill in all required fields (Amount, Description, Category)');
+      showToast('error', 'Missing Information', 'Please fill in all required fields (Amount, Description, Category)');
       return;
     }
     if (needsConfirm) {
@@ -324,6 +375,7 @@ const BudgetTracker: React.FC = () => {
         category: '',
         projectId: '',
         receiptTitle: '',
+        tags: [],
         ocrScanned: false,
         ocrConfidence: 0,
         ocrVendor: '',
@@ -344,17 +396,26 @@ const BudgetTracker: React.FC = () => {
     }
   };
 
-  const handleDelete = (id: number) => {
-    if (confirm('Are you sure you want to delete this entry?')) {
-      setEntries((prev) => prev.filter((entry) => entry.id !== id));
-    }
+  const handleDelete = (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Entry',
+      message: 'Are you sure you want to delete this entry? This action cannot be undone.',
+      onConfirm: () => {
+        setEntries((prev) => prev.filter((entry) => entry.id !== id));
+        setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => void 0, onCancel: () => void 0 });
+      },
+      onCancel: () => {
+        setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => void 0, onCancel: () => void 0 });
+      },
+    });
   };
 
   const handleCreateProject = () => setIsProjectModalOpen(true);
 
   const handleSaveProject = () => {
     if (!newProjectData.name.trim()) {
-      alert('Please enter a project name');
+      showToast('error', 'Missing Information', 'Please enter a project name');
       return;
     }
 
@@ -394,6 +455,77 @@ const BudgetTracker: React.FC = () => {
     setNeedsConfirm(false);
   };
 
+  // Edit handlers
+  const handleEditEntry = (entry: Entry) => {
+    setEditingEntry(entry);
+    setEditFormData({
+      type: entry.type,
+      amount: entry.amount.toString(),
+      description: entry.description,
+      date: entry.date,
+      category: entry.category,
+      projectId: entry.projectId || '',
+      receiptTitle: entry.receiptTitle || '',
+      tags: entry.tags || [],
+      ocrScanned: entry.ocrScanned || false,
+      ocrConfidence: entry.ocrConfidence || 0,
+      ocrVendor: '',
+      ocrDate: '',
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditModalOpen(false);
+    setEditingEntry(null);
+    setEditFormData({
+      type: 'expense',
+      amount: '',
+      description: '',
+      date: new Date().toISOString().split('T')[0],
+      category: '',
+      projectId: '',
+      receiptTitle: '',
+      tags: [],
+      ocrScanned: false,
+      ocrConfidence: 0,
+      ocrVendor: '',
+      ocrDate: '',
+    });
+  };
+
+  const handleSaveEdit = () => {
+    if (!editingEntry || !editFormData.amount || !editFormData.description || !editFormData.category) {
+      return;
+    }
+
+    const updatedEntry: Entry = {
+      ...editingEntry,
+      type: editFormData.type,
+      amount: parseFloat(editFormData.amount),
+      description: editFormData.description,
+      date: editFormData.date,
+      category: editFormData.category,
+      projectId: editFormData.projectId || undefined,
+      receiptTitle: editFormData.receiptTitle || undefined,
+      tags: editFormData.tags,
+      ocrScanned: editFormData.ocrScanned,
+      ocrConfidence: editFormData.ocrConfidence,
+    };
+
+    setEntries(prev => prev.map(entry => 
+      entry.id === editingEntry.id ? updatedEntry : entry
+    ));
+
+    // Save to localStorage
+    const updatedEntries = entries.map(entry => 
+      entry.id === editingEntry.id ? updatedEntry : entry
+    );
+    localStorage.setItem('budgetEntries', JSON.stringify(updatedEntries));
+
+    handleCancelEdit();
+  };
+
   // Calculations
   const calculateTotals = () => {
     const totalIncome = entries.filter((entry) => entry.type === 'income').reduce((sum, entry) => sum + entry.amount, 0);
@@ -431,7 +563,7 @@ const BudgetTracker: React.FC = () => {
       <div className="absolute top-40 right-20 w-6 h-6 bg-pink-400/40 rounded-full animate-bounce"></div>
       <div className="absolute bottom-32 left-20 w-3 h-3 bg-purple-300/50 rounded-full animate-ping"></div>
 
-      <div className="relative z-10 max-w-7xl mx-auto p-6">
+      <div className="relative z-10 max-w-7xl mx-auto px-8 py-6">
         {/* Header */}
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
           <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
@@ -870,6 +1002,20 @@ const BudgetTracker: React.FC = () => {
                   </div>
                 )}
 
+                {/* Tags */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Tags
+                    <span className="text-xs text-gray-500 ml-2">(Optional - organize and categorize entries)</span>
+                  </label>
+                  <TagInput
+                    selectedTags={formData.tags}
+                    onTagsChange={(newTags: string[]) => setFormData(prev => ({ ...prev, tags: newTags }))}
+                    placeholder="Add tags to organize this entry..."
+                    className="w-full"
+                  />
+                </div>
+
                 {/* Submit Button */}
                 <div className="flex justify-end pt-4">
                   <button
@@ -998,13 +1144,22 @@ const BudgetTracker: React.FC = () => {
                                   </span>
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                                  <button
-                                    onClick={() => handleDelete(entry.id)}
-                                    className="text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-800/30 px-3 py-1 rounded-md transition-colors text-xs border border-red-600/30 inline-flex items-center"
-                                  >
-                                    <HiTrash className="w-3 h-3 mr-1" />
-                                    Delete
-                                  </button>
+                                  <div className="flex gap-2">
+                                    <button
+                                      onClick={() => handleEditEntry(entry)}
+                                      className="text-blue-400 hover:text-blue-300 bg-blue-900/20 hover:bg-blue-800/30 px-3 py-1 rounded-md transition-colors text-xs border border-blue-600/30 inline-flex items-center"
+                                    >
+                                      <HiPencil className="w-3 h-3 mr-1" />
+                                      Edit
+                                    </button>
+                                    <button
+                                      onClick={() => handleDelete(entry.id)}
+                                      className="text-red-400 hover:text-red-300 bg-red-900/20 hover:bg-red-800/30 px-3 py-1 rounded-md transition-colors text-xs border border-red-600/30 inline-flex items-center"
+                                    >
+                                      <HiTrash className="w-3 h-3 mr-1" />
+                                      Delete
+                                    </button>
+                                  </div>
                                 </td>
                               </tr>
                             );
@@ -1104,6 +1259,267 @@ const BudgetTracker: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Edit Transaction Modal */}
+        {isEditModalOpen && editingEntry && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-gradient-to-br from-slate-800 to-gray-900 border border-purple-500/30 rounded-xl p-6 w-full max-w-2xl mx-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+              <h3 className="text-lg font-semibold text-purple-300 mb-4">Edit Transaction</h3>
+              
+              <div className="space-y-4">
+                {/* Transaction Type */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Type</label>
+                  <div className="flex space-x-4">
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="income"
+                        checked={editFormData.type === 'income'}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, type: e.target.value as 'income' | 'expense' }))}
+                        className="sr-only"
+                      />
+                      <div className={`px-4 py-2 rounded-lg border cursor-pointer transition-all ${
+                        editFormData.type === 'income'
+                          ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300'
+                          : 'bg-slate-700/50 border-slate-600 text-gray-300 hover:bg-slate-600/50'
+                      }`}>
+                        Income
+                      </div>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="radio"
+                        value="expense"
+                        checked={editFormData.type === 'expense'}
+                        onChange={(e) => setEditFormData(prev => ({ ...prev, type: e.target.value as 'income' | 'expense' }))}
+                        className="sr-only"
+                      />
+                      <div className={`px-4 py-2 rounded-lg border cursor-pointer transition-all ${
+                        editFormData.type === 'expense'
+                          ? 'bg-red-600/20 border-red-500 text-red-300'
+                          : 'bg-slate-700/50 border-slate-600 text-gray-300 hover:bg-slate-600/50'
+                      }`}>
+                        Expense
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Amount and Date */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Amount *</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={editFormData.amount}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, amount: e.target.value }))}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Date *</label>
+                    <input
+                      type="date"
+                      value={editFormData.date}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, date: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300"
+                    />
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Description *</label>
+                  <input
+                    type="text"
+                    value={editFormData.description}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="What was this for?"
+                    className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300"
+                  />
+                </div>
+
+                {/* Category and Project */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Category *</label>
+                    <select
+                      value={editFormData.category}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, category: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300"
+                    >
+                      <option value="">Select category</option>
+                      <option value="freelance">Freelance Work</option>
+                      <option value="equipment">Equipment</option>
+                      <option value="software">Software</option>
+                      <option value="marketing">Marketing</option>
+                      <option value="office">Office Supplies</option>
+                      <option value="travel">Travel</option>
+                      <option value="meals">Meals</option>
+                      <option value="other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Project (Optional)</label>
+                    <select
+                      value={editFormData.projectId}
+                      onChange={(e) => setEditFormData(prev => ({ ...prev, projectId: e.target.value }))}
+                      className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300"
+                    >
+                      <option value="">No project</option>
+                      {projects.filter(p => p.isActive).map(project => (
+                        <option key={project.id} value={project.id}>{project.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Tags */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Tags
+                    <span className="text-xs text-gray-500 ml-2">(Optional - organize and categorize entries)</span>
+                  </label>
+                  <TagInput
+                    selectedTags={editFormData.tags}
+                    onTagsChange={(newTags: string[]) => setEditFormData(prev => ({ ...prev, tags: newTags }))}
+                    placeholder="Add tags to organize this entry..."
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Receipt Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Receipt Title (Optional)</label>
+                  <input
+                    type="text"
+                    value={editFormData.receiptTitle}
+                    onChange={(e) => setEditFormData(prev => ({ ...prev, receiptTitle: e.target.value }))}
+                    placeholder="Receipt description"
+                    className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300"
+                  />
+                </div>
+
+                <div className="flex justify-end space-x-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    className="px-4 py-2 text-gray-400 border border-slate-600 rounded-lg hover:bg-slate-700/50 hover:text-gray-300 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveEdit}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:from-purple-700 hover:to-pink-700 transition-colors shadow-lg shadow-purple-500/25"
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Confirmation Modal */}
+        {confirmModal.isOpen && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="bg-gradient-to-br from-slate-800 to-gray-900 border border-red-500/30 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
+              <div className="flex items-center mb-4">
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white font-bold text-sm mr-3">
+                  <FaFilm className="w-4 h-4" />
+                </div>
+                <h3 className="text-lg font-semibold text-red-300">{confirmModal.title}</h3>
+              </div>
+              
+              <p className="text-gray-300 mb-6">{confirmModal.message}</p>
+
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={confirmModal.onCancel}
+                  className="px-4 py-2 text-gray-400 border border-slate-600 rounded-lg hover:bg-slate-700/50 hover:text-gray-300 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmModal.onConfirm}
+                  className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white rounded-lg hover:from-red-700 hover:to-red-800 transition-colors shadow-lg shadow-red-500/25"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Toast Notifications */}
+        <div className="fixed top-4 right-4 z-50 space-y-2">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`transform transition-all duration-300 ease-in-out animate-slide-in-right`}
+            >
+              <div className={`bg-gradient-to-r border rounded-lg shadow-lg backdrop-blur-sm p-4 min-w-80 max-w-md ${
+                toast.type === 'success' 
+                  ? 'from-emerald-800/90 to-green-900/90 border-emerald-500/30' 
+                  : toast.type === 'error'
+                  ? 'from-red-800/90 to-red-900/90 border-red-500/30'
+
+                  : 'from-blue-800/90 to-indigo-900/90 border-blue-500/30'
+              }`}>
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 mr-3">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white font-bold text-sm">
+                      {toast.type === 'success' ? (
+                        <HiCheckCircle className="w-4 h-4" />
+                      ) : toast.type === 'error' ? (
+                        <HiExclamationCircle className="w-4 h-4" />
+                      ) : (
+                        <HiCurrencyDollar className="w-4 h-4" />
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className={`text-sm font-medium ${
+                      toast.type === 'success' ? 'text-emerald-100' :
+                      toast.type === 'error' ? 'text-red-100' :
+
+                      'text-blue-100'
+                    }`}>
+                      {toast.title}
+                    </h4>
+                    <p className={`text-sm mt-1 ${
+                      toast.type === 'success' ? 'text-emerald-200' :
+                      toast.type === 'error' ? 'text-red-200' :
+
+                      'text-blue-200'
+                    }`}>
+                      {toast.message}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => removeToast(toast.id)}
+                    className={`ml-3 flex-shrink-0 rounded-md p-1.5 hover:bg-black/20 transition-colors ${
+                      toast.type === 'success' ? 'text-emerald-300 hover:text-emerald-200' :
+                      toast.type === 'error' ? 'text-red-300 hover:text-red-200' :
+
+                      'text-blue-300 hover:text-blue-200'
+                    }`}
+                  >
+                    <HiXMark className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

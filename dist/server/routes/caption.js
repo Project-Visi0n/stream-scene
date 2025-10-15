@@ -136,7 +136,7 @@ router.post('/:fileId', requireAuth, async (req, res) => {
 });
 // Poll for Transcribe job status
 router.get('/status/:jobName', async (req, res) => {
-    var _a, _b;
+    var _a;
     try {
         const jobName = req.params.jobName;
         const command = new GetTranscriptionJobCommand({ TranscriptionJobName: jobName });
@@ -144,16 +144,9 @@ router.get('/status/:jobName', async (req, res) => {
         const job = response.TranscriptionJob;
         if (!job)
             return res.status(404).json({ error: 'Job not found' });
-        // Add debug logging
-        console.log('=== TRANSCRIBE JOB DEBUG ===');
-        console.log('Job Status:', job.TranscriptionJobStatus);
-        console.log('Transcript URI:', (_a = job.Transcript) === null || _a === void 0 ? void 0 : _a.TranscriptFileUri);
-        console.log('Failure Reason:', job.FailureReason);
-        console.log('Creation Time:', job.CreationTime);
-        console.log('Completion Time:', job.CompletionTime);
         res.json({
             status: job.TranscriptionJobStatus,
-            transcriptUri: ((_b = job.Transcript) === null || _b === void 0 ? void 0 : _b.TranscriptFileUri) || null,
+            transcriptUri: ((_a = job.Transcript) === null || _a === void 0 ? void 0 : _a.TranscriptFileUri) || null,
             failureReason: job.FailureReason || null,
         });
     }
@@ -252,25 +245,6 @@ router.get('/transcript/:jobName', async (req, res) => {
     catch (err) {
         console.error('Error fetching/converting transcript:', err);
         res.status(500).json({ error: 'Failed to fetch, convert, or save transcript' });
-    }
-});
-// Add this temporary debug route
-router.get('/debug/files', async (req, res) => {
-    try {
-        const uploadsPath = path.join(process.cwd(), 'uploads');
-        console.log('Checking uploads directory:', uploadsPath);
-        try {
-            const files = await fs.readdir(uploadsPath);
-            console.log('Files in uploads directory:', files);
-            res.json({ uploadsPath, files });
-        }
-        catch (err) {
-            console.log('Uploads directory does not exist or is not accessible');
-            res.json({ error: 'Uploads directory not found', uploadsPath });
-        }
-    }
-    catch (err) {
-        res.status(500).json({ error: 'Debug failed' });
     }
 });
 // Helper: Convert Amazon Transcribe JSON to SRT

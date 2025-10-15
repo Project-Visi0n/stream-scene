@@ -11,6 +11,7 @@ export interface Task {
   user_id: number;
   created_at: string; // ISO date string
   updated_at: string; // ISO date string
+  tags?: string[]; // Tags for organization and filtering
 }
 
 export interface TaskFormData {
@@ -20,6 +21,7 @@ export interface TaskFormData {
   task_type: 'creative' | 'admin';
   deadline: string;
   estimated_hours: number | '';
+  tags: string[]; // Tags for organization
 }
 
 export interface CreateTaskRequest {
@@ -29,6 +31,7 @@ export interface CreateTaskRequest {
   task_type: 'creative' | 'admin';
   deadline: string;
   estimated_hours?: number;
+  tags?: string[]; // Tags for organization
 }
 
 export interface UpdateTaskRequest extends Partial<CreateTaskRequest> {
@@ -40,6 +43,7 @@ export interface TaskFilters {
   priority?: 'all' | 'low' | 'medium' | 'high';
   task_type?: 'all' | 'creative' | 'admin';
   search?: string;
+  tags?: string[]; // Filter by tags
 }
 
 export interface TaskStats {

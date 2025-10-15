@@ -1,6 +1,8 @@
 // client/ContentScheduler/ContentScheduler.tsx
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { FaTag } from 'react-icons/fa';
+import TagInput from '../components/TagInput';
 
 // Custom SVG Icon Components
 const SchedulerIcon = () => (
@@ -138,6 +140,7 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
   // State management
   const [postContent, setPostContent] = useState<string>('');
   const [selectedFiles, setSelectedFiles] = useState<ProjectFile[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [scheduledDate, setScheduledDate] = useState<string>('');
   const [scheduledTime, setScheduledTime] = useState<string>('');
   const [showFileSelector, setShowFileSelector] = useState(false);
@@ -422,6 +425,23 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
               <span className={postContent.length > charLimit ? 'text-red-400' : 'text-gray-400'}>
                 {charLimit - postContent.length} remaining (Threads limit)
               </span>
+            </div>
+
+            {/* Tags */}
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-gray-300 mb-3">
+                <FaTag className="inline-block w-4 h-4 mr-2" />
+                Tags (Optional)
+              </label>
+              <TagInput
+                selectedTags={selectedTags}
+                onTagsChange={setSelectedTags}
+                placeholder="Add tags to organize your content..."
+                className="w-full"
+              />
+              <p className="text-xs text-gray-400 mt-2">
+                Tag your content for better organization and searchability
+              </p>
             </div>
           </div>
 

@@ -72,6 +72,69 @@ const FileUpload: React.FC = () => {
     }
   }, [uploadedFiles, selectedFile]);
 
+  // Window-level drag and drop functionality
+  useEffect(() => {
+    const handleWindowDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      if (e.dataTransfer?.types.includes('Files')) {
+        setIsDragging(true);
+      }
+    };
+
+    const handleWindowDragEnter = (e: DragEvent) => {
+      e.preventDefault();
+      if (e.dataTransfer?.types.includes('Files')) {
+        setIsDragging(true);
+      }
+    };
+
+    const handleWindowDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      // Only set dragging to false if we're leaving the window entirely
+      if (!e.relatedTarget || 
+          (e.relatedTarget as Element)?.nodeName === 'HTML' ||
+          !(document.body.contains(e.relatedTarget as Node))) {
+        setIsDragging(false);
+      }
+    };
+
+    const handleWindowDrop = (e: DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      if (e.dataTransfer?.files && user) {
+        handleFileSelect(e.dataTransfer.files);
+      }
+    };
+
+    // Prevent default drag behavior on document
+    const preventDefaults = (e: DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+
+    if (user) {
+      // Add event listeners to document for better coverage
+      document.addEventListener('dragover', handleWindowDragOver);
+      document.addEventListener('dragenter', handleWindowDragEnter);
+      document.addEventListener('dragleave', handleWindowDragLeave);
+      document.addEventListener('drop', handleWindowDrop);
+      
+      // Prevent default behavior
+      document.addEventListener('dragover', preventDefaults);
+      document.addEventListener('drop', preventDefaults);
+    }
+
+    // Cleanup event listeners
+    return () => {
+      document.removeEventListener('dragover', handleWindowDragOver);
+      document.removeEventListener('dragenter', handleWindowDragEnter);
+      document.removeEventListener('dragleave', handleWindowDragLeave);
+      document.removeEventListener('drop', handleWindowDrop);
+      document.removeEventListener('dragover', preventDefaults);
+      document.removeEventListener('drop', preventDefaults);
+    };
+  }, [user]); // Re-run when user changes
+
   const loadUserFiles = async (filterTags?: string[]) => {
     try {
       setLoading(true);
@@ -210,7 +273,7 @@ const FileUpload: React.FC = () => {
     });
   };
 
-  // S3 upload handler
+  // S3 upload handler with real progress tracking
   const handleS3Upload = async (file: File): Promise<{ url: string; s3Key?: string }> => {
     console.log('[FileUpload] handleS3Upload: Checking S3 config...');
     if (!isS3Configured()) {
@@ -225,31 +288,49 @@ const FileUpload: React.FC = () => {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('/api/s3/upload', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include' // Add this for session handling
-      });
-
-      console.log('[FileUpload] Upload response status:', response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[FileUpload] Upload failed:', response.status, errorText);
+      // Use XMLHttpRequest for progress tracking
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
         
-        try {
-          const errorJson = JSON.parse(errorText);
-          throw new Error(errorJson.error || `Upload failed: ${response.status}`);
-        } catch {
-          throw new Error(`Upload failed: ${response.status} ${errorText}`);
-        }
-      }
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 90; // Reserve 10% for processing
+            setUploadProgress(Math.round(percentComplete));
+            console.log(`Upload progress: ${percentComplete.toFixed(1)}%`);
+          }
+        });
 
-      const data = await response.json();
-      console.log('[FileUpload] Upload successful:', data);
-      
-      // Use the backend's returned URL and key (which will be .mp4 if converted)
-      return { url: data.url, s3Key: data.key };
+        xhr.addEventListener('load', async () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              setUploadProgress(95); // Almost done, processing...
+              const data = JSON.parse(xhr.responseText);
+              console.log('[FileUpload] Upload successful:', data);
+              setUploadProgress(100); // Complete
+              resolve({ url: data.url, s3Key: data.key });
+            } catch (parseError) {
+              reject(new Error('Failed to parse upload response'));
+            }
+          } else {
+            try {
+              const errorData = JSON.parse(xhr.responseText);
+              reject(new Error(errorData.error || `Upload failed: ${xhr.status}`));
+            } catch {
+              reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
+            }
+          }
+        });
+
+        xhr.addEventListener('error', () => {
+          reject(new Error('Upload failed due to network error'));
+        });
+
+        xhr.open('POST', '/api/s3/upload');
+        xhr.setRequestHeader('Accept', 'application/json');
+        xhr.withCredentials = true; // For session handling
+        xhr.send(formData);
+      });
       
     } catch (s3Error) {
       console.error('[FileUpload] S3 upload failed:', s3Error);
@@ -520,6 +601,26 @@ const FileUpload: React.FC = () => {
 
   return (
     <div className="w-full max-w-4xl mx-auto p-6 space-y-6">
+      {/* Full Window Drag Overlay */}
+      {isDragging && user && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 bg-purple-900/30 backdrop-blur-sm flex items-center justify-center pointer-events-none"
+        >
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-slate-800/90 border-2 border-dashed border-purple-400 rounded-2xl p-12 text-center"
+          >
+            <div className="text-6xl mb-4">📁</div>
+            <h3 className="text-2xl font-bold text-purple-300 mb-2">Drop files anywhere</h3>
+            <p className="text-gray-300">Release to upload your files</p>
+          </motion.div>
+        </motion.div>
+      )}
+
       {/* Authentication Check */}
       {!user && (
         <motion.div
@@ -542,8 +643,8 @@ const FileUpload: React.FC = () => {
         />
       )}
 
-      {/* Upload Area - Only show if user is logged in */}
-      {user && !loading && (
+      {/* Upload Area - Show prominently when no files, compact when files exist */}
+      {user && !loading && uploadedFiles.length === 0 && (
         <motion.div
           className={`border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 backdrop-blur-sm ${
             isDragging 
@@ -712,17 +813,17 @@ const FileUpload: React.FC = () => {
       </motion.div>
       )}
 
-      {/* Uploaded Files Display */}
+      {/* New Layout: Preview First, Upload Second, Carousel Third */}
       {user && !loading && uploadedFiles.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           className="space-y-6"
         >
+          {/* Tag Filter Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <h3 className="text-xl font-semibold text-white">Uploaded Files ({uploadedFiles.length})</h3>
+            <h3 className="text-xl font-semibold text-white">Your Files ({uploadedFiles.length})</h3>
             
-            {/* Tag Filter */}
             {availableTags.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 <span className="text-sm text-gray-400">Filter by tags:</span>
@@ -766,39 +867,112 @@ const FileUpload: React.FC = () => {
             )}
           </div>
           
-          {/* Carousel + Preview Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* File Carousel */}
-            <div className="lg:col-span-1">
-              <FileCarousel
-                files={uploadedFiles}
-                selectedFile={selectedFile}
-                onFileSelect={(file) => {
-                  setSelectedFile(file);
-                }}
-                onFileShare={handleShareFile}
-                onFileDelete={(file) => removeFile(file.id)}
-              />
+          {/* 1. File Preview - Most Prominent */}
+          <div className="w-full">
+            <FilePreview 
+              file={selectedFile}
+              className="min-h-[500px]"
+              onFileUpdated={updateFileInState}
+            />
+          </div>
+
+          {/* 2. Horizontal Upload Section - Middle */}
+          <motion.div
+            className={`bg-slate-800/30 rounded-lg border-2 border-dashed p-4 transition-colors ${
+              isDragging ? 'border-purple-400 bg-purple-900/20' : 'border-gray-600'
+            }`}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-4 text-center sm:text-left">
+                <div className="text-purple-400 flex-shrink-0">
+                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                </div>
+                <div className="min-w-0">
+                  <div className="text-lg font-medium text-white">Add More Files</div>
+                  <div className="text-sm text-gray-400">Drag & drop anywhere or click to upload</div>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  onChange={(e) => handleFileSelect(e.target.files)}
+                  className="hidden"
+                  accept="*/*"
+                />
+                <motion.button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isUploading}
+                  whileHover={!isUploading ? { scale: 1.05 } : {}}
+                  whileTap={!isUploading ? { scale: 0.95 } : {}}
+                >
+                  {isUploading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Select Files
+                    </>
+                  )}
+                </motion.button>
+              </div>
             </div>
             
-            {/* File Preview */}
-            <div className="lg:col-span-2">
-              <FilePreview 
-                file={selectedFile}
-                className="min-h-[400px]"
-                onFileUpdated={updateFileInState}
-              />
-            </div>
+            {/* Upload Progress */}
+            {isUploading && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-gray-300">Uploading...</span>
+                  <span className="text-purple-400">{uploadProgress}%</span>
+                </div>
+                <div className="w-full bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${uploadProgress}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </motion.div>
+
+          {/* 3. Horizontal File Carousel - Bottom */}
+          <div className="w-full">
+            <FileCarousel
+              files={uploadedFiles}
+              selectedFile={selectedFile}
+              onFileSelect={(file) => {
+                setSelectedFile(file);
+              }}
+              onFileShare={handleShareFile}
+              onFileDelete={(file) => removeFile(file.id)}
+              className="horizontal-carousel"
+            />
           </div>
         </motion.div>
       )}
 
       {/* Share Modal */}
-      {selectedFileForShare && (
+      {selectedFileForShare && selectedFileForShare.fileRecordId && (
         <ShareModal
           isOpen={shareModalOpen}
           onClose={handleCloseShareModal}
-          fileId={selectedFileForShare.fileRecordId!}
+          fileId={selectedFileForShare.fileRecordId}
           fileName={selectedFileForShare.name}
           onShareCreated={handleShareCreated}
         />

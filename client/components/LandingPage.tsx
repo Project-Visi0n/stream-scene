@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { FaRobot } from 'react-icons/fa';
 import FilmReelLogo from './FilmReelLogo';
 import useAuth from '../hooks/useAuth';
+import GoogleLoginButton from './GoogleLoginButton';
 
 type CurrentView = 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'content-scheduler';
 
@@ -19,11 +21,7 @@ interface Feature {
 }
 
 // SVG Icon Components
-const AIIcon = () => (
-  <svg className="w-8 h-8 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-  </svg>
-);
+const AIIcon = () => <FaRobot className="w-8 h-8 text-purple-400" />;
 
 const BudgetIcon = () => (
   <svg className="w-8 h-8 text-green-400" fill="currentColor" viewBox="0 0 24 24">
@@ -248,6 +246,28 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
       <div className="absolute top-2/5 left-1/12 w-5 h-5 bg-pink-500 rounded-full animate-pulse" style={{animationDelay: '1.6s', animationDuration: '0.9s'}}></div>
       <div className="absolute top-3/5 right-1/12 w-3 h-3 bg-purple-400 rounded-full animate-pulse" style={{animationDelay: '2.4s', animationDuration: '1.5s'}}></div>
 
+      {/* Logout Button - Top Right */}
+      {user && (
+        <div className="absolute top-4 right-4 z-20">
+          <button
+            onClick={async () => {
+              try {
+                await fetch('/auth/logout', {
+                  method: 'POST',
+                  credentials: 'include'
+                });
+                window.location.reload(); // Refresh to update auth state
+              } catch (error) {
+                console.error('Logout failed:', error);
+              }
+            }}
+            className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl"
+          >
+            Logout
+          </button>
+        </div>
+      )}
+
       {/* Main Content */}
       <main className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 sm:px-0 pt-24 sm:pt-32">
         {/* Hero Section */}
@@ -274,24 +294,10 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
               <p className="text-sm sm:text-base text-gray-400 max-w-2xl px-4 mx-auto">
                 Sign in with Google to get started
               </p>
-              {/* Large Google Login Button */}
-              <button
-                onClick={() => {
-                  const loginUrl = `${window.location.origin}/auth/google`;
-                  
-                  window.location.href = loginUrl;
-                }}
-                className="flex items-center justify-center px-8 py-4 bg-white hover:bg-gray-50 text-gray-800 font-medium rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-gray-300 text-lg"
-                type="button"
-              >
-                <svg className="w-6 h-6 mr-3" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-                Sign In with Google
-              </button>
+              {/* Single Google Login Button */}
+              <div className="flex justify-center">
+                <GoogleLoginButton />
+              </div>
             </div>
           ) : (
             <div className="mb-8">

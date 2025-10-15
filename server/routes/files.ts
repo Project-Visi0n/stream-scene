@@ -104,7 +104,9 @@ router.post('/upload', requireAuth, async (req: Request, res: Response) => {
     const { name, originalName, type, size, s3Key, url, tags } = req.body;
 
     if (!name || !type || !size || !url) {
-      return res.status(400).json({ error: 'Missing required file information' });
+      return res.status(400).json({ 
+        error: 'Missing required file information'
+      });
     }
 
     // Process tags - ensure they're lowercase and unique
