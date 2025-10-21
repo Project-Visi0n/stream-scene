@@ -5,9 +5,9 @@ const router = express.Router();
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const model = genAI.getGenerativeModel({ 
+const model = genAI.getGenerativeModel({
   model: 'gemini-pro',
-  generationConfig: { 
+  generationConfig: {
     temperature: 0.7,
     topP: 0.8,
     topK: 40,

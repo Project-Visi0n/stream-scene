@@ -22,26 +22,26 @@ const optionalAuth = (req: Request, res: Response, next: express.NextFunction) =
 // Create a new canvas
 router.post('/', optionalAuth, async (req: Request, res: Response) => {
   try {
-    const { 
-      title, 
-      description, 
-      isPublic = false, 
+    const {
+      title,
+      description,
+      isPublic = false,
       allowAnonymousEdit = false,
-      maxCollaborators = 10 
+      maxCollaborators = 10
     } = req.body;
-    
+
     if (!title || title.trim().length === 0) {
       return res.status(400).json({ error: 'Canvas title is required' });
     }
-    
+
     const user = (req as any).user;
     if (!user) {
       return res.status(401).json({ error: 'Authentication required to create canvas' });
     }
-    
+
     // Generate a unique share token
     const shareToken = `canvas_${Date.now()}_${Math.random().toString(36).substr(2, 12)}`;
-    
+
     const canvas = await Canvas.create({
       name: title.trim(),
       description: description?.trim() || null,
@@ -56,7 +56,7 @@ router.post('/', optionalAuth, async (req: Request, res: Response) => {
       height: 600,
       backgroundColor: '#ffffff'
     });
-    
+
     // Add the creator as a collaborator with admin permissions
     await CanvasCollaborator.create({
       canvasId: canvas.id,
@@ -64,7 +64,7 @@ router.post('/', optionalAuth, async (req: Request, res: Response) => {
       permission: 'admin',
       joinedAt: new Date()
     });
-    
+
     // Fetch the created canvas with owner info
     const createdCanvas = await Canvas.findByPk(canvas.id, {
       include: [
