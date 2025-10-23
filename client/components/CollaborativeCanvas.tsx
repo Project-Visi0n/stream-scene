@@ -204,7 +204,6 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
         });
 
         socketInstance.on('connect', () => {
-          console.log('🔌 WebSocket connected successfully to:', serverUrl);
           setIsConnected(true);
           setSocket(socketInstance);
           
@@ -220,27 +219,24 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
           socketInstance?.emit('join-canvas', canvasId);
         });
 
-        socketInstance.on('disconnect', (reason) => {
-          console.log('❌ WebSocket disconnected:', reason);
+        socketInstance.on('disconnect', () => {
           setIsConnected(false);
         });
 
-        socketInstance.on('connect_error', (error) => {
-          console.error('❌ WebSocket connection error:', error);
+        socketInstance.on('connect_error', () => {
           setIsConnected(false);
         });
 
-        socketInstance.on('reconnect_attempt', (attemptNumber) => {
-          console.log(`🔄 WebSocket reconnection attempt ${attemptNumber}`);
+        socketInstance.on('reconnect_attempt', () => {
+          // Reconnection attempt in progress
         });
 
-        socketInstance.on('reconnect', (attemptNumber) => {
-          console.log(`✅ WebSocket reconnected after ${attemptNumber} attempts`);
+        socketInstance.on('reconnect', () => {
           setIsConnected(true);
         });
 
-        socketInstance.on('reconnect_error', (error) => {
-          console.error('❌ WebSocket reconnection error:', error);
+        socketInstance.on('reconnect_error', () => {
+          // Reconnection failed
         });
 
         socketInstance.on('canvas-update', (updateData: any) => {
@@ -343,7 +339,7 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
         });
 
       } catch (error) {
-        console.warn('WebSocket initialization failed:', error);
+
       }
     }
 
@@ -620,7 +616,7 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
         expiresAt
       });
     } catch (error) {
-      console.error('Failed to generate share link:', error);
+
     }
   }, [canvasId]);
 
@@ -649,7 +645,7 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
         collaborators: ''
       });
     } catch (error) {
-      console.error('Failed to schedule session:', error);
+
     }
   }, [sessionForm, canvasId]);
 
@@ -751,7 +747,7 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
 
   // Load all saved drawings from localStorage and database
   const loadAllDrawings = useCallback(async () => {
-    console.log('Loading all drawings...');
+
     const localDrawings: SavedDrawing[] = [];
     const dbDrawings: SavedDrawing[] = [];
 
@@ -761,22 +757,22 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
       try {
         const parsed = JSON.parse(saved);
         localDrawings.push(...parsed);
-        console.log('Loaded from localStorage:', parsed.length, 'drawings');
+
       } catch (error) {
-        console.warn('Failed to parse local canvas drawings:', error);
+
       }
     }
 
     // Load from database if user is logged in
     if (user) {
       try {
-        console.log('Fetching drawings from database...');
+
         const response = await fetch('/api/files?type=image/png', {
           credentials: 'include'
         });
         if (response.ok) {
           const filesResponse = await response.json();
-          console.log('Database files response:', filesResponse);
+
           
           // Handle both array and object responses
           const files = Array.isArray(filesResponse) ? filesResponse : (filesResponse.files || []);
@@ -793,7 +789,7 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
               file.type === 'image/png' || 
               (file.name && file.name.toLowerCase().endsWith('.png'))
             );
-            console.log('Fallback: All PNG files:', pngFiles.length);
+
             
             // Use PNG files as canvas files for now
             for (const file of pngFiles) {
@@ -806,9 +802,9 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
                   fileRecordId: file.id,
                   isLocal: false
                 });
-                console.log('Loaded from database (fallback):', file.name, 'URL:', file.url);
+
               } catch (error) {
-                console.warn(`Failed to load canvas drawing ${file.name}:`, error);
+
               }
             }
           } else {
@@ -823,17 +819,17 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
                   fileRecordId: file.id,
                   isLocal: false
                 });
-                console.log('Loaded from database:', file.name, 'URL:', file.url);
+
               } catch (error) {
-                console.warn(`Failed to load canvas drawing ${file.name}:`, error);
+
               }
             }
           }
         } else {
-          console.error('Failed to fetch drawings from database:', response.statusText);
+
         }
       } catch (error) {
-        console.warn('Failed to load canvas drawings from database:', error);
+
       }
     }
 
@@ -841,7 +837,7 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
     const allDrawings = [...localDrawings, ...dbDrawings]
       .sort((a, b) => b.timestamp - a.timestamp);
     
-    console.log('Total drawings loaded:', allDrawings.length);
+
     setSavedDrawings(allDrawings);
   }, [user, setSavedDrawings]);
 
@@ -910,7 +906,7 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
               tags: ['canvas', 'drawing'],
             };
 
-            console.log('Sending file data to database:', fileData);
+
 
             const fileResponse = await fetch('/api/files/upload', {
               method: 'POST',
@@ -929,7 +925,7 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
               newDrawing.isLocal = false;
               newDrawing.id = `db-${savedFile.id}`;
               
-              console.log('Canvas drawing saved to database:', savedFile);
+
             } else {
               throw new Error('Failed to create file record');
             }
@@ -937,7 +933,7 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
             throw new Error('S3 upload failed');
           }
         } catch (dbError) {
-          console.warn('Failed to save to database, keeping local copy:', dbError);
+
           // Keep the local version even if database save failed
         }
       }
@@ -960,7 +956,7 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
       // Clear success message after 3 seconds
       setTimeout(() => setSaveSuccess(null), 3000);
     } catch (error) {
-      console.error('Failed to save drawing:', error);
+
       setSaveError('Failed to save drawing. Please try again.');
     } finally {
       setIsSaving(false);
@@ -1013,14 +1009,14 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
         setTimeout(() => setLoadSuccess(null), 3000);
       };
       img.onerror = (error) => {
-        console.error('Image load error for:', drawing.name, error);
+
         setLoadError('Failed to load image data. The drawing may be corrupted.');
         setIsLoading(false);
       };
       
       img.src = imageData;
     } catch (error) {
-      console.error('Failed to load drawing:', error);
+
       setLoadError('Failed to load drawing. Please try again.');
       setIsLoading(false);
     }
@@ -1034,7 +1030,7 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
     localStorage.setItem('canvas-drawings', JSON.stringify(updatedDrawings));
     
     if (drawingToDelete) {
-      console.log(`"${drawingToDelete.name}" deleted`);
+
     }
   }, [savedDrawings, setSavedDrawings]);
 
@@ -1049,9 +1045,9 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
       link.download = `canvas-drawing-${Date.now()}.png`;
       link.href = imageData;
       link.click();
-      console.log('Image exported successfully!');
+
     } catch (error) {
-      console.error('Failed to export image:', error);
+
     } finally {
       setIsExporting(false);
     }

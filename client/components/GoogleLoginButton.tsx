@@ -28,11 +28,11 @@ const GoogleLoginButton: React.FC = () => {
         window.location.href = '/';
       } else {
         const errorData = await response.json();
-        console.error('Demo login failed:', errorData.error);
+
         alert('Demo login failed: ' + errorData.error);
       }
     } catch (error) {
-      console.error('Demo login error:', error);
+
       alert('Demo login failed');
     }
   };
@@ -51,10 +51,10 @@ const GoogleLoginButton: React.FC = () => {
         // Refresh the page to clear any cached state
         window.location.href = '/';
       } else {
-        console.error('Logout failed');
+
       }
     } catch (error) {
-      console.error('Logout error:', error);
+
       // Force redirect anyway
       window.location.href = '/';
     }

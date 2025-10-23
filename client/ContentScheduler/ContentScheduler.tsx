@@ -177,7 +177,7 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
       ];
       setProjectFiles(mockFiles);
     } catch (error) {
-      console.error('Error loading project files:', error);
+
       toast.error('Failed to load project files');
     } finally {
       setLoadingFiles(false);
@@ -193,7 +193,7 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
         setThreadsAccountId('threads_12345');
       }
     } catch (error) {
-      console.error('Error checking Threads auth:', error);
+
       setThreadsConnected(false);
     }
   };
@@ -207,7 +207,7 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
       setThreadsAccountId('threads_12345');
       toast.success('Successfully connected to Threads!');
     } catch (error) {
-      console.error('Error connecting to Threads:', error);
+
       toast.error('Failed to connect to Threads');
     }
   };
@@ -218,7 +218,7 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
       setThreadsAccountId(undefined);
       toast.success('Disconnected from Threads');
     } catch (error) {
-      console.error('Error disconnecting from Threads:', error);
+
       toast.error('Failed to disconnect from Threads');
     }
   };
@@ -255,7 +255,7 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
       setPostContent('');
       setSelectedFiles([]);
     } catch (error) {
-      console.error('Error posting to Threads:', error);
+
       toast.error('Failed to post to Threads');
     }
   };
@@ -299,7 +299,7 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
       setScheduledDate('');
       setScheduledTime('');
     } catch (error) {
-      console.error('Error scheduling post:', error);
+
       toast.error('Failed to schedule post');
     }
   };
@@ -310,7 +310,7 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
       await new Promise(resolve => setTimeout(resolve, 1500));
       toast.success('Threads connection is working!');
     } catch (error) {
-      console.error('Error testing Threads:', error);
+
       toast.error('Threads connection test failed');
     }
   };

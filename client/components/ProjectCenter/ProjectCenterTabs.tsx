@@ -28,7 +28,7 @@ const ProjectCenterTabs: React.FC = () => {
 
   const handleCollaboratorChange = (collaboratorId: string, action: string) => {
     // Handle collaborator changes in the main canvas
-    console.log(`Collaborator ${collaboratorId} ${action} the canvas`);
+
   };
 
   const tabs: Tab[] = [

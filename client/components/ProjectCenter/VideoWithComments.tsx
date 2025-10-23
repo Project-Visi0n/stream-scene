@@ -98,7 +98,7 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
         setComments(timestampedComments);
       }
     } catch (error) {
-      console.error('Failed to load comments:', error);
+
     }
   }, [file.fileRecordId]);
 
@@ -126,10 +126,10 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
         setNewComment('');
         await loadComments(); // Reload comments
       } else {
-        console.error('Failed to submit comment');
+
       }
     } catch (error) {
-      console.error('Error submitting comment:', error);
+
     } finally {
       setIsSubmittingComment(false);
     }
@@ -150,13 +150,7 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
       setVideoLoading(false);
       setVideoError(false);
       
-      console.log('Video metadata loaded:', {
-        duration: video.duration,
-        readyState: video.readyState,
-        videoWidth: video.videoWidth,
-        videoHeight: video.videoHeight,
-        src: video.src
-      });
+      // Video metadata loaded successfully
       
       loadComments(); // Load comments when video metadata is ready
     }
@@ -164,7 +158,7 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
 
   // Handle video error with fallback attempt
   const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
-    console.error('Video error:', e);
+
     const videoElement = e.currentTarget;
     const error = videoElement.error;
     const currentSrc = videoElement.src;
@@ -193,7 +187,7 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
     
     // Try fallback URL if we haven't already and it's different
     if (currentSrc === primaryUrl && fallbackUrl !== primaryUrl) {
-      console.log('Trying fallback video URL:', fallbackUrl);
+
       videoElement.src = fallbackUrl;
       videoElement.load();
       return; // Don't show error yet, give fallback a chance
@@ -202,14 +196,7 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
     setVideoError(true);
     setVideoLoading(false);
     setErrorMessage(message);
-    console.error('Video error details:', { 
-      code: error?.code, 
-      message: error?.message,
-      primaryUrl,
-      fallbackUrl,
-      currentSrc,
-      fileType: file.type
-    });
+    // Video error occurred - details available in console
   };
 
   // Handle video loading start
@@ -233,7 +220,7 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
         videoRef.current.currentTime = newTime;
         setCurrentTime(newTime);
       } else {
-        console.warn('Video not ready for seeking. ReadyState:', videoRef.current.readyState);
+
         // Try again after a short delay
         setTimeout(() => {
           if (videoRef.current && videoRef.current.readyState >= 2) {
@@ -243,7 +230,7 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
         }, 100);
       }
     } catch (seekError) {
-      console.error('Error seeking video:', seekError);
+
       // Don't crash the app, just log the error
     }
   };
@@ -269,7 +256,7 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
         videoRef.current.currentTime = timestamp;
         setCurrentTime(timestamp);
       } else {
-        console.warn('Video not ready for seeking to comment timestamp:', timestamp);
+
         // Wait for video to be ready
         const handleCanSeek = () => {
           if (videoRef.current) {
@@ -281,7 +268,7 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
         videoRef.current.addEventListener('canplay', handleCanSeek);
       }
     } catch (seekError) {
-      console.error('Error jumping to comment timestamp:', seekError);
+
     }
   };
 
@@ -569,7 +556,7 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
                   <ClosedCaptionButton 
                     fileId={file.fileRecordId} 
                     onCaptionReady={(captionUrl) => {
-                      console.log('🎬 Caption ready callback triggered:', { fileId: file.id, captionUrl });
+
                       if (onFileUpdated) {
                         onFileUpdated(file.id, { captionUrl });
                       }
