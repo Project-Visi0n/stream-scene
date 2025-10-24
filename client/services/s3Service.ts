@@ -16,15 +16,15 @@ export const isS3Configured = async (): Promise<boolean> => {
     });
     
     if (!response.ok) {
-      console.warn('[S3Service] Server S3 status check failed:', response.status);
+
       return false;
     }
     
     const data = await response.json();
-    console.log('[S3Service] Server S3 configuration check:', data);
+
     return data.configured || false;
   } catch (error) {
-    console.error('[S3Service] Failed to check S3 configuration:', error);
+
     return false;
   }
 };
@@ -34,7 +34,7 @@ export const isS3Configured = async (): Promise<boolean> => {
  * This is the ONLY way files should be uploaded - through the server
  */
 export const uploadFileToS3 = async (file: File): Promise<S3UploadResult> => {
-  console.log('[S3Service] Starting secure server-side upload for:', file.name);
+
 
   try {
     // Create form data for multipart upload
@@ -50,19 +50,19 @@ export const uploadFileToS3 = async (file: File): Promise<S3UploadResult> => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[S3Service] Server upload failed:', response.status, errorText);
+
       throw new Error(`Upload failed: ${response.status} ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('[S3Service] Upload successful:', result);
+
     
     return {
       url: result.url,
       key: result.key
     };
   } catch (error) {
-    console.error('[S3Service] Upload error:', error);
+
     throw new Error('Failed to upload file to S3');
   }
 };
@@ -80,7 +80,7 @@ export const getFileUrl = (key: string): string => {
  * Delete a file from S3 via server endpoint
  */
 export const deleteFileFromS3 = async (key: string): Promise<void> => {
-  console.log('[S3Service] Deleting file:', key);
+
 
   try {
     const response = await fetch(`/api/s3/delete/${encodeURIComponent(key)}`, {
@@ -90,13 +90,13 @@ export const deleteFileFromS3 = async (key: string): Promise<void> => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[S3Service] Delete failed:', response.status, errorText);
+
       throw new Error(`Delete failed: ${response.status} ${errorText}`);
     }
 
-    console.log('[S3Service] File deleted successfully');
+
   } catch (error) {
-    console.error('[S3Service] Delete error:', error);
+
     throw new Error('Failed to delete file from S3');
   }
 };
@@ -106,7 +106,7 @@ export const deleteFileFromS3 = async (key: string): Promise<void> => {
  * This allows large file uploads while maintaining security
  */
 export const getPresignedUploadUrl = async (fileName: string, fileType: string, fileSize?: number): Promise<string> => {
-  console.log('[S3Service] Requesting presigned URL for:', fileName);
+
 
   try {
     const response = await fetch('/api/s3/presigned-upload', {
@@ -124,16 +124,16 @@ export const getPresignedUploadUrl = async (fileName: string, fileType: string, 
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[S3Service] Presigned URL request failed:', response.status, errorText);
+
       throw new Error(`Failed to get upload URL: ${response.status} ${errorText}`);
     }
 
     const result = await response.json();
-    console.log('[S3Service] Presigned URL received');
+
     
     return result.presignedUrl;
   } catch (error) {
-    console.error('[S3Service] Presigned URL error:', error);
+
     throw new Error('Failed to get upload URL');
   }
 };
@@ -142,7 +142,7 @@ export const getPresignedUploadUrl = async (fileName: string, fileType: string, 
  * Upload file using presigned URL (for large files)
  */
 export const uploadWithPresignedUrl = async (file: File): Promise<S3UploadResult> => {
-  console.log('[S3Service] Starting presigned URL upload for:', file.name);
+
 
   try {
     // First get the presigned URL from server
@@ -158,7 +158,7 @@ export const uploadWithPresignedUrl = async (file: File): Promise<S3UploadResult
     });
 
     if (!uploadResponse.ok) {
-      console.error('[S3Service] Presigned upload failed:', uploadResponse.status);
+
       throw new Error(`Upload failed: ${uploadResponse.status}`);
     }
 
@@ -167,14 +167,14 @@ export const uploadWithPresignedUrl = async (file: File): Promise<S3UploadResult
     const key = url.pathname.substring(1); // Remove leading '/'
     const fileUrl = getFileUrl(key);
 
-    console.log('[S3Service] Presigned upload successful');
+
     
     return {
       url: fileUrl,
       key: key
     };
   } catch (error) {
-    console.error('[S3Service] Presigned upload error:', error);
+
     throw new Error('Failed to upload file with presigned URL');
   }
 };
@@ -183,7 +183,7 @@ export const uploadWithPresignedUrl = async (file: File): Promise<S3UploadResult
  * Upload receipt file with expense metadata
  */
 export const uploadReceipt = async (file: File, expenseId?: string): Promise<S3UploadResult> => {
-  console.log('[S3Service] Uploading receipt:', file.name);
+
 
   try {
     const formData = new FormData();
@@ -205,14 +205,14 @@ export const uploadReceipt = async (file: File, expenseId?: string): Promise<S3U
     }
 
     const result = await response.json();
-    console.log('[S3Service] Receipt uploaded successfully:', result);
+
     
     return {
       url: result.url,
       key: result.key
     };
   } catch (error) {
-    console.error('[S3Service] Receipt upload error:', error);
+
     throw new Error('Failed to upload receipt');
   }
 };

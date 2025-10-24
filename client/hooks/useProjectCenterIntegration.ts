@@ -46,7 +46,7 @@ export const useProjectCenterIntegration = (): ProjectCenterIntegrationHook => {
       setFiles(transformedFiles);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load files');
-      console.error('Error loading files:', err);
+
     } finally {
       setLoading(false);
     }
@@ -106,7 +106,7 @@ export const useProjectCenterIntegration = (): ProjectCenterIntegrationHook => {
       // For other files, return thumbnail or null
       return file.thumbnailUrl || null;
     } catch (error) {
-      console.error('Error getting file preview:', error);
+
       return null;
     }
   }, [files]);

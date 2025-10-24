@@ -222,18 +222,48 @@ app.use('/api/caption', captionRouter);
 const publicPath = __dirname.includes('dist/server')
   ? path.join(__dirname, '../../public') 
   : path.join(__dirname, '../public');
-    
-app.use(express.static(publicPath));
+
+console.log(`📁 Static files served from: ${publicPath}`);
+console.log(`📁 Static directory exists: ${fs.existsSync(publicPath)}`);
+
+// Add request logging middleware for debugging
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    if (req.path.endsWith('.js') || req.path.endsWith('.css')) {
+      console.log(`🔍 Static file request: ${req.method} ${req.path}`);
+    }
+    next();
+  });
+}
+
+// Configure static file serving with proper options
+app.use(express.static(publicPath, {
+  // Set proper MIME types
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.js')) {
+      res.set('Content-Type', 'application/javascript');
+    }
+  },
+  // Add cache control for production
+  maxAge: process.env.NODE_ENV === 'production' ? '1d' : 0
+}));
 
 // API test route
 app.get('/test-server', (req, res) => {
   res.json({ message: 'Server is working!' });
 });
 
-// Catch-all: serve frontend app unless it's an API route
+// Catch-all: serve frontend app unless it's an API route or static file
 app.get('*', (req, res) => {
+  // Skip catch-all for API routes
   if (req.path.startsWith('/api/') || req.path.startsWith('/auth/') || req.path.startsWith('/social/')) {
     return res.status(404).json({ error: 'Route not found' });
+  }
+  
+  // Skip catch-all for static files (let express.static handle them or return 404)
+  const staticFileExtensions = ['.js', '.css', '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.woff', '.woff2', '.ttf', '.eot', '.map'];
+  if (staticFileExtensions.some(ext => req.path.endsWith(ext))) {
+    return res.status(404).send('File not found');
   }
   
   const indexPath = __dirname.includes('dist/server')

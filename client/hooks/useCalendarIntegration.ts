@@ -44,7 +44,7 @@ export const useCalendarIntegration = (): CalendarIntegrationHook => {
       await updateAIWeeklyPlanner(calendarEvent);
       
     } catch (error) {
-      console.error('Error adding post to calendar:', error);
+
       throw error;
     } finally {
       setIsLoading(false);
@@ -67,7 +67,7 @@ export const useCalendarIntegration = (): CalendarIntegrationHook => {
       await removeFromAIWeeklyPlanner(eventId);
       
     } catch (error) {
-      console.error('Error removing post from calendar:', error);
+
       throw error;
     } finally {
       setIsLoading(false);
@@ -84,7 +84,7 @@ export const useCalendarIntegration = (): CalendarIntegrationHook => {
 
       return await response.json();
     } catch (error) {
-      console.error('Error fetching calendar events:', error);
+
       return [];
     }
   }, []);
@@ -109,7 +109,7 @@ export const useCalendarIntegration = (): CalendarIntegrationHook => {
       await updateAIWeeklyPlannerEvent(eventId, updates);
       
     } catch (error) {
-      console.error('Error updating calendar event:', error);
+
       throw error;
     } finally {
       setIsLoading(false);
@@ -137,7 +137,7 @@ export const useCalendarIntegration = (): CalendarIntegrationHook => {
         })
       });
     } catch (error) {
-      console.error('Error updating AI Weekly Planner:', error);
+
     }
   };
 
@@ -147,7 +147,7 @@ export const useCalendarIntegration = (): CalendarIntegrationHook => {
         method: 'DELETE'
       });
     } catch (error) {
-      console.error('Error removing from AI Weekly Planner:', error);
+
     }
   };
 
@@ -161,7 +161,7 @@ export const useCalendarIntegration = (): CalendarIntegrationHook => {
         body: JSON.stringify(updates)
       });
     } catch (error) {
-      console.error('Error updating AI Weekly Planner event:', error);
+
     }
   };
 

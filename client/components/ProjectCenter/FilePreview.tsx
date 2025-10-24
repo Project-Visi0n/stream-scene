@@ -81,7 +81,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '', onFileU
               className="max-w-full max-h-96 rounded-lg shadow-lg object-contain"
               crossOrigin="anonymous"
               onError={() => setImageError(true)}
-              onLoad={() => console.log('Image loaded successfully:', file.name)}
+              onLoad={() => {}}
             />
           ) : (
             <div className="bg-red-900/20 border border-red-500/30 text-red-200 px-4 py-8 text-center rounded-lg">
@@ -131,7 +131,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ file, className = '', onFileU
                 src={previewUrl}
                 className="w-full h-64 bg-white rounded border-none"
                 title={file.name}
-                onError={() => console.error('Text preview error for:', file.name)}
+                onError={() => {}}
               />
             )}
           </div>

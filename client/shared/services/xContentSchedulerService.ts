@@ -90,7 +90,7 @@ class XContentSchedulerService {
 
       return await response.json();
     } catch (error) {
-      console.error(`API request failed: ${url}`, error);
+
       throw error;
     }
   }

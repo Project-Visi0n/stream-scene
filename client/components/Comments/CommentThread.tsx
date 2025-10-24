@@ -118,7 +118,7 @@ export const CommentThread: React.FC<CommentThreadProps> = ({
             
             {timestamp && (
               <button
-                onClick={() => currentTime !== undefined && console.log('Jump to', comment.timestampSeconds)}
+                onClick={() => currentTime !== undefined && undefined}
                 className="text-xs text-blue-600 hover:text-blue-800 font-mono bg-blue-50 px-2 py-0.5 rounded"
                 title="Jump to this time"
               >

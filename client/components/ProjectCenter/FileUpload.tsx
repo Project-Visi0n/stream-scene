@@ -155,9 +155,9 @@ const FileUpload: React.FC = () => {
       }));
       
       setUploadedFiles(files);
-      console.log('Loaded user files:', files);
+
     } catch (error) {
-      console.error('Failed to load user files:', error);
+
       setError('Failed to load your files. Please refresh the page.');
     } finally {
       setLoading(false);
@@ -166,13 +166,13 @@ const FileUpload: React.FC = () => {
 
   // Update specific file in state (for real-time caption updates)
   const updateFileInState = (fileId: string, updates: Partial<UploadedFile>) => {
-    console.log('🔄 updateFileInState called:', { fileId, updates });
+
     
     setUploadedFiles(prevFiles => {
       const updatedFiles = prevFiles.map(file => 
         file.id === fileId ? { ...file, ...updates } : file
       );
-      console.log('📁 Updated uploadedFiles:', updatedFiles.find(f => f.id === fileId));
+
       return updatedFiles;
     });
     
@@ -180,21 +180,21 @@ const FileUpload: React.FC = () => {
     if (selectedFile && selectedFile.id === fileId) {
       setSelectedFile(prevFile => {
         const updated = prevFile ? { ...prevFile, ...updates } : null;
-        console.log('🎯 Updated selectedFile:', updated);
+
         return updated;
       });
     }
     
-    console.log('✅ File state update completed for:', fileId);
+
   };
 
   const loadUserTags = async () => {
     try {
       const tags = await fileService.getUserTags();
       setAvailableTags(tags);
-      console.log('Loaded user tags:', tags);
+
     } catch (error) {
-      console.error('Failed to load user tags:', error);
+
     }
   };
 
@@ -238,7 +238,7 @@ const FileUpload: React.FC = () => {
 
     try {
       const tags = currentFileTags[file.id] || file.tags || [];
-      console.log('Saving tags for file:', file.name, 'Tags:', tags);
+
       
       // Send tags as array to backend
       await fileService.updateFile(file.fileRecordId, { tags });
@@ -258,9 +258,9 @@ const FileUpload: React.FC = () => {
       await loadUserTags();
       await loadUserFiles(); // Refresh to get updated tags from DB
       
-      console.log('Tags saved successfully for file:', file.name);
+
     } catch (error) {
-      console.error('Failed to save tags:', error);
+
       setError('Failed to save tags. Please try again.');
     }
   };
@@ -275,15 +275,15 @@ const FileUpload: React.FC = () => {
 
   // S3 upload handler with real progress tracking
   const handleS3Upload = async (file: File): Promise<{ url: string; s3Key?: string }> => {
-    console.log('[FileUpload] handleS3Upload: Checking S3 config...');
+
     if (!isS3Configured()) {
       setError('AWS S3 not configured. Files are stored locally for preview only.');
-      console.warn('[FileUpload] S3 not configured');
+
       return { url: URL.createObjectURL(file) };
     }
 
     try {
-      console.log('[FileUpload] handleS3Upload: Uploading file:', file.name);
+
       
       const formData = new FormData();
       formData.append('file', file);
@@ -297,7 +297,7 @@ const FileUpload: React.FC = () => {
           if (e.lengthComputable) {
             const percentComplete = (e.loaded / e.total) * 90; // Reserve 10% for processing
             setUploadProgress(Math.round(percentComplete));
-            console.log(`Upload progress: ${percentComplete.toFixed(1)}%`);
+
           }
         });
 
@@ -306,7 +306,7 @@ const FileUpload: React.FC = () => {
             try {
               setUploadProgress(95); // Almost done, processing...
               const data = JSON.parse(xhr.responseText);
-              console.log('[FileUpload] Upload successful:', data);
+
               setUploadProgress(100); // Complete
               resolve({ url: data.url, s3Key: data.key });
             } catch (parseError) {
@@ -333,7 +333,7 @@ const FileUpload: React.FC = () => {
       });
       
     } catch (s3Error) {
-      console.error('[FileUpload] S3 upload failed:', s3Error);
+
       setError(`S3 upload failed: ${s3Error instanceof Error ? s3Error.message : 'Unknown error'}`);
       return { url: URL.createObjectURL(file) };
     }
@@ -350,11 +350,11 @@ const FileUpload: React.FC = () => {
     setUploadProgress(0);
 
     try {
-      console.log(`Starting upload for file: ${file.name} Type: ${file.type} Size: ${file.size}`);
+
       
       // Upload to S3
       const { url, s3Key } = await handleS3Upload(file);
-      console.log(`Upload completed. Preview URL: ${url} S3Key: ${s3Key}`);
+
       
       // Create a display name based on whether file was converted
       const displayName = s3Key?.endsWith('.mp4') && !file.name.endsWith('.mp4') 
@@ -387,7 +387,7 @@ const FileUpload: React.FC = () => {
       }
 
       const savedFile = await fileResponse.json();
-      console.log('File record created:', savedFile);
+
 
       // Update local state with database record
       const newFile: UploadedFile = {
@@ -402,7 +402,7 @@ const FileUpload: React.FC = () => {
         fileRecordId: savedFile.id,
       };
 
-      console.log('Adding file to state:', newFile);
+
       setUploadedFiles(prev => [...prev, newFile]);
       setUploadProgress(100);
       
@@ -410,7 +410,7 @@ const FileUpload: React.FC = () => {
       loadUserFiles();
       
     } catch (error) {
-      console.error('Upload error:', error);
+
       setError(error instanceof Error ? error.message : 'Upload failed');
     } finally {
       setIsUploading(false);
@@ -454,7 +454,7 @@ const FileUpload: React.FC = () => {
       try {
         await deleteFileFromS3(s3Key);
       } catch (err) {
-        console.error('Failed to delete from S3:', err);
+
       }
     }
   };
@@ -479,9 +479,9 @@ const FileUpload: React.FC = () => {
       // Clean up S3 if needed
       await cleanupS3(fileToRemove.s3Key);
       
-      console.log('File removed successfully:', fileToRemove.name);
+
     } catch (error) {
-      console.error('Failed to remove file:', error);
+
       // Re-add the file to the list if deletion failed
       setUploadedFiles(prev => [...prev, fileToRemove]);
       setError('Failed to delete file. Please try again.');
@@ -499,7 +499,7 @@ const FileUpload: React.FC = () => {
   };
 
   const handleShareCreated = (share: ShareRecord) => {
-    console.log('Share created:', share);
+
     // Could show a success message or update UI state here
   };
 
@@ -532,12 +532,12 @@ const FileUpload: React.FC = () => {
 
         const newTags = [...currentTags, tag];
         
-        console.log('Auto-saving tag:', tag, 'for file:', file.name);
+
         
         // Save immediately to backend using the PUT route
         const response = await fileService.updateFile(file.fileRecordId, { tags: newTags });
         
-        console.log('Backend response:', response);
+
         
         // Update local state with the response from backend
         setUploadedFiles(prev => prev.map(f => 
@@ -557,9 +557,9 @@ const FileUpload: React.FC = () => {
         // Clear input
         input.value = '';
         
-        console.log('Tag saved successfully:', tag);
+
       } catch (error) {
-        console.error('Failed to save tag:', error);
+
         setError('Failed to save tag. Please try again.');
       }
     }
@@ -574,7 +574,7 @@ const FileUpload: React.FC = () => {
       const currentTags = file.tags || [];
       const newTags = currentTags.filter(tag => tag !== tagToRemove);
       
-      console.log('Removing tag:', tagToRemove, 'from file:', file.name);
+
       
       // Update backend using existing fileService
       const response = await fileService.updateFile(file.fileRecordId, { tags: newTags });
@@ -592,9 +592,9 @@ const FileUpload: React.FC = () => {
 
       await loadUserTags(); // Refresh available tags
       
-      console.log('Tag removed successfully:', tagToRemove);
+
     } catch (error) {
-      console.error('Failed to remove tag:', error);
+
       setError('Failed to remove tag. Please try again.');
     }
   };
