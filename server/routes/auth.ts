@@ -90,16 +90,97 @@ router.post('/demo-login', async (req: Request, res: Response) => {
         console.error('Demo login error:', err);
         return res.status(500).json({ error: 'Demo login failed' });
       }
-      
-      console.log('Demo login successful for:', demoUser.email);
-      res.json({ 
-        message: 'Demo login successful',
-        user: {
-          id: demoUser.id,
-          email: demoUser.email,
-          name: demoUser.name
+
+      // Always reset demo tasks on demo-login to ensure consistent demo experience
+      (async () => {
+        try {
+          const { Task } = await import('../models/Task.js');
+
+          // Always remove existing demo user's tasks and insert a fresh, minimal set
+          await Task.destroy({ where: { user_id: demoUser.id } });
+
+          const now = Date.now();
+          const days = (n: number) => new Date(now + n * 24 * 60 * 60 * 1000);
+
+          const demoTasks = [
+            {
+              title: 'Welcome to StreamScene',
+              description: 'Explore the collaborative features and get started with your first project!',
+              priority: 'medium',
+              task_type: 'admin',
+              status: 'pending',
+              deadline: days(7),
+              estimated_hours: 2,
+              user_id: demoUser.id,
+            },
+            {
+              title: 'Tech Review Script',
+              description: 'Write script for iPhone 16 review video',
+              priority: 'high',
+              task_type: 'creative',
+              status: 'in_progress',
+              deadline: days(0),
+              estimated_hours: 4,
+              user_id: demoUser.id,
+            },
+            {
+              title: 'Thumbnail Design',
+              description: 'Create eye-catching thumbnail for review video',
+              priority: 'medium',
+              task_type: 'creative',
+              status: 'pending',
+              deadline: days(1),
+              estimated_hours: 2,
+              user_id: demoUser.id,
+            },
+            {
+              title: 'Brand Partnership Meeting',
+              description: 'Video call with Sony about camera gear sponsorship',
+              priority: 'high',
+              task_type: 'admin',
+              status: 'pending',
+              deadline: days(3),
+              estimated_hours: 1,
+              user_id: demoUser.id,
+            },
+            {
+              title: 'Content Calendar Planning',
+              description: 'Plan next month content strategy',
+              priority: 'medium',
+              task_type: 'admin',
+              status: 'pending',
+              deadline: days(7),
+              estimated_hours: 3,
+              user_id: demoUser.id,
+            },
+            {
+              title: 'SEO Optimization',
+              description: 'Optimized video titles and descriptions',
+              priority: 'medium',
+              task_type: 'admin',
+              status: 'completed',
+              deadline: days(-3),
+              estimated_hours: 2,
+              user_id: demoUser.id,
+            },
+          ];
+
+          await Task.bulkCreate(demoTasks as any);
+        } catch (taskTrimErr) {
+          console.error('Demo task reset failed:', taskTrimErr);
+          // Proceed with login even if task reset fails
+        } finally {
+          console.log('Demo login successful for:', demoUser.email);
+          res.json({ 
+            message: 'Demo login successful',
+            user: {
+              id: demoUser.id,
+              email: demoUser.email,
+              name: demoUser.name
+            }
+          });
         }
-      });
+      })();
     });
   } catch (error) {
     console.error('Demo login error:', error);
