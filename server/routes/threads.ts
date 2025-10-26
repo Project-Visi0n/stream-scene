@@ -1,6 +1,9 @@
 // server/routes/threads.ts
 import express from 'express';
 import { ThreadsService } from '../services/ThreadsService.js';
+import { requireAuth } from '../middleware/authMiddleWare.js';
+
+const router = express.Router();
 
 // Initiate Threads OAuth
 router.get('/auth', (req, res) => {
@@ -10,8 +13,11 @@ router.get('/auth', (req, res) => {
   if (!threadsClientId) {
     return res.status(500).json({ error: 'Threads Client ID not configured' });
   }
-  next();
-};
+  
+  // Redirect to Threads OAuth
+  const authUrl = `https://threads.net/oauth/authorize?client_id=${threadsClientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=threads_basic,threads_content_publish&response_type=code`;
+  res.redirect(authUrl);
+});
 
 // Initialize Threads service with config from env
 const getThreadsService = (accessToken?: string, userId?: string) => {
