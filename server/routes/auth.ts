@@ -1,14 +1,18 @@
 import express, { Request, Response, NextFunction } from 'express';
 import passport from 'passport';
+import crypto from 'crypto';
 
 const router = express.Router();
 
-// Test route
+const THREADS_CLIENT_ID = process.env.THREADS_CLIENT_ID;
+const THREADS_CLIENT_SECRET = process.env.THREADS_CLIENT_SECRET;
+const BASE_URL = process.env.BASE_URL || 'https://streamscene.net';
+const THREADS_REDIRECT_URI = `${BASE_URL}/auth/threads/callback`;
+
 router.get('/test', (req: Request, res: Response) => {
   res.json({ message: 'Auth routes are working!' });
 });
 
-// Add debug middleware to see ALL requests
 router.use((req: Request, res: Response, next: NextFunction) => {
   console.log(`[AUTH] ${req.method} ${req.path}`, {
     query: req.query,
@@ -18,7 +22,6 @@ router.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-// Initiate Google OAuth
 router.get(
   '/google',
   (req: Request, res: Response, next: NextFunction) => {
@@ -27,29 +30,23 @@ router.get(
     console.log('Protocol:', req.protocol);
     console.log('Original URL:', req.originalUrl);
     console.log('Full URL:', `${req.protocol}://${req.get('host')}${req.originalUrl}`);
-    // Remove these sensitive logs in production:
-    // console.log('Client ID:', process.env.GOOGLE_CLIENT_ID?.substring(0, 10) + '...');
-    // console.log('Callback URL:', process.env.GOOGLE_CALLBACK_URL);
     console.log('OAuth initiation started...');
     next();
   },
   passport.authenticate('google', { scope: ['profile', 'email'] })
 );
 
-// Google OAuth callback - Enhanced debugging
 router.get(
   '/google/callback',
   (req: Request, res: Response, next: NextFunction) => {
     console.log('=== Google Callback Started ===');
     console.log('Query params:', req.query);
     
-    // Check for OAuth errors from Google
     if (req.query.error) {
       console.error('Google returned error:', req.query.error);
       return res.redirect(`/?error=${req.query.error}`);
     }
     
-    // Check for authorization code
     if (!req.query.code) {
       console.error('No authorization code in callback');
       return res.redirect('/?error=no_code');
@@ -75,7 +72,6 @@ router.get(
         return res.redirect('/?error=no_user');
       }
       
-      // Log the user in
       req.logIn(user, (loginErr) => {
         if (loginErr) {
           console.error('Login error:', loginErr);
@@ -84,7 +80,6 @@ router.get(
         
         console.log('Login successful, saving session...');
         
-        // Explicitly save session
         req.session.save((saveErr) => {
           if (saveErr) {
             console.error('Session save error:', saveErr);
@@ -101,7 +96,201 @@ router.get(
   }
 );
 
-// Get current authenticated user
+router.get('/threads', (req: Request, res: Response) => {
+  console.log('=== Threads OAuth Debug ===');
+  console.log('Current user:', req.user ? 'Logged in' : 'Not logged in');
+  console.log('Initiating Threads connection...');
+  
+  if (!THREADS_CLIENT_ID) {
+    console.error('THREADS_CLIENT_ID not configured');
+    return res.redirect('/?error=threads_not_configured');
+  }
+  
+  // Generate a random state parameter for CSRF protection
+  const state = crypto.randomBytes(32).toString('hex');
+  
+  // Store the state in the session to verify later
+  req.session.threadsOAuthState = state;
+  
+  const scopes = [
+    'threads_basic',
+    'threads_content_publish',
+    'threads_manage_insights',
+    'threads_manage_replies',
+    'threads_read_replies'
+  ].join(',');
+
+  // FIXED: Changed from threads.net to threads.com
+  const authUrl = `https://www.threads.com/oauth/authorize?` +
+    `client_id=${THREADS_CLIENT_ID}` +
+    `&redirect_uri=${encodeURIComponent(THREADS_REDIRECT_URI)}` +
+    `&scope=${encodeURIComponent(scopes)}` +
+    `&response_type=code` +
+    `&state=${state}`;
+
+  console.log('Redirecting to Threads OAuth with state:', state);
+  console.log('Auth URL:', authUrl);
+  res.redirect(authUrl);
+});
+
+router.get('/threads/callback', async (req: Request, res: Response) => {
+  console.log('=== Threads Callback Started ===');
+  console.log('Query params:', req.query);
+  console.log('Current user:', req.user ? 'Logged in' : 'Not logged in');
+  
+  const { code, error, state } = req.query;
+
+  if (error) {
+    console.error('Threads returned error:', error);
+    return res.redirect(`/?error=threads_${error}`);
+  }
+
+  // Verify state parameter
+  if (!state || state !== req.session.threadsOAuthState) {
+    console.error('State parameter mismatch or missing');
+    console.log('Expected state:', req.session.threadsOAuthState);
+    console.log('Received state:', state);
+    return res.redirect('/?error=threads_invalid_state');
+  }
+
+  // Clear the state from session after verification
+  delete req.session.threadsOAuthState;
+
+  if (!code || typeof code !== 'string') {
+    console.error('No authorization code in callback');
+    return res.redirect('/?error=threads_no_code');
+  }
+
+  if (!THREADS_CLIENT_ID || !THREADS_CLIENT_SECRET) {
+    console.error('Threads OAuth not configured properly');
+    return res.redirect('/?error=threads_config_error');
+  }
+
+  try {
+    console.log('Exchanging authorization code for access token...');
+    
+    const tokenResponse = await fetch('https://graph.threads.net/oauth/access_token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: new URLSearchParams({
+        client_id: THREADS_CLIENT_ID,
+        client_secret: THREADS_CLIENT_SECRET,
+        grant_type: 'authorization_code',
+        redirect_uri: THREADS_REDIRECT_URI,
+        code: code
+      })
+    });
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('Token exchange failed:', tokenResponse.status, errorText);
+      throw new Error(`Token exchange failed: ${tokenResponse.status}`);
+    }
+
+    const tokenData = await tokenResponse.json() as any;
+    const { access_token, user_id } = tokenData;
+    
+    console.log('Token received:', { 
+      hasToken: !!access_token, 
+      userId: user_id 
+    });
+
+    if (!access_token || !user_id) {
+      throw new Error('Missing access_token or user_id from Threads API');
+    }
+
+    console.log('Fetching Threads user profile...');
+    
+    const profileUrl = new URL(`https://graph.threads.net/v1.0/${user_id}`);
+    profileUrl.searchParams.append('fields', 'id,username,name,threads_profile_picture_url');
+    profileUrl.searchParams.append('access_token', access_token);
+    
+    const profileResponse = await fetch(profileUrl.toString());
+
+    if (!profileResponse.ok) {
+      const errorText = await profileResponse.text();
+      console.error('Profile fetch failed:', profileResponse.status, errorText);
+      throw new Error(`Profile fetch failed: ${profileResponse.status}`);
+    }
+
+    const userProfile = await profileResponse.json() as any;
+    console.log('Threads profile received:', {
+      id: userProfile.id,
+      username: userProfile.username,
+      name: userProfile.name
+    });
+
+    req.session.threadsAuth = {
+      platform: 'threads',
+      userId: userProfile.id,
+      username: userProfile.username,
+      name: userProfile.name,
+      profilePicture: userProfile.threads_profile_picture_url,
+      accessToken: access_token,
+      connectedAt: new Date().toISOString()
+    };
+
+    console.log('Threads auth stored in session, linked to user:', req.user);
+
+    req.session.save((saveErr) => {
+      if (saveErr) {
+        console.error('Session save error:', saveErr);
+        return res.redirect('/?error=threads_session_failed');
+      }
+      
+      console.log('Threads connection successful, redirecting...');
+      const redirectUrl = process.env.CLIENT_URL || `https://${req.get('host')}`;
+      res.redirect(`${redirectUrl}?threads_connected=true`);
+    });
+
+  } catch (error) {
+    console.error('Threads OAuth error:', error);
+    console.error('Error details:', error instanceof Error ? error.message : 'Unknown error');
+    
+    res.redirect('/?error=threads_auth_failed');
+  }
+});
+
+router.get('/threads/status', (req: Request, res: Response) => {
+  console.log('=== Threads Status Check ===');
+  console.log('Session ID:', req.sessionID);
+  console.log('Has Threads auth:', !!req.session?.threadsAuth);
+  
+  if (req.session?.threadsAuth) {
+    res.json({
+      connected: true,
+      username: req.session.threadsAuth.username,
+      userId: req.session.threadsAuth.userId,
+      connectedAt: req.session.threadsAuth.connectedAt
+    });
+  } else {
+    res.json({
+      connected: false
+    });
+  }
+});
+
+router.post('/threads/disconnect', (req: Request, res: Response) => {
+  console.log('=== Disconnecting Threads ===');
+  console.log('User:', req.user);
+  
+  if (req.session?.threadsAuth) {
+    delete req.session.threadsAuth;
+    req.session.save((err) => {
+      if (err) {
+        console.error('Failed to save session after disconnect:', err);
+        return res.status(500).json({ error: 'Failed to disconnect Threads' });
+      }
+      console.log('Threads disconnected successfully');
+      res.json({ success: true });
+    });
+  } else {
+    res.json({ success: true, message: 'Threads was not connected' });
+  }
+});
+
 router.get('/user', (req: Request, res: Response) => {
   console.log('=== AUTH CHECK DEBUG ===');
   console.log('Session ID:', req.sessionID);
@@ -112,7 +301,6 @@ router.get('/user', (req: Request, res: Response) => {
   
   let userData = null;
   if (req.user) {
-    // Cast to User type to access getters
     const user = req.user as any;
     userData = {
       id: user.id,
@@ -122,24 +310,33 @@ router.get('/user', (req: Request, res: Response) => {
       lastName: user.lastName || user.name?.split(' ').slice(1).join(' ') || '',
       google_id: user.google_id,
       created_at: user.created_at,
-      updated_at: user.updated_at
+      updated_at: user.updated_at,
+      threadsConnected: !!req.session?.threadsAuth,
+      threadsUsername: req.session?.threadsAuth?.username || null
     };
   }
 
   const responseData = {
     authenticated: !!req.user,
     user: userData,
+    threadsAuth: req.session?.threadsAuth ? {
+      connected: true,
+      username: req.session.threadsAuth.username,
+      userId: req.session.threadsAuth.userId
+    } : {
+      connected: false
+    },
     debug: {
       sessionId: req.sessionID,
       hasSession: !!req.session,
-      hasUser: !!req.user
+      hasUser: !!req.user,
+      hasThreads: !!req.session?.threadsAuth
     }
   };
   
   res.json(responseData);
 });
 
-// Logout endpoint
 router.post('/logout', (req: Request, res: Response) => {
   console.log('=== Logout Debug ===');
   console.log('User before logout:', req.user);
@@ -157,6 +354,7 @@ router.post('/logout', (req: Request, res: Response) => {
       }
       
       res.clearCookie('connect.sid');
+      res.clearCookie('streamscene.sid');
       console.log('Logout successful');
       res.json({ message: 'Logged out successfully' });
     });
