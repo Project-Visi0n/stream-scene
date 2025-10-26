@@ -38,7 +38,7 @@ const SharedFileViewer: React.FC = () => {
       const data = await shareService.accessSharedFile(token);
       setFileData(data);
     } catch (error) {
-      console.error('Failed to load shared file:', error);
+
       setError(error instanceof Error ? error.message : 'Failed to load shared file');
     } finally {
       setLoading(false);

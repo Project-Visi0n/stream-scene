@@ -46,7 +46,7 @@ export const fileService = {
       const data = await response.json();
       return data.files || [];
     } catch (error) {
-      console.error('Error fetching files:', error);
+
       throw error;
     }
   },
@@ -70,7 +70,7 @@ export const fileService = {
       const data = await response.json();
       return data.file;
     } catch (error) {
-      console.error('Error creating file record:', error);
+
       throw error;
     }
   },
@@ -89,7 +89,7 @@ export const fileService = {
       const data = await response.json();
       return data.file;
     } catch (error) {
-      console.error('Error fetching file:', error);
+
       throw error;
     }
   },
@@ -106,7 +106,7 @@ export const fileService = {
         throw new Error(`Failed to delete file: ${response.statusText}`);
       }
     } catch (error) {
-      console.error('Error deleting file:', error);
+
       throw error;
     }
   },
@@ -114,7 +114,7 @@ export const fileService = {
   // Update file metadata
   async updateFile(id: number, updates: Partial<FileRecord>): Promise<FileRecord> {
     try {
-      console.log('Updating file:', id, 'with data:', updates);
+
       
       const response = await fetch(`${API_BASE}/${id}`, {
         method: 'PUT',
@@ -127,15 +127,15 @@ export const fileService = {
 
       if (!response.ok) {
         const errorData = await response.text();
-        console.error('Update failed:', response.status, errorData);
+
         throw new Error(`Failed to update file: ${response.statusText}`);
       }
 
       const result = await response.json();
-      console.log('Update response:', result);
+
       return result;
     } catch (error) {
-      console.error('Error in updateFile:', error);
+
       throw new Error(`Failed to update file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   },
@@ -154,7 +154,7 @@ export const fileService = {
       const data = await response.json();
       return data.tags || [];
     } catch (error) {
-      console.error('Error fetching tags:', error);
+
       throw error;
     }
   }
@@ -163,7 +163,7 @@ export const fileService = {
 // File upload and handling service
 export const uploadFile = async (file: File): Promise<{ file: FileRecord; preview?: string }> => {
   try {
-    console.log('Starting upload for file:', file.name, 'Type:', file.type, 'Size:', file.size);
+
 
     // For video files, use the conversion-enabled upload
     if (file.type.startsWith('video/')) {
@@ -172,13 +172,13 @@ export const uploadFile = async (file: File): Promise<{ file: FileRecord; previe
       return await handleRegularUpload(file);
     }
   } catch (error) {
-    console.error('Upload failed:', error);
+
     throw error;
   }
 };
 
 const handleVideoUpload = async (file: File): Promise<{ file: FileRecord; preview?: string }> => {
-  console.log('[VideoUpload] Starting video processing for:', file.name);
+
   
   // Your S3 upload route already handles conversion!
   const uploadResult = await uploadToS3(file);
@@ -187,7 +187,7 @@ const handleVideoUpload = async (file: File): Promise<{ file: FileRecord; previe
     throw new Error('Video upload to S3 failed');
   }
 
-  console.log('[VideoUpload] Upload successful. Converted:', uploadResult.converted);
+
 
   // Create file record in database with S3 URL (already converted if needed)
   const fileRecord = await createFileRecord({
@@ -200,7 +200,7 @@ const handleVideoUpload = async (file: File): Promise<{ file: FileRecord; previe
     tags: []
   });
 
-  console.log('[VideoUpload] File record created:', fileRecord.id);
+
 
   return {
     file: fileRecord,
@@ -257,7 +257,7 @@ const uploadToS3 = async (file: File): Promise<{ success: boolean; url?: string;
       converted: result.converted || false
     };
   } catch (error) {
-    console.error('S3 upload error:', error);
+
     return { success: false };
   }
 };

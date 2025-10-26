@@ -17,8 +17,8 @@ import Comment from '../models/Comment.js';
 import CommentReaction from '../models/CommentReaction.js';
 import Canvas from '../models/Canvas.js';
 import CanvasCollaborator from '../models/CanvasCollaborator.js';
-import BudgetProject from '../models/BudgetProject.js';
 import BudgetEntry from '../models/BudgetEntry.js';
+import BudgetProject from '../models/BudgetProject.js';
 
 // Initialize models
 const File = initFileModel(sequelizeInstance);

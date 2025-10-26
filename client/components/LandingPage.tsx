@@ -258,7 +258,7 @@ const StreamSceneLandingPage: React.FC<LandingPageProps> = ({ onNavigate }) => {
                 });
                 window.location.reload(); // Refresh to update auth state
               } catch (error) {
-                console.error('Logout failed:', error);
+
               }
             }}
             className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-medium rounded-lg transition-colors duration-200 shadow-lg hover:shadow-xl"

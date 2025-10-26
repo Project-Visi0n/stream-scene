@@ -211,14 +211,14 @@ const AIWeeklyPlanner: React.FC = () => {
           // Wrapped in data property
           tasksData = responseData.data;
         } else {
-          console.error('Unexpected response format:', responseData);
+
           tasksData = [];
         }
 
         // Validate and sanitize task data
         const validTasks = tasksData.filter((task: any) => {
           if (!task || typeof task !== 'object') {
-            console.warn('Invalid task object:', task);
+
             return false;
           }
           
@@ -235,14 +235,14 @@ const AIWeeklyPlanner: React.FC = () => {
           return true;
         });
         
-        console.log('Validated tasks:', validTasks.length, 'of', tasksData.length);
+
         setTasks(validTasks);
       } else {
-        console.error('Failed to load tasks');
+
         setTasks([]); // Fallback to empty array on error
       }
     } catch (error) {
-      console.error('Error loading tasks:', error);
+
       setTasks([]); // Fallback to empty array on error
     } finally {
       setIsLoadingTasks(false);
@@ -299,7 +299,7 @@ const AIWeeklyPlanner: React.FC = () => {
         showNotification('error', `Failed to create task: ${error.message || error.error}`);
       }
     } catch (error) {
-      console.error('Error creating task:', error);
+
       showNotification('error', 'Failed to create task. Please check your connection and try again.');
     } finally {
       setIsCreatingTask(false);
@@ -330,7 +330,7 @@ const AIWeeklyPlanner: React.FC = () => {
         showNotification('error', `Failed to delete task: ${error.message || error.error}`);
       }
     } catch (error) {
-      console.error('Error deleting task:', error);
+
       showNotification('error', 'Failed to delete task. Please try again.');
     } finally {
       setIsDeleting(false);
@@ -456,7 +456,7 @@ const AIWeeklyPlanner: React.FC = () => {
         showNotification('error', `Failed to generate schedule: ${error.message || error.error}`);
       }
     } catch (error) {
-      console.error('Error generating schedule:', error);
+
       showNotification('error', 'Failed to generate schedule. Please try again.');
     } finally {
       setIsGeneratingSchedule(false);
@@ -486,14 +486,14 @@ const AIWeeklyPlanner: React.FC = () => {
 
       if (response.ok) {
         const suggestions = await response.json();
-        console.log('AI suggestions received:', suggestions);
+
         setAiSuggestions(suggestions || []);
       } else {
-        console.log('AI API failed, using local suggestions');
+
         generateLocalSuggestions();
       }
     } catch (error) {
-      console.error('Error calling AI API, using local suggestions:', error);
+
       generateLocalSuggestions();
     } finally {
       setIsGeneratingSuggestions(false);
@@ -550,7 +550,7 @@ const AIWeeklyPlanner: React.FC = () => {
       });
     }
 
-    console.log('Generated local suggestions:', suggestions);
+
     setAiSuggestions(suggestions.slice(0, 6));
   };
 
@@ -611,10 +611,10 @@ const AIWeeklyPlanner: React.FC = () => {
       } else {
         const error = await response.json();
         showNotification('error', `Failed to create task: ${error.message || error.error}`);
-        console.error('Task creation failed:', error);
+
       }
     } catch (error) {
-      console.error('Failed to add task from suggestion:', error);
+
       showNotification('error', 'Failed to create task. Please check your connection and try again.');
     }
   };

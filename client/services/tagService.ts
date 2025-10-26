@@ -69,7 +69,7 @@ class TagService {
       
       return tags;
     } catch (error) {
-      console.error('Error fetching file tags:', error);
+
       return [];
     }
   }
@@ -97,7 +97,7 @@ class TagService {
       
       return allTags;
     } catch (error) {
-      console.error('Error fetching all tags:', error);
+
       return [];
     }
   }

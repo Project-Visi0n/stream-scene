@@ -56,7 +56,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
       });
       window.location.reload(); // Refresh to update auth state
     } catch (error) {
-      console.error('Logout failed:', error);
+
     }
   };
 

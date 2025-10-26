@@ -87,7 +87,7 @@ const EnhancedAudioPlayer: React.FC<EnhancedAudioPlayerProps> = ({
       wavesurfer.on('ready', () => {
         setIsLoading(false);
         setDuration(formatTime(wavesurfer.getDuration()));
-        console.log('Audio waveform loaded for:', file.name);
+
       });
 
       wavesurfer.on('play', () => {
@@ -107,13 +107,13 @@ const EnhancedAudioPlayer: React.FC<EnhancedAudioPlayerProps> = ({
       });
 
       wavesurfer.on('error', (error) => {
-        console.error('WaveSurfer error:', error);
+
         setError('Failed to load audio file');
         setIsLoading(false);
       });
 
     } catch (err) {
-      console.error('Failed to create WaveSurfer instance:', err);
+
       setError('Failed to initialize audio player');
       setIsLoading(false);
     }

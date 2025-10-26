@@ -81,7 +81,7 @@ const WaveformWithComments: React.FC<WaveformWithCommentsProps> = ({
         setComments(timestampedComments);
       }
     } catch (error) {
-      console.error('Failed to load comments:', error);
+
     }
   }, [file.fileRecordId]);
 
@@ -108,10 +108,10 @@ const WaveformWithComments: React.FC<WaveformWithCommentsProps> = ({
         setShowCommentModal(false);
         await loadComments(); // Reload comments
       } else {
-        console.error('Failed to submit comment');
+
       }
     } catch (error) {
-      console.error('Error submitting comment:', error);
+
     } finally {
       setIsSubmittingComment(false);
     }
@@ -182,13 +182,13 @@ const WaveformWithComments: React.FC<WaveformWithCommentsProps> = ({
       });
 
       wavesurfer.on('error', (error) => {
-        console.error('WaveSurfer error:', error);
+
         setError('Failed to load audio file');
         setIsLoading(false);
       });
 
     } catch (err) {
-      console.error('Failed to create WaveSurfer instance:', err);
+
       setError('Failed to initialize audio player');
       setIsLoading(false);
     }
