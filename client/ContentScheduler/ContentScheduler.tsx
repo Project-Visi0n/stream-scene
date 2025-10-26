@@ -148,6 +148,7 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
 
   // Platform state (Threads only)
   const [threadsConnected, setThreadsConnected] = useState(false);
+  const [threadsUsername, setThreadsUsername] = useState<string | undefined>();
   const [threadsAccountId, setThreadsAccountId] = useState<string | undefined>();
 
   // Project files state
@@ -161,6 +162,17 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
   useEffect(() => {
     loadProjectFiles();
     checkThreadsAuth();
+  }, []);
+
+  // Check URL params for OAuth callback
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('threads_connected') === 'true') {
+      toast.success('Successfully connected to Threads!');
+      checkThreadsAuth();
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }, []);
 
   const loadProjectFiles = async () => {
@@ -184,17 +196,32 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
     }
   };
 
+  // ✅ FIXED: Correct API endpoint
   const checkThreadsAuth = async () => {
     try {
-      // Mock authentication check
-      const isConnected = Math.random() > 0.5; // Random for demo
-      setThreadsConnected(isConnected);
-      if (isConnected) {
-        setThreadsAccountId('threads_12345');
+      const response = await fetch('/auth/threads/status', {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to check Threads status');
+      }
+      
+      const data = await response.json();
+      
+      setThreadsConnected(data.connected || false);
+      if (data.connected) {
+        setThreadsUsername(data.username);
+        setThreadsAccountId(data.userId);
+      } else {
+        setThreadsUsername(undefined);
+        setThreadsAccountId(undefined);
       }
     } catch (error) {
 
       setThreadsConnected(false);
+      setThreadsUsername(undefined);
+      setThreadsAccountId(undefined);
     }
   };
 
@@ -212,9 +239,20 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
     }
   };
 
+  // ✅ FIXED: Correct API endpoint
   const disconnectThreads = async () => {
     try {
+      const response = await fetch('/auth/threads/disconnect', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to disconnect');
+      }
+      
       setThreadsConnected(false);
+      setThreadsUsername(undefined);
       setThreadsAccountId(undefined);
       toast.success('Disconnected from Threads');
     } catch (error) {
@@ -247,8 +285,26 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
 
     try {
       toast.loading('Publishing to Threads...');
-      // Simulate posting
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const response = await fetch('/api/threads/post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          text: postContent,
+          imageUrls: selectedFiles
+            .filter(f => f.type.startsWith('image/'))
+            .map(f => f.url)
+            .filter(Boolean)
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to post to Threads');
+      }
+      
       toast.success('Successfully published to Threads!');
       
       // Reset form
@@ -307,8 +363,17 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
   const handleTestThreads = async () => {
     try {
       toast.loading('Testing Threads connection...');
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      toast.success('Threads connection is working!');
+      
+      const response = await fetch('/api/threads/test', {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Connection test failed');
+      }
+      
+      const data = await response.json();
+      toast.success(`Threads connection is working! Connected as: ${data.username || data.userId}`);
     } catch (error) {
 
       toast.error('Threads connection test failed');
@@ -394,7 +459,7 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
           <div className="flex items-center gap-3">
             <span className={`w-3 h-3 rounded-full ${threadsConnected ? 'bg-emerald-500' : 'bg-red-500'} shadow-lg ${threadsConnected ? 'shadow-emerald-500/50' : 'shadow-red-500/50'}`}></span>
             <span className="text-sm text-gray-300">
-              {threadsConnected ? 'Connected to Threads' : 'Not connected to Threads'}
+              {threadsConnected ? `Connected to Threads${threadsUsername ? ` as @${threadsUsername}` : ''}` : 'Not connected to Threads'}
             </span>
             {threadsConnected && threadsAccountId && (
               <span className="text-xs bg-gradient-to-r from-purple-600 to-blue-600 text-white px-2 py-1 rounded-full">
@@ -642,7 +707,7 @@ const ContentScheduler: React.FC<ContentSchedulerProps> = ({
                     </h3>
                     <p className="text-sm text-gray-400 mt-1">
                       {threadsConnected
-                        ? `Connected (Account ID: ${threadsAccountId})`
+                        ? `Connected${threadsUsername ? ` as @${threadsUsername}` : ''}`
                         : 'Connect to start posting to Threads'
                       }
                     </p>

@@ -1,16 +1,20 @@
 import express, { Request, Response, NextFunction } from 'express';
 import passport from 'passport';
+import crypto from 'crypto';
 
 const router = express.Router();
 
-// Test route
+const THREADS_CLIENT_ID = process.env.THREADS_CLIENT_ID;
+const THREADS_CLIENT_SECRET = process.env.THREADS_CLIENT_SECRET;
+const BASE_URL = process.env.BASE_URL || 'https://streamscene.net';
+const THREADS_REDIRECT_URI = `${BASE_URL}/auth/threads/callback`;
+
 router.get('/test', (req: Request, res: Response) => {
   res.json({ message: 'Auth routes are working!' });
 });
 
 
 
-// Initiate Google OAuth
 router.get(
   '/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
@@ -36,7 +40,6 @@ router.get(
         return res.redirect('/?error=no_user');
       }
       
-      // Log the user in
       req.logIn(user, (loginErr) => {
         if (loginErr) {
           console.error('Login error:', loginErr);
@@ -45,7 +48,6 @@ router.get(
         
         console.log('Login successful, saving session...');
         
-        // Explicitly save session
         req.session.save((saveErr) => {
           if (saveErr) {
             console.error('Session save error:', saveErr);
@@ -192,7 +194,6 @@ router.post('/demo-login', async (req: Request, res: Response) => {
 router.get('/user', (req: Request, res: Response) => {
   let userData = null;
   if (req.user) {
-    // Cast to User type to access getters
     const user = req.user as any;
     userData = {
       id: user.id,
@@ -202,24 +203,33 @@ router.get('/user', (req: Request, res: Response) => {
       lastName: user.lastName || user.name?.split(' ').slice(1).join(' ') || '',
       google_id: user.google_id,
       created_at: user.created_at,
-      updated_at: user.updated_at
+      updated_at: user.updated_at,
+      threadsConnected: !!req.session?.threadsAuth,
+      threadsUsername: req.session?.threadsAuth?.username || null
     };
   }
 
   const responseData = {
     authenticated: !!req.user,
     user: userData,
+    threadsAuth: req.session?.threadsAuth ? {
+      connected: true,
+      username: req.session.threadsAuth.username,
+      userId: req.session.threadsAuth.userId
+    } : {
+      connected: false
+    },
     debug: {
       sessionId: req.sessionID,
       hasSession: !!req.session,
-      hasUser: !!req.user
+      hasUser: !!req.user,
+      hasThreads: !!req.session?.threadsAuth
     }
   };
   
   res.json(responseData);
 });
 
-// Logout endpoint
 router.post('/logout', (req: Request, res: Response) => {
   req.logout((err) => {
     if (err) {
@@ -234,6 +244,7 @@ router.post('/logout', (req: Request, res: Response) => {
       }
       
       res.clearCookie('connect.sid');
+      res.clearCookie('streamscene.sid');
       console.log('Logout successful');
       res.json({ message: 'Logged out successfully' });
     });
