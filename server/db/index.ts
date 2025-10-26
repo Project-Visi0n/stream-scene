@@ -17,6 +17,8 @@ import Comment from '../models/Comment.js';
 import CommentReaction from '../models/CommentReaction.js';
 import Canvas from '../models/Canvas.js';
 import CanvasCollaborator from '../models/CanvasCollaborator.js';
+import BudgetProject from '../models/BudgetProject.js';
+import BudgetEntry from '../models/BudgetEntry.js';
 
 // Initialize models
 const File = initFileModel(sequelizeInstance);
@@ -76,7 +78,7 @@ export async function syncDB() {
       force: false,
       alter: false  // Disabled alter to avoid schema conflicts
     });
-    console.log('Database sync complete (File, SocialAccountToken, ScheduledPost, Task, Comment, CommentReaction, Canvas, CanvasCollaborator)');
+    console.log('Database sync complete (File, SocialAccountToken, ScheduledPost, Task, Comment, CommentReaction, Canvas, CanvasCollaborator, BudgetProject, BudgetEntry)');
   } catch (error) {
     console.error('Database sync failed:', error);
     // Continue without throwing to allow server to start
@@ -94,7 +96,9 @@ export {
   Comment,
   CommentReaction,
   Canvas,
-  CanvasCollaborator
+  CanvasCollaborator,
+  BudgetProject,
+  BudgetEntry
 };
 
 export const db = {
@@ -105,6 +109,8 @@ export const db = {
   ScheduledPost,
   User,
   Task,
+  BudgetProject,
+  BudgetEntry,
   associate,
 };
 

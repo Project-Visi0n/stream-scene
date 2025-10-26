@@ -166,12 +166,132 @@ router.post('/demo-login', async (req: Request, res: Response) => {
           ];
 
           await Task.bulkCreate(demoTasks as any);
+
+          // Reset budget data for consistent demo experience
+          const { default: BudgetProject } = await import('../models/BudgetProject.js');
+          const { default: BudgetEntry } = await import('../models/BudgetEntry.js');
+
+          // Clear existing budget data
+          await BudgetEntry.destroy({ where: { user_id: demoUser.id } });
+          await BudgetProject.destroy({ where: { user_id: demoUser.id } });
+
+          // Create demo budget projects
+          const demoProjects = [
+            {
+              user_id: demoUser.id,
+              name: 'YouTube Channel',
+              description: 'Main content creation expenses and revenue',
+              color: '#ff6b6b',
+              is_active: true,
+              tags: ['content', 'youtube', 'main']
+            },
+            {
+              user_id: demoUser.id,
+              name: 'Equipment Fund',
+              description: 'Camera gear and tech equipment purchases',
+              color: '#4ecdc4',
+              is_active: true,
+              tags: ['equipment', 'gear', 'investment']
+            },
+            {
+              user_id: demoUser.id,
+              name: 'Business Operations',
+              description: 'General business and operational expenses',
+              color: '#45b7d1',
+              is_active: true,
+              tags: ['business', 'operations', 'overhead']
+            }
+          ];
+
+          const createdProjects = await BudgetProject.bulkCreate(demoProjects);
+
+          // Create demo budget entries
+          const demoEntries = [
+            // Income entries
+            {
+              user_id: demoUser.id,
+              type: 'income',
+              amount: 2500.00,
+              category: 'YouTube Revenue',
+              description: 'Monthly AdSense revenue',
+              date: days(-5),
+              project_id: createdProjects[0].id,
+              tags: ['adsense', 'monthly', 'recurring']
+            },
+            {
+              user_id: demoUser.id,
+              type: 'income',
+              amount: 1800.00,
+              category: 'Sponsorship',
+              description: 'Brand partnership payment',
+              date: days(-10),
+              project_id: createdProjects[0].id,
+              tags: ['sponsorship', 'brand', 'partnership']
+            },
+            {
+              user_id: demoUser.id,
+              type: 'income',
+              amount: 350.00,
+              category: 'Merchandise',
+              description: 'T-shirt and sticker sales',
+              date: days(-15),
+              project_id: createdProjects[0].id,
+              tags: ['merchandise', 'merch', 'sales']
+            },
+            // Expense entries
+            {
+              user_id: demoUser.id,
+              type: 'expense',
+              amount: 1299.99,
+              category: 'Equipment',
+              description: 'Sony A7IV Camera Body',
+              date: days(-20),
+              project_id: createdProjects[1].id,
+              receipt_title: 'Sony A7IV Purchase',
+              ocr_scanned: true,
+              ocr_confidence: 0.95,
+              tags: ['camera', 'equipment', 'gear']
+            },
+            {
+              user_id: demoUser.id,
+              type: 'expense',
+              amount: 89.99,
+              category: 'Software',
+              description: 'Adobe Creative Suite subscription',
+              date: days(-1),
+              project_id: createdProjects[2].id,
+              tags: ['software', 'subscription', 'monthly']
+            },
+            {
+              user_id: demoUser.id,
+              type: 'expense',
+              amount: 45.50,
+              category: 'Office Supplies',
+              description: 'SD cards and batteries',
+              date: days(-7),
+              project_id: createdProjects[1].id,
+              tags: ['supplies', 'accessories', 'gear']
+            },
+            {
+              user_id: demoUser.id,
+              type: 'expense',
+              amount: 25.00,
+              category: 'Transportation',
+              description: 'Gas for location shooting',
+              date: days(-3),
+              project_id: createdProjects[0].id,
+              tags: ['gas', 'transportation', 'location']
+            }
+          ];
+
+          await BudgetEntry.bulkCreate(demoEntries as any);
+
         } catch (taskTrimErr) {
-          console.error('Demo task reset failed:', taskTrimErr);
-          // Proceed with login even if task reset fails
+          console.error('Demo data reset failed:', taskTrimErr);
+          // Proceed with login even if data reset fails
         } finally {
           console.log('Demo login successful for:', demoUser.email);
-          res.json({ 
+          res.json({
             message: 'Demo login successful',
             user: {
               id: demoUser.id,

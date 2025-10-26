@@ -22,31 +22,40 @@ import {
   Save as HiSave,
   Check as HiCheck,
   Pencil as HiPencil,
+  Loader2,
 } from 'lucide-react';
 import TagInput from './TagInput';
+import { budgetApi, BudgetEntry as ApiBudgetEntry, BudgetProject as ApiBudgetProject } from '../services/budgetApi';
 
-// Types
-type Project = {
+// Types - Updated to match API format
+interface Project {
   id: string;
   name: string;
   description?: string;
   color: string;
-  isActive: boolean;
+  is_active: boolean;
   tags?: string[];
-};
+  user_id?: number;
+  created_at?: string;
+  updated_at?: string;
+}
 
-type Entry = {
+interface Entry {
   id: string;
   type: 'income' | 'expense';
   amount: number;
   category: string;
   description: string;
   date: string;
-  projectId?: string;
-  receiptTitle?: string;
-  ocrScanned?: boolean;
-  ocrConfidence?: number;
+  project_id?: string;
+  receipt_title?: string;
+  ocr_scanned?: boolean;
+  ocr_confidence?: number;
   tags?: string[];
+  user_id?: number;
+  created_at?: string;
+  updated_at?: string;
+  project?: Project;
 };
 
 // ===== OCR Helper Functions =====
@@ -117,40 +126,36 @@ const BudgetTracker: React.FC = () => {
   // === Config for confirm step ===
   const OCR_CONFIRM_THRESHOLD = 0.92;
 
-  // ===== State (no mock data) =====
+  // ===== State =====
   const [activeTab, setActiveTab] = useState<'add' | 'history'>('add');
+  const [entries, setEntries] = useState<Entry[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [dataLoading, setDataLoading] = useState(true);
+  const [dataError, setDataError] = useState<string | null>(null);
 
-  // Load from localStorage on first render
-  const [entries, setEntries] = useState<Entry[]>(() => {
-    try {
-      const saved = typeof window !== 'undefined' ? localStorage.getItem('budgetEntries') : null;
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  const [projects, setProjects] = useState<Project[]>(() => {
-    try {
-      const saved = typeof window !== 'undefined' ? localStorage.getItem('budgetProjects') : null;
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
-
-  // Persist to localStorage when entries/projects change
+  // Load data from API on component mount
   useEffect(() => {
-    try {
-      localStorage.setItem('budgetEntries', JSON.stringify(entries));
-    } catch {}
-  }, [entries]);
+    const loadData = async () => {
+      try {
+        setDataLoading(true);
+        setDataError(null);
+        const [entriesData, projectsData] = await Promise.all([
+          budgetApi.getEntries(),
+          budgetApi.getProjects()
+        ]);
+        // Normalize amounts coming from API (sometimes returned as strings)
+        setEntries(entriesData.map((e: any) => normalizeEntry(e)));
+        setProjects(projectsData);
+      } catch (err) {
+        console.error('Failed to load budget data:', err);
+        setDataError('Failed to load budget data. Please try refreshing the page.');
+      } finally {
+        setDataLoading(false);
+      }
+    };
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('budgetProjects', JSON.stringify(projects));
-    } catch {}
-  }, [projects]);
+    loadData();
+  }, []);
 
   const [formData, setFormData] = useState({
     type: 'expense' as 'income' | 'expense',
@@ -204,7 +209,13 @@ const BudgetTracker: React.FC = () => {
   const amountInputRef = useRef<HTMLInputElement>(null);
 
   // Confirmation Modal State
-  const [confirmModal, setConfirmModal] = useState({
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void | Promise<void>;
+    onCancel: () => void | Promise<void>;
+  }>({
     isOpen: false,
     title: '',
     message: '',
@@ -231,6 +242,15 @@ const BudgetTracker: React.FC = () => {
     }, 5000);
   };
 
+  // Normalize incoming entry from API/localStorage to ensure numeric amount
+  const normalizeEntry = (e: unknown): Entry => {
+    const entry = e as Entry;
+    return {
+      ...entry,
+      amount: typeof entry.amount === 'string' ? parseFloat(entry.amount) || 0 : (typeof entry.amount === 'number' ? entry.amount : 0),
+    };
+  };
+
   const removeToast = (id: string) => {
     setToasts(prev => prev.filter(toast => toast.id !== id));
   };
@@ -248,7 +268,7 @@ const BudgetTracker: React.FC = () => {
       const imageUrl = URL.createObjectURL(file);
 
       const result = await Tesseract.recognize(imageUrl, 'eng', {
-        logger: (m: any) => {
+        logger: (m: { status?: string; progress?: number }) => {
           if (m.status === 'recognizing text' && typeof m.progress === 'number') {
             setProgress(Math.round(m.progress * 100));
           }
@@ -256,11 +276,8 @@ const BudgetTracker: React.FC = () => {
       });
 
       const rawText: string = result.data?.text || '';
-      // Average confidence fallback
-      const avgConfidence: number =
-        (Array.isArray(result.data?.words) && result.data.words.length
-          ? result.data.words.reduce((s: number, w: any) => s + (w.confidence ?? 0), 0) / result.data.words.length
-          : 70) / 100;
+      // Average confidence fallback - use result confidence or default
+      const avgConfidence: number = (result.data?.confidence || 70) / 100;
 
       URL.revokeObjectURL(imageUrl);
 
@@ -276,8 +293,9 @@ const BudgetTracker: React.FC = () => {
         date,
         rawText,
       };
-    } catch (err: any) {
-      throw new Error(`OCR processing failed: ${err?.message || 'Unknown error'}`);
+    } catch (err: unknown) {
+      const error = err as Error;
+      throw new Error(`OCR processing failed: ${error?.message || 'Unknown error'}`);
     }
   };
 
@@ -311,7 +329,7 @@ const BudgetTracker: React.FC = () => {
       if (ocrResult.amount) {
         setFormData((prev) => ({
           ...prev,
-          amount: ocrResult.amount!.toString(),
+          amount: ocrResult.amount?.toString() || '',
           ocrScanned: true,
           ocrConfidence: ocrResult.confidence || 0,
           ocrVendor: ocrResult.vendor || '',
@@ -329,8 +347,9 @@ const BudgetTracker: React.FC = () => {
 
       setReceiptFile(file);
       setReceiptUrl(receiptUrlLocal);
-    } catch (err: any) {
-      setError(err?.message || 'OCR processing failed. Please try a different image or enter details manually.');
+    } catch (err: unknown) {
+      const error = err as Error;
+      setError(error?.message || 'OCR processing failed. Please try a different image or enter details manually.');
     } finally {
       setIsProcessing(false);
     }
@@ -348,23 +367,23 @@ const BudgetTracker: React.FC = () => {
 
     try {
       setIsSaving(true);
-      const newEntry: Entry = {
-        id: Math.max(...entries.map((e) => e.id), 0) + 1,
+      
+      const entryData = {
         type: formData.type,
         amount: parseFloat(formData.amount),
         description: formData.description,
         date: formData.date,
         category: formData.category,
-        projectId: formData.projectId || undefined,
-        receiptTitle: formData.receiptTitle || undefined,
-        receiptUrl: receiptUrl || undefined,
-        ocrScanned: formData.ocrScanned,
-        ocrConfidence: formData.ocrConfidence,
-        ocrVendor: formData.ocrVendor || undefined,
-        ocrDate: formData.ocrDate || undefined,
+        project_id: formData.projectId || undefined,
+        receipt_title: formData.receiptTitle || undefined,
+        ocr_scanned: formData.ocrScanned,
+        ocr_confidence: formData.ocrConfidence,
+        tags: formData.tags || []
       };
 
-      setEntries((prev) => [newEntry, ...prev]);
+      const newEntry = await budgetApi.createEntry(entryData);
+      // Ensure returned entry has numeric amount
+      setEntries((prev) => [normalizeEntry(newEntry), ...prev]);
 
       // Reset form
       setFormData({
@@ -384,7 +403,9 @@ const BudgetTracker: React.FC = () => {
       if (receiptUrl) {
         try {
           URL.revokeObjectURL(receiptUrl);
-        } catch {}
+        } catch {
+          // Ignore revocation errors
+        }
       }
       setReceiptFile(null);
       setReceiptUrl('');
@@ -401,8 +422,15 @@ const BudgetTracker: React.FC = () => {
       isOpen: true,
       title: 'Delete Entry',
       message: 'Are you sure you want to delete this entry? This action cannot be undone.',
-      onConfirm: () => {
-        setEntries((prev) => prev.filter((entry) => entry.id !== id));
+      onConfirm: async () => {
+        try {
+          await budgetApi.deleteEntry(id);
+          setEntries((prev) => prev.filter((entry) => entry.id !== id));
+          showToast('success', 'Deleted', 'Entry deleted successfully');
+        } catch (err) {
+          console.error('Failed to delete entry:', err);
+          showToast('error', 'Error', 'Failed to delete entry. Please try again.');
+        }
         setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => void 0, onCancel: () => void 0 });
       },
       onCancel: () => {
@@ -413,32 +441,41 @@ const BudgetTracker: React.FC = () => {
 
   const handleCreateProject = () => setIsProjectModalOpen(true);
 
-  const handleSaveProject = () => {
+  const handleSaveProject = async () => {
     if (!newProjectData.name.trim()) {
       showToast('error', 'Missing Information', 'Please enter a project name');
       return;
     }
 
-    const newProject: Project = {
-      id: Date.now().toString(),
-      name: newProjectData.name.trim(),
-      description: newProjectData.description.trim(),
-      color: newProjectData.color,
-      isActive: true,
-    };
+    try {
+      const projectData = {
+        name: newProjectData.name.trim(),
+        description: newProjectData.description.trim(),
+        color: newProjectData.color,
+        is_active: true,
+        tags: []
+      };
 
-    setProjects((prev) => [...prev, newProject]);
-    setNewProjectData({ name: '', description: '', color: '#8b5cf6' });
-    setIsProjectModalOpen(false);
+      const newProject = await budgetApi.createProject(projectData);
+      setProjects((prev) => [...prev, newProject]);
+      setNewProjectData({ name: '', description: '', color: '#8b5cf6' });
+      setIsProjectModalOpen(false);
 
-    setFormData((prev) => ({ ...prev, projectId: newProject.id }));
+      setFormData((prev) => ({ ...prev, projectId: newProject.id }));
+      showToast('success', 'Project Created', `Project "${newProject.name}" created successfully`);
+    } catch (err) {
+      console.error('Failed to create project:', err);
+      showToast('error', 'Error', 'Failed to create project. Please try again.');
+    }
   };
 
   const handleRemoveReceipt = () => {
     if (receiptUrl) {
       try {
         URL.revokeObjectURL(receiptUrl);
-      } catch {}
+      } catch {
+        // Ignore revocation errors
+      }
     }
     setReceiptFile(null);
     setReceiptUrl('');
@@ -464,11 +501,11 @@ const BudgetTracker: React.FC = () => {
       description: entry.description,
       date: entry.date,
       category: entry.category,
-      projectId: entry.projectId || '',
-      receiptTitle: entry.receiptTitle || '',
+      projectId: entry.project_id || '',
+      receiptTitle: entry.receipt_title || '',
       tags: entry.tags || [],
-      ocrScanned: entry.ocrScanned || false,
-      ocrConfidence: entry.ocrConfidence || 0,
+      ocrScanned: entry.ocr_scanned || false,
+      ocrConfidence: entry.ocr_confidence || 0,
       ocrVendor: '',
       ocrDate: '',
     });
@@ -506,30 +543,30 @@ const BudgetTracker: React.FC = () => {
       description: editFormData.description,
       date: editFormData.date,
       category: editFormData.category,
-      projectId: editFormData.projectId || undefined,
-      receiptTitle: editFormData.receiptTitle || undefined,
+      project_id: editFormData.projectId || undefined,
+      receipt_title: editFormData.receiptTitle || undefined,
       tags: editFormData.tags,
-      ocrScanned: editFormData.ocrScanned,
-      ocrConfidence: editFormData.ocrConfidence,
+      ocr_scanned: editFormData.ocrScanned,
+      ocr_confidence: editFormData.ocrConfidence,
     };
 
-    setEntries(prev => prev.map(entry => 
-      entry.id === editingEntry.id ? updatedEntry : entry
-    ));
-
-    // Save to localStorage
-    const updatedEntries = entries.map(entry => 
-      entry.id === editingEntry.id ? updatedEntry : entry
-    );
-    localStorage.setItem('budgetEntries', JSON.stringify(updatedEntries));
+    const newEntries = entries.map(entry => entry.id === editingEntry.id ? updatedEntry : entry);
+    // Normalize before setting state/localStorage
+    const normalized = newEntries.map(normalizeEntry);
+    setEntries(normalized);
+    localStorage.setItem('budgetEntries', JSON.stringify(normalized));
 
     handleCancelEdit();
   };
 
   // Calculations
   const calculateTotals = () => {
-    const totalIncome = entries.filter((entry) => entry.type === 'income').reduce((sum, entry) => sum + entry.amount, 0);
-    const totalExpenses = entries.filter((entry) => entry.type === 'expense').reduce((sum, entry) => sum + entry.amount, 0);
+    const totalIncome = entries
+      .filter((entry) => entry.type === 'income')
+      .reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
+    const totalExpenses = entries
+      .filter((entry) => entry.type === 'expense')
+      .reduce((sum, entry) => sum + (Number(entry.amount) || 0), 0);
     return {
       income: totalIncome,
       expenses: totalExpenses,
@@ -539,17 +576,45 @@ const BudgetTracker: React.FC = () => {
 
   const sq = searchQuery.toLowerCase().trim();
   const filteredEntries = entries.filter((entry) => {
-    const projectName = (projects.find((p) => p.id === entry.projectId)?.name ?? '').toLowerCase();
+    const projectName = (projects.find((p) => p.id === entry.project_id)?.name ?? '').toLowerCase();
     return (
       sq === '' ||
       entry.description.toLowerCase().includes(sq) ||
-      (entry.receiptTitle ?? '').toLowerCase().includes(sq) ||
+      (entry.receipt_title ?? '').toLowerCase().includes(sq) ||
       entry.category.toLowerCase().includes(sq) ||
       projectName.includes(sq)
     );
   });
 
   const totals = calculateTotals();
+
+  if (dataLoading) {
+    return (
+      <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-gray-900 to-black flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-400 mx-auto mb-4" />
+          <p className="text-gray-300">Loading budget data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (dataError) {
+    return (
+      <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-gray-900 to-black flex items-center justify-center">
+        <div className="text-center">
+          <HiExclamationCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <p className="text-red-300 mb-4">{dataError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen w-full bg-gradient-to-br from-slate-900 via-gray-900 to-black relative overflow-hidden">
@@ -709,7 +774,7 @@ const BudgetTracker: React.FC = () => {
 
                   <div className="flex flex-wrap gap-2">
                     {projects
-                      .filter((p) => p.isActive && p.id !== formData.projectId)
+                      .filter((p) => p.is_active && p.id !== formData.projectId)
                       .map((project) => (
                         <button
                           key={project.id}
@@ -1090,7 +1155,7 @@ const BudgetTracker: React.FC = () => {
                         </thead>
                         <tbody className="divide-y divide-slate-600/20">
                           {filteredEntries.map((entry) => {
-                            const project = projects.find((p) => p.id === entry.projectId);
+                            const project = projects.find((p) => p.id === entry.project_id);
                             return (
                               <tr key={entry.id} className="hover:bg-slate-700/20 transition-colors">
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{new Date(entry.date).toLocaleDateString()}</td>
@@ -1118,21 +1183,21 @@ const BudgetTracker: React.FC = () => {
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{entry.category}</td>
                                 <td className="px-6 py-4 text-sm text-gray-300 max-w-xs">
                                   <div className="truncate">{entry.description}</div>
-                                  {entry.ocrScanned && (
+                                  {entry.ocr_scanned && (
                                     <div className="flex items-center mt-1">
                                       <span className="text-xs bg-gradient-to-r from-blue-600 to-purple-600 text-white px-2 py-0.5 rounded-full">
-                                        AI-scanned ({Math.round((entry.ocrConfidence || 0) * 100)}%)
+                                        AI-scanned ({Math.round((entry.ocr_confidence || 0) * 100)}%)
                                       </span>
                                     </div>
                                   )}
                                 </td>
                                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                                  {entry.receiptTitle ? (
+                                  {entry.receipt_title ? (
                                     <button
-                                      onClick={() => entry.receiptUrl && window.open(entry.receiptUrl, '_blank')}
+                                      onClick={() => console.log('Receipt viewing not implemented yet')}
                                       className="text-purple-400 hover:text-purple-300 underline text-xs transition-colors"
                                     >
-                                      {entry.receiptTitle}
+                                      {entry.receipt_title}
                                     </button>
                                   ) : (
                                     <span className="text-gray-500 text-xs">No receipt</span>
@@ -1372,7 +1437,7 @@ const BudgetTracker: React.FC = () => {
                       className="w-full px-3 py-2 border border-slate-600 bg-slate-800/50 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-gray-300"
                     >
                       <option value="">No project</option>
-                      {projects.filter(p => p.isActive).map(project => (
+                      {projects.filter(p => p.is_active).map(project => (
                         <option key={project.id} value={project.id}>{project.name}</option>
                       ))}
                     </select>
@@ -1432,7 +1497,7 @@ const BudgetTracker: React.FC = () => {
             <div className="bg-gradient-to-br from-slate-800 to-gray-900 border border-red-500/30 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
               <div className="flex items-center mb-4">
                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center text-white font-bold text-sm mr-3">
-                  <FaFilm className="w-4 h-4" />
+                  <HiEye className="w-4 h-4" />
                 </div>
                 <h3 className="text-lg font-semibold text-red-300">{confirmModal.title}</h3>
               </div>
