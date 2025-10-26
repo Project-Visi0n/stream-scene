@@ -197,7 +197,7 @@ app.use((req, res, next) => {
     sessionID: req.sessionID,
     hasSession: !!req.session,
     sessionData: req.session ? Object.keys(req.session) : [],
-    threadsOAuthState: req.session?.threadsOAuthState ? 'present' : 'missing',
+    threadsOAuthState: req.session?.threadsState ? 'present' : 'missing',
     cookie: req.headers.cookie ? 'present' : 'missing'
   });
   next();

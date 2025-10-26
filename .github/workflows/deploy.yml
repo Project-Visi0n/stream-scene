@@ -77,18 +77,16 @@ jobs:
         npm run build
         
     - name: Create deployment package
+      if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       run: |
         # Create a deployment directory
         mkdir -p deploy
         
-        # Copy built files
-        cp -r dist/ deploy/
+        # Copy built client files
         cp -r public/ deploy/
         
-        # Copy server database files for seeding
-        mkdir -p deploy/server/db
-        cp server/db/seed.ts deploy/server/db/
-        cp server/db/connection.ts deploy/server/db/
+        # Copy server source files
+        cp -r server/ deploy/
         
         # Copy configuration files
         cp ecosystem.config.cjs deploy/
@@ -122,11 +120,13 @@ jobs:
         EOF
 
     - name: Quick connectivity test
+      if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       run: |
         echo "Testing connectivity to server..."
         timeout 10 nc -zv ${{ secrets.SERVER_HOST }} ${{ secrets.SERVER_PORT || 22 }} || echo "Connection test failed"
 
     - name: Setup server directory
+      if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       uses: appleboy/ssh-action@v1.0.3
       continue-on-error: true
       with:
@@ -144,20 +144,26 @@ jobs:
           whoami
           pwd
 
-    - name: Setup server directory (using different action)
-      if: failure()
-      run: |
-        echo "Primary SSH action failed, checking connectivity..."
-        echo "Host: ${{ secrets.SERVER_HOST }}"
-        echo "Port: ${{ secrets.SERVER_PORT || 22 }}"
-        echo "User: ${{ secrets.SERVER_USER }}"
-          fi
+    - name: Setup server directories
+      if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SERVER_HOST }}
+        username: ${{ secrets.SERVER_USER }}
+        key: ${{ secrets.SERVER_SSH_KEY }}
+        port: ${{ secrets.SERVER_PORT || 22 }}
+        timeout: 15s
+        command_timeout: 30s
+        script: |
+          # Create application directory if it doesn't exist
+          mkdir -p /var/www/stream-scene
           
           # Create logs directory
           mkdir -p /var/www/stream-scene/logs
-          echo "Setup completed successfully"
+          echo "Directory setup completed successfully"
 
     - name: Copy files to server
+      if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       uses: appleboy/scp-action@v0.1.7
       with:
         host: ${{ secrets.SERVER_HOST }}
@@ -170,6 +176,7 @@ jobs:
         strip_components: 1
         
     - name: Deploy application
+      if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       uses: appleboy/ssh-action@v1.0.3
       with:
         host: ${{ secrets.SERVER_HOST }}
