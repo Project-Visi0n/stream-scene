@@ -3,7 +3,15 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 const router = express.Router();
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+const model = genAI.getGenerativeModel({
+    model: 'gemini-pro',
+    generationConfig: {
+        temperature: 0.7,
+        topP: 0.8,
+        topK: 40,
+        maxOutputTokens: 8192,
+    }
+});
 // Enhanced route with actual Gemini AI
 router.post('/generate-tasks', async (req, res) => {
     try {

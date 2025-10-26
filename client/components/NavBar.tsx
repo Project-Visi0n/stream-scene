@@ -4,6 +4,9 @@ import {
   HiBars3,
   HiXMark
 } from 'react-icons/hi2';
+import { FaRobot } from 'react-icons/fa';
+import useAuth from '../hooks/useAuth';
+import GoogleLoginButton from './GoogleLoginButton';
 
 interface NavbarProps {
   currentComponent: 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'content-scheduler';
@@ -15,12 +18,6 @@ interface NavbarProps {
 }
 
 // Custom SVG Icon Components (matching your landing page with colors)
-const AIIcon = () => (
-  <svg className="w-4 h-4 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-  </svg>
-);
-
 const BudgetIcon = () => (
   <svg className="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 24 24">
     <path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/>
@@ -41,6 +38,27 @@ const ProjectIcon = () => (
 
 const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user: authUser } = useAuth();
+  
+  // Use authUser from hook if no user prop provided
+  const currentUser = user || authUser;
+  
+  // Helper to get user avatar from either prop structure
+  const getUserAvatar = (user: { avatar?: string; profilePicture?: string } | null) => {
+    return user?.avatar || user?.profilePicture;
+  };
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/auth/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+      window.location.reload(); // Refresh to update auth state
+    } catch (error) {
+
+    }
+  };
 
   const navigationItems = [
     {
@@ -55,7 +73,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
       label: 'AI Weekly Planner',
       shortLabel: 'Planner',
       description: 'Smart task scheduling',
-      icon: AIIcon
+      icon: FaRobot
     },
     {
       id: 'budget-tracker',
@@ -84,7 +102,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
     setIsMobileMenuOpen(!isMobileMenuOpen);
   };
 
-  const handleMobileNavigate = (component: any) => {
+  const handleMobileNavigate = (component: 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'content-scheduler') => {
     onNavigate(component);
     setIsMobileMenuOpen(false);
   };
@@ -134,7 +152,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
             {navigationItems.map((item) => (
               <button
                 key={item.id}
-                onClick={() => onNavigate(item.id as any)}
+                onClick={() => onNavigate(item.id as 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'content-scheduler')}
                 className={`relative px-3 py-2 rounded-lg transition-all duration-300 group text-sm touch-manipulation ${
                   currentComponent === item.id || (item.id === 'landing' && currentComponent === 'landing')
                     ? 'bg-white/20 text-white shadow-lg'
@@ -167,37 +185,53 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
 
           {/* Right Side - User & Mobile Menu */}
           <div className="flex items-center gap-2 sm:gap-4">
-            {/* User Profile - Desktop */}
-            {user && (
-              <div className="hidden sm:flex items-center gap-3 px-3 py-2 bg-white/10 rounded-lg backdrop-blur-sm">
+            {/* Authentication - Desktop */}
+            <div className="hidden sm:flex items-center gap-3">
+              {currentUser ? (
+                <div className="flex items-center gap-3 px-3 py-2 bg-white/10 rounded-lg backdrop-blur-sm">
+                  <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                    {getUserAvatar(currentUser) ? (
+                      <img src={getUserAvatar(currentUser)} alt={currentUser.name} className="w-8 h-8 rounded-full" />
+                    ) : (
+                      <span className="text-sm font-bold text-white">
+                        {currentUser.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-sm">
+                    <p className="text-white font-medium">{currentUser.name}</p>
+                    <p className="text-gray-400 text-xs">Online</p>
+                  </div>
+                  <button 
+                    onClick={handleLogout}
+                    className="ml-2 px-3 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition-colors"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <GoogleLoginButton />
+              )}
+            </div>
+
+            {/* Mobile User Avatar or Login */}
+            <div className="sm:hidden">
+              {currentUser ? (
                 <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                  {user.avatar ? (
-                    <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" />
+                  {getUserAvatar(currentUser) ? (
+                    <img src={getUserAvatar(currentUser)} alt={currentUser.name} className="w-8 h-8 rounded-full" />
                   ) : (
                     <span className="text-sm font-bold text-white">
-                      {user.name.charAt(0).toUpperCase()}
+                      {currentUser.name.charAt(0).toUpperCase()}
                     </span>
                   )}
                 </div>
-                <div className="text-sm">
-                  <p className="text-white font-medium">{user.name}</p>
-                  <p className="text-gray-400 text-xs">Online</p>
+              ) : (
+                <div className="scale-75">
+                  <GoogleLoginButton />
                 </div>
-              </div>
-            )}
-
-            {/* Mobile User Avatar */}
-            {user && (
-              <div className="sm:hidden w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
-                {user.avatar ? (
-                  <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full" />
-                ) : (
-                  <span className="text-sm font-bold text-white">
-                    {user.name.charAt(0).toUpperCase()}
-                  </span>
-                )}
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Mobile menu button */}
             <button 
@@ -221,7 +255,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
               {navigationItems.map((item) => (
                 <button
                   key={item.id}
-                  onClick={() => handleMobileNavigate(item.id)}
+                  onClick={() => handleMobileNavigate(item.id as 'landing' | 'planner' | 'project-center' | 'budget-tracker' | 'content-scheduler')}
                   className={`flex flex-col items-center p-3 rounded-lg transition-all duration-300 relative touch-manipulation ${
                     currentComponent === item.id || (item.id === 'landing' && currentComponent === 'landing')
                       ? 'bg-white/20 text-white'
@@ -237,6 +271,39 @@ const Navbar: React.FC<NavbarProps> = ({ currentComponent, onNavigate, user }) =
                   )}
                 </button>
               ))}
+            </div>
+            
+            {/* Mobile Authentication Section */}
+            <div className="mt-4 pt-4 border-t border-white/10 px-4">
+              {currentUser ? (
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center">
+                      {getUserAvatar(currentUser) ? (
+                        <img src={getUserAvatar(currentUser)} alt={currentUser.name} className="w-8 h-8 rounded-full" />
+                      ) : (
+                        <span className="text-sm font-bold text-white">
+                          {currentUser.name.charAt(0).toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-sm">
+                      <p className="text-white font-medium">{currentUser.name}</p>
+                      <p className="text-gray-400 text-xs">Online</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={handleLogout}
+                    className="px-3 py-1 text-xs bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-lg transition-colors"
+                  >
+                    Logout
+                  </button>
+                </div>
+              ) : (
+                <div className="flex justify-center">
+                  <GoogleLoginButton />
+                </div>
+              )}
             </div>
           </div>
         )}

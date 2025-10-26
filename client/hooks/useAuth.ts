@@ -29,7 +29,7 @@ const useAuth = (): UseAuthReturn => {
         setUser(data.user);
       }
     } catch (error) {
-      console.error('Auth check failed:', error);
+
     } finally {
       setLoading(false);
     }

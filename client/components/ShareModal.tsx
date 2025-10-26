@@ -38,7 +38,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
       const shares = await shareService.getFileShares(fileId);
       setExistingShares(shares);
     } catch (error) {
-      console.error('Failed to load existing shares:', error);
+
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
       setTimeout(() => setCopiedUrl(null), 3000);
 
     } catch (error) {
-      console.error('Failed to create share:', error);
+
       setError(error instanceof Error ? error.message : 'Failed to create share');
     } finally {
       setCreating(false);
@@ -90,7 +90,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
       setCopiedUrl(shareUrl);
       setTimeout(() => setCopiedUrl(null), 2000);
     } catch (error) {
-      console.error('Failed to copy URL:', error);
+
     }
   };
 
@@ -100,7 +100,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
       // Refresh the shares list
       await loadExistingShares();
     } catch (error) {
-      console.error('Failed to deactivate share:', error);
+
       setError('Failed to deactivate share');
     }
   };
@@ -111,7 +111,7 @@ const ShareModal: React.FC<ShareModalProps> = ({
       // Refresh the shares list
       await loadExistingShares();
     } catch (error) {
-      console.error('Failed to delete share:', error);
+
       setError('Failed to delete share');
     }
   };

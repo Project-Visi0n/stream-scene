@@ -2,12 +2,13 @@
 import express from 'express';
 import { ThreadsService } from '../services/ThreadsService.js';
 
-const router = express.Router();
-
-// Middleware to check if user is authenticated
-const requireAuth = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  if (!req.isAuthenticated || !req.isAuthenticated()) {
-    return res.status(401).json({ error: 'Not authenticated' });
+// Initiate Threads OAuth
+router.get('/auth', (req, res) => {
+  const threadsClientId = process.env.THREADS_CLIENT_ID;
+  const redirectUri = 'https://streamscene.net/api/threads/callback';
+  
+  if (!threadsClientId) {
+    return res.status(500).json({ error: 'Threads Client ID not configured' });
   }
   next();
 };
@@ -133,34 +134,6 @@ router.post('/post', requireAuth, async (req, res) => {
   } catch (error: any) {
     console.error('Error posting to Threads:', error);
     res.status(500).json({ error: error.message || 'Failed to post' });
-  }
-});
-
-// GET /api/threads/test - Test connection
-router.get('/test', requireAuth, async (req, res) => {
-  try {
-    const user = req.user as any;
-    
-    if (!user.threadsAccessToken || !user.threadsUserId) {
-      return res.status(401).json({ error: 'Threads not connected' });
-    }
-    
-    const threadsService = getThreadsService(
-      user.threadsAccessToken,
-      user.threadsUserId
-    );
-    
-    const profile = await threadsService.getUserProfile();
-    
-    res.json({
-      success: true,
-      userId: profile.id,
-      username: profile.username,
-      name: profile.name
-    });
-  } catch (error: any) {
-    console.error('Error testing Threads:', error);
-    res.status(500).json({ error: error.message || 'Connection test failed' });
   }
 });
 

@@ -166,14 +166,6 @@ router.get('/status/:jobName', async (req: Request, res: Response) => {
     const job = response.TranscriptionJob;
     if (!job) return res.status(404).json({ error: 'Job not found' });
 
-    // Add debug logging
-    console.log('=== TRANSCRIBE JOB DEBUG ===');
-    console.log('Job Status:', job.TranscriptionJobStatus);
-    console.log('Transcript URI:', job.Transcript?.TranscriptFileUri);
-    console.log('Failure Reason:', job.FailureReason);
-    console.log('Creation Time:', job.CreationTime);
-    console.log('Completion Time:', job.CompletionTime);
-
     res.json({
       status: job.TranscriptionJobStatus,
       transcriptUri: job.Transcript?.TranscriptFileUri || null,
@@ -294,25 +286,6 @@ router.get('/transcript/:jobName', async (req: Request, res: Response) => {
   } catch (err) {
     console.error('Error fetching/converting transcript:', err);
     res.status(500).json({ error: 'Failed to fetch, convert, or save transcript' });
-  }
-});
-
-// Add this temporary debug route
-router.get('/debug/files', async (req: Request, res: Response) => {
-  try {
-    const uploadsPath = path.join(process.cwd(), 'uploads');
-    console.log('Checking uploads directory:', uploadsPath);
-    
-    try {
-      const files = await fs.readdir(uploadsPath);
-      console.log('Files in uploads directory:', files);
-      res.json({ uploadsPath, files });
-    } catch (err) {
-      console.log('Uploads directory does not exist or is not accessible');
-      res.json({ error: 'Uploads directory not found', uploadsPath });
-    }
-  } catch (err) {
-    res.status(500).json({ error: 'Debug failed' });
   }
 });
 

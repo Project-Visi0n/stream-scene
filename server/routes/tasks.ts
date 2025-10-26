@@ -3,45 +3,8 @@ import { Task } from '../models/Task.js';
 
 const router = express.Router();
 
-// Debug endpoint to check auth details
-router.get('/debug/auth', (req: Request, res: Response) => {
-  console.log('=== TASK AUTH DEBUG ===');
-  console.log('Session ID:', req.sessionID);
-  console.log('Session data:', req.session);
-  console.log('User object:', req.user);
-  console.log('Is authenticated:', req.isAuthenticated?.());
-  console.log('Cookies:', req.headers.cookie);
-  console.log('User-Agent:', req.headers['user-agent']);
-  console.log('Referer:', req.headers.referer);
-  console.log('Request headers:', req.headers);
-  
-  const userInfo = req.user as any;
-  
-  res.json({
-    authenticated: !!req.user,
-    user: req.user || null,
-    userId: userInfo?.id || null,
-    sessionId: req.sessionID,
-    debug: {
-      hasSession: !!req.session,
-      hasUser: !!req.user,
-      userType: typeof req.user,
-      userKeys: req.user ? Object.keys(req.user) : null,
-      sessionKeys: req.session ? Object.keys(req.session) : null
-    }
-  });
-});
-
 // Enhanced middleware check with detailed debugging
 const requireAuth = (req: Request, res: Response, next: express.NextFunction) => {
-  console.log('=== AUTH DEBUG START ===');
-  console.log('req.user:', (req as any).user);
-  console.log('req.session:', (req as any).session);
-  console.log('req.headers.authorization:', req.headers.authorization);
-  console.log('req.headers.cookie:', req.headers.cookie);
-  console.log('req.cookies:', req.cookies);
-  console.log('=== AUTH DEBUG END ===');
-  
   // Check multiple possible auth sources
   let user = null;
   
@@ -71,6 +34,18 @@ const requireAuth = (req: Request, res: Response, next: express.NextFunction) =>
     }
   }
   
+  // DEMO MODE: For presentation purposes, create a default user in development
+  if (!user && process.env.NODE_ENV === 'development') {
+    console.log('🎭 DEMO MODE: Creating default user for presentation');
+    user = {
+      id: 1,
+      email: 'demo@streamscene.com',
+      name: 'StreamScene Demo User',
+      isDemoUser: true
+    };
+    (req as any).user = user;
+  }
+  
   if (!user) {
     console.log('Authentication failed - no user found in any source');
     return res.status(401).json({ 
@@ -88,125 +63,6 @@ const requireAuth = (req: Request, res: Response, next: express.NextFunction) =>
   console.log('Authentication successful for user:', user.id || user.email || 'unknown');
   next();
 };
-
-// Debug endpoint to check what tasks are returned
-router.get('/debug/tasks', requireAuth, async (req: Request, res: Response) => {
-  const user = req.user as any;
-  const userId = user?.id;
-  
-  console.log('=== TASK DEBUG ===');
-  console.log('User ID for task query:', userId);
-  console.log('User object:', user);
-  
-  try {
-    // Get ALL tasks first (this is dangerous but for debugging)
-    const allTasks = await Task.findAll({
-      limit: 10
-    });
-    
-    console.log('ALL TASKS (first 10):', allTasks.map(t => ({
-      id: t.id,
-      title: t.title,
-      user_id: t.user_id,
-      created_at: t.created_at
-    })));
-    
-    // Get user-specific tasks
-    const userTasks = await Task.findAll({
-      where: { user_id: userId },
-      limit: 10
-    });
-    
-    console.log('USER TASKS:', userTasks.map(t => ({
-      id: t.id,
-      title: t.title,
-      user_id: t.user_id,
-      created_at: t.created_at
-    })));
-    
-    res.json({
-      userId,
-      totalTasks: allTasks.length,
-      userSpecificTasks: userTasks.length,
-      allTasksSample: allTasks.slice(0, 5).map(t => ({
-        id: t.id,
-        title: t.title,
-        user_id: t.user_id
-      })),
-      userTasks: userTasks.map(t => ({
-        id: t.id,
-        title: t.title,
-        user_id: t.user_id
-      }))
-    });
-  } catch (error) {
-    console.error('Debug task query error:', error);
-    res.status(500).json({ error: 'Debug query failed' });
-  }
-});
-
-// DEBUG ENDPOINT - Remove this in production!
-router.get('/debug-auth', (req: Request, res: Response) => {
-  console.log('=== DEBUG AUTH ENDPOINT ===');
-  
-  const debugInfo = {
-    timestamp: new Date().toISOString(),
-    user: (req as any).user,
-    session: (req as any).session,
-    authenticated: !!(req as any).user || !!(req as any).session?.user,
-    headers: {
-      authorization: req.headers.authorization,
-      cookie: req.headers.cookie,
-      'user-agent': req.headers['user-agent']
-    },
-    cookies: req.cookies,
-    sessionID: (req as any).sessionID,
-    ip: req.ip
-  };
-  
-  console.log('Debug info:', JSON.stringify(debugInfo, null, 2));
-  res.json(debugInfo);
-});
-
-// TEST ENDPOINT - Create a test user and task (Remove in production!)
-router.post('/test-setup', async (req: Request, res: Response) => {
-  try {
-    // This is a testing endpoint - create a fake user session
-    const testUser = {
-      id: 1,
-      email: 'test@example.com',
-      name: 'Test User'
-    };
-    
-    // Initialize session if it doesn't exist
-    if (!(req as any).session) {
-      console.log('Warning: Session not initialized. Make sure session middleware is configured.');
-      return res.status(500).json({ 
-        error: 'Session not configured',
-        solution: 'Ensure express-session middleware is properly set up'
-      });
-    }
-    
-    // Set user in session (adjust based on your auth system)
-    (req as any).session.user = testUser;
-    (req as any).user = testUser;
-    
-    console.log('Test user session created:', testUser);
-    
-    res.json({
-      message: 'Test user session created',
-      user: testUser,
-      sessionId: (req as any).sessionID,
-      nextSteps: [
-        'Now try: curl -X POST http://localhost:8000/api/tasks/test-task -b cookies.txt',
-        'Or visit: curl http://localhost:8000/api/tasks/debug-auth -b cookies.txt'
-      ]
-    });
-  } catch (error) {
-    console.error('Test setup failed:', error);
-    res.status(500).json({ error: 'Test setup failed' });
-  }
-});
 
 // TEST TASK CREATION - Create a test task with fake user
 router.post('/test-task', async (req: Request, res: Response) => {
@@ -281,14 +137,8 @@ router.post('/test-task', async (req: Request, res: Response) => {
 router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    console.log('=== FETCHING TASKS ===');
-    console.log('User ID:', userId);
-    console.log('User object:', (req as any).user);
-    console.log('Session ID:', (req as any).sessionID);
-    console.log('Request headers:', req.headers);
     
     if (!userId) {
-      console.log('❌ No user ID found, returning 401');
       return res.status(401).json({ error: 'User not authenticated' });
     }
 
@@ -306,19 +156,40 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     })));
 
     // Serialize tasks to clean objects
-    const cleanTasks = tasks.map(task => ({
-      id: task.id,
-      title: task.title,
-      description: task.description,
-      priority: task.priority,
-      task_type: task.task_type,
-      status: task.status,
-      deadline: task.deadline ? task.deadline.toISOString() : null,
-      estimated_hours: task.estimated_hours,
-      user_id: task.user_id,
-      created_at: task.created_at ? task.created_at.toISOString() : new Date().toISOString(),
-      updated_at: task.updated_at ? task.updated_at.toISOString() : new Date().toISOString()
-    }));
+    const cleanTasks = tasks.map(task => {
+      // Helper function to safely convert dates
+      const safeToISOString = (dateValue: any): string => {
+        if (!dateValue) return new Date().toISOString();
+        
+        // If it's already a Date object
+        if (dateValue instanceof Date) {
+          return isNaN(dateValue.getTime()) ? new Date().toISOString() : dateValue.toISOString();
+        }
+        
+        // If it's a string, try to parse it
+        if (typeof dateValue === 'string') {
+          const parsed = new Date(dateValue);
+          return isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+        }
+        
+        // Fallback to current date
+        return new Date().toISOString();
+      };
+
+      return {
+        id: task.id,
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        task_type: task.task_type,
+        status: task.status,
+        deadline: task.deadline ? safeToISOString(task.deadline) : null,
+        estimated_hours: task.estimated_hours,
+        user_id: task.user_id,
+        created_at: safeToISOString(task.created_at),
+        updated_at: safeToISOString(task.updated_at)
+      };
+    });
 
     console.log(`Found ${tasks.length} tasks for user ${userId}`);
     res.json({
@@ -339,14 +210,8 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 router.post('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user?.id;
-    console.log('=== TASK CREATION DEBUG ===');
-    console.log('Creating task for user:', userId);
-    console.log('User object:', (req as any).user);
-    console.log('Request body:', req.body);
-    console.log('Headers:', req.headers);
     
     if (!userId) {
-      console.log('❌ User ID not found in request');
       return res.status(401).json({ error: 'User not authenticated' });
     }
 

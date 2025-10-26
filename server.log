@@ -1,0 +1,118 @@
+
+> stream-scene@1.0.0 dev:server
+> NODE_ENV=development nodemon --watch server --watch client --ext ts,tsx,js,jsx --exec "tsx server/app.ts"
+
+[33m[nodemon] 3.1.10[39m
+[33m[nodemon] reading config ./nodemon.json[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] or send SIGHUP to 54235 to restart[39m
+[33m[nodemon] ignoring: node_modules/**/* dist/**/* public/**/* *.test.* *.spec.*[39m
+[33m[nodemon] watching path(s): server/**/* client/**/*[39m
+[33m[nodemon] watching extensions: ts,tsx,js,jsx[39m
+[32m[nodemon] starting `tsx server/app.ts`[39m
+[33m[nodemon] spawning[39m
+[33m[nodemon] child pid: 54248[39m
+[33m[nodemon] watching 126 files[39m
+[dotenv@17.2.2] injecting env (21) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+[dotenv@17.2.2] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+🔧 Loading environment from: .env.development
+[dotenv@17.2.2] injecting env (2) from .env.development -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.2.2] injecting env (0) from .env -- tip: 📡 version env with Radar: https://dotenvx.com/radar
+✅ Database associations ready
+✅ Database associations ready
+Executing (default): SHOW FULL COLUMNS FROM `canvases`;
+Executing (default): SHOW FULL COLUMNS FROM `canvas_collaborators`;
+✅ Canvas tables already have correct STRING schema
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'canvases' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `canvases`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'canvas_collaborators' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `canvas_collaborators`
+✅ Canvas tables synced (no force recreation)
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'users' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `users` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'tasks' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `tasks` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'files' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `files` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'comments' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `comments` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'comment_reactions' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `comment_reactions` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'canvases' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `canvases` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'canvas_collaborators' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `canvas_collaborators` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'social_account_tokens' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `social_account_tokens` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'ScheduledPosts' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `ScheduledPosts` FROM `stream_scene`
+Database sync complete (File, SocialAccountToken, ScheduledPost, Task, Comment, CommentReaction, Canvas, CanvasCollaborator)
+Server is running at http://localhost:8000
+External access: http://0.0.0.0:8000
+Environment: development
+🔌 WebSocket server initialized
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+[32m[nodemon] restarting child process[39m
+[32m[nodemon] starting `tsx server/app.ts`[39m
+[33m[nodemon] spawning[39m
+[33m[nodemon] child pid: 54929[39m
+[32m[nodemon] restarting child process[39m
+[33m[nodemon] exiting[39m
+[dotenv@17.2.2] injecting env (21) from .env -- tip: ⚙️  override existing env vars with { override: true }
+[dotenv@17.2.2] injecting env (0) from .env -- tip: 📡 version env with Radar: https://dotenvx.com/radar
+🔧 Loading environment from: .env.development
+[dotenv@17.2.2] injecting env (2) from .env.development -- tip: ⚙️  enable debug logging with { debug: true }
+[dotenv@17.2.2] injecting env (0) from .env -- tip: ⚙️  load multiple .env files with { path: ['.env.local', '.env'] }
+✅ Database associations ready
+✅ Database associations ready
+Executing (default): SHOW FULL COLUMNS FROM `canvases`;
+Executing (default): SHOW FULL COLUMNS FROM `canvas_collaborators`;
+✅ Canvas tables already have correct STRING schema
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'canvases' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `canvases`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'canvas_collaborators' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `canvas_collaborators`
+✅ Canvas tables synced (no force recreation)
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'users' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `users` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'tasks' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `tasks` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'files' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `files` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'comments' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `comments` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'comment_reactions' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `comment_reactions` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'canvases' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `canvases` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'canvas_collaborators' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `canvas_collaborators` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'social_account_tokens' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `social_account_tokens` FROM `stream_scene`
+Executing (default): SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE = 'BASE TABLE' AND TABLE_NAME = 'ScheduledPosts' AND TABLE_SCHEMA = 'stream_scene'
+Executing (default): SHOW INDEX FROM `ScheduledPosts` FROM `stream_scene`
+Database sync complete (File, SocialAccountToken, ScheduledPost, Task, Comment, CommentReaction, Canvas, CanvasCollaborator)
+Server is running at http://localhost:8000
+External access: http://0.0.0.0:8000
+Environment: development
+🔌 WebSocket server initialized
+🔍 [2025-09-19T17:00:42.777Z] CORS check for origin: undefined
+✅ No origin - allowing
+📡 2025-09-19T17:00:42.786Z - GET / {
+  origin: 'NO_ORIGIN',
+  userAgent: 'curl/8.5.0...',
+  referer: 'NO_REFERER',
+  host: 'localhost:8000',
+  user: 'not authenticated'
+}
+GET / { origin: undefined, user: 'not authenticated' }
+🔍 [2025-09-19T17:00:57.920Z] CORS check for origin: undefined
+✅ No origin - allowing
+📡 2025-09-19T17:00:57.921Z - GET /api/s3/status {
+  origin: 'NO_ORIGIN',
+  userAgent: 'curl/8.5.0...',
+  referer: 'NO_REFERER',
+  host: 'localhost:8000',
+  user: 'not authenticated'
+}
+GET /api/s3/status { origin: undefined, user: 'not authenticated' }

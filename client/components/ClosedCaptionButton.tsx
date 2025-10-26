@@ -15,7 +15,7 @@ const ClosedCaptionButton: React.FC<ClosedCaptionButtonProps> = ({ fileId, onCap
   const handleGenerateCaptions = async () => {
     setIsProcessing(true);
     try {
-      console.log('Generating captions for file:', fileId);
+
       
       // Start caption generation
       const response = await fetch(`/api/caption/${fileId}`, {
@@ -24,59 +24,59 @@ const ClosedCaptionButton: React.FC<ClosedCaptionButtonProps> = ({ fileId, onCap
         headers: { 'Content-Type': 'application/json' },
       });
 
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
+
+
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Error response:', errorText);
+
         throw new Error(`Failed to start caption generation: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
-      console.log('Full response result:', result);
+
       
       if (!result.jobName) {
         throw new Error('No job name returned from server');
       }
       
       setJobName(result.jobName);
-      console.log('Caption job started:', result.jobName);
+
 
       // Poll for completion
       pollForCompletion(result.jobName);
     } catch (error) {
-      console.error('Error generating captions:', error);
+
       setIsProcessing(false);
     }
   };
 
   const pollForCompletion = async (jobName: string) => {
     if (!jobName) {
-      console.error('Cannot poll - jobName is undefined');
+
       setIsProcessing(false);
       return;
     }
 
     const checkStatus = async () => {
       try {
-        console.log('Checking status for job:', jobName);
+
 
         const statusResponse = await fetch(`/api/caption/status/${jobName}`, {
           credentials: 'include',
         });
 
         if (!statusResponse.ok) {
-          console.error('Status check failed:', statusResponse.status, statusResponse.statusText);
+
           setIsProcessing(false);
           return;
         }
 
         const statusResult = await statusResponse.json();
-        console.log('Job status:', statusResult.status);
+
 
         if (statusResult.status === 'COMPLETED') {
-          console.log('Job completed, fetching transcript...');
+
           
           // Get the final transcript
           const transcriptResponse = await fetch(`/api/caption/transcript/${jobName}`, {
@@ -84,7 +84,7 @@ const ClosedCaptionButton: React.FC<ClosedCaptionButtonProps> = ({ fileId, onCap
           });
           
           if (!transcriptResponse.ok) {
-            console.error('Transcript fetch failed:', transcriptResponse.status, transcriptResponse.statusText);
+
             setIsProcessing(false);
             return;
           }
@@ -92,22 +92,22 @@ const ClosedCaptionButton: React.FC<ClosedCaptionButtonProps> = ({ fileId, onCap
           const transcriptResult = await transcriptResponse.json();
           setCaptionUrl(transcriptResult.captionUrl);
           setIsProcessing(false);
-          console.log('Captions ready:', transcriptResult.captionUrl);
+
           
           // Directly notify parent with the caption URL
           if (onCaptionReady) {
             onCaptionReady(transcriptResult.captionUrl);
           }
         } else if (statusResult.status === 'FAILED') {
-          console.error('Transcription job failed');
+
           setIsProcessing(false);
         } else {
           // Still processing, check again in 5 seconds
-          console.log('Job still processing, checking again in 5 seconds...');
+
           setTimeout(checkStatus, POLL_INTERVAL);
         }
       } catch (error) {
-        console.error('Error checking status:', error);
+
         setIsProcessing(false);
       }
     };

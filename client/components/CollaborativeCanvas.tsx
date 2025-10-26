@@ -1,10 +1,21 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { motion, AnimatePresence } from 'framer-motion';
+import useAuth from '../hooks/useAuth';
+import InlineLoading from './InlineLoading';
 
 interface Point {
   x: number;
   y: number;
+}
+
+interface SavedDrawing {
+  id: string;
+  name: string;
+  data: string;
+  timestamp: number;
+  fileRecordId?: number;
+  isLocal?: boolean;
 }
 
 interface DrawingEvent {
@@ -127,6 +138,20 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
     collaborators: ''
   });
   const [showShareModal, setShowShareModal] = useState(false);
+  
+  // Save/Load functionality states
+  const { user } = useAuth();
+  const [savedDrawings, setSavedDrawings] = useState<SavedDrawing[]>([]);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [showLoadDialog, setShowLoadDialog] = useState(false);
+  const [currentDrawingName, setCurrentDrawingName] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [loadSuccess, setLoadSuccess] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const [shareData, setShareData] = useState<ShareData>({
     shareUrl: '',
     shareToken: '',
@@ -179,7 +204,6 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
         });
 
         socketInstance.on('connect', () => {
-          console.log('🔌 WebSocket connected successfully to:', serverUrl);
           setIsConnected(true);
           setSocket(socketInstance);
           
@@ -195,27 +219,24 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
           socketInstance?.emit('join-canvas', canvasId);
         });
 
-        socketInstance.on('disconnect', (reason) => {
-          console.log('❌ WebSocket disconnected:', reason);
+        socketInstance.on('disconnect', () => {
           setIsConnected(false);
         });
 
-        socketInstance.on('connect_error', (error) => {
-          console.error('❌ WebSocket connection error:', error);
+        socketInstance.on('connect_error', () => {
           setIsConnected(false);
         });
 
-        socketInstance.on('reconnect_attempt', (attemptNumber) => {
-          console.log(`🔄 WebSocket reconnection attempt ${attemptNumber}`);
+        socketInstance.on('reconnect_attempt', () => {
+          // Reconnection attempt in progress
         });
 
-        socketInstance.on('reconnect', (attemptNumber) => {
-          console.log(`✅ WebSocket reconnected after ${attemptNumber} attempts`);
+        socketInstance.on('reconnect', () => {
           setIsConnected(true);
         });
 
-        socketInstance.on('reconnect_error', (error) => {
-          console.error('❌ WebSocket reconnection error:', error);
+        socketInstance.on('reconnect_error', () => {
+          // Reconnection failed
         });
 
         socketInstance.on('canvas-update', (updateData: any) => {
@@ -318,7 +339,7 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
         });
 
       } catch (error) {
-        console.warn('WebSocket initialization failed:', error);
+
       }
     }
 
@@ -595,7 +616,7 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
         expiresAt
       });
     } catch (error) {
-      console.error('Failed to generate share link:', error);
+
     }
   }, [canvasId]);
 
@@ -624,7 +645,7 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
         collaborators: ''
       });
     } catch (error) {
-      console.error('Failed to schedule session:', error);
+
     }
   }, [sessionForm, canvasId]);
 
@@ -723,6 +744,314 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
     };
     saveStroke(clearEvent);
   }, [saveStroke]);
+
+  // Load all saved drawings from localStorage and database
+  const loadAllDrawings = useCallback(async () => {
+
+    const localDrawings: SavedDrawing[] = [];
+    const dbDrawings: SavedDrawing[] = [];
+
+    // Load from localStorage
+    const saved = localStorage.getItem('canvas-drawings');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        localDrawings.push(...parsed);
+
+      } catch (error) {
+
+      }
+    }
+
+    // Load from database if user is logged in
+    if (user) {
+      try {
+
+        const response = await fetch('/api/files?type=image/png', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const filesResponse = await response.json();
+
+          
+          // Handle both array and object responses
+          const files = Array.isArray(filesResponse) ? filesResponse : (filesResponse.files || []);
+          
+          const canvasFiles = files.filter((file: any) => 
+            file.type === 'image/png' && 
+            file.tags && 
+            file.tags.includes('canvas')
+          );
+
+          // If no files with 'canvas' tag, try a broader filter for PNG files
+          if (canvasFiles.length === 0) {
+            const pngFiles = files.filter((file: any) => 
+              file.type === 'image/png' || 
+              (file.name && file.name.toLowerCase().endsWith('.png'))
+            );
+
+            
+            // Use PNG files as canvas files for now
+            for (const file of pngFiles) {
+              try {
+                dbDrawings.push({
+                  id: `db-${file.id}`,
+                  name: file.name.replace('.png', ''),
+                  data: file.url, // Use the S3 URL directly for images
+                  timestamp: new Date(file.uploadedAt).getTime(),
+                  fileRecordId: file.id,
+                  isLocal: false
+                });
+
+              } catch (error) {
+
+              }
+            }
+          } else {
+            // Use the properly tagged canvas files
+            for (const file of canvasFiles) {
+              try {
+                dbDrawings.push({
+                  id: `db-${file.id}`,
+                  name: file.name.replace('.png', ''),
+                  data: file.url, // Use the S3 URL directly for images
+                  timestamp: new Date(file.uploadedAt).getTime(),
+                  fileRecordId: file.id,
+                  isLocal: false
+                });
+
+              } catch (error) {
+
+              }
+            }
+          }
+        } else {
+
+        }
+      } catch (error) {
+
+      }
+    }
+
+    // Combine and sort by timestamp (newest first)
+    const allDrawings = [...localDrawings, ...dbDrawings]
+      .sort((a, b) => b.timestamp - a.timestamp);
+    
+
+    setSavedDrawings(allDrawings);
+  }, [user, setSavedDrawings]);
+
+  // Load all drawings on component mount
+  useEffect(() => {
+    loadAllDrawings();
+  }, [loadAllDrawings]);
+
+  // Save drawing function
+  const saveDrawing = useCallback(async () => {
+    if (!canvasRef.current || !currentDrawingName.trim()) return;
+    setIsSaving(true);
+    setSaveError(null);
+    setSaveSuccess(null);
+    
+    try {
+      const canvas = canvasRef.current;
+      const canvasData = canvas.toDataURL('image/png');
+      const timestamp = Date.now();
+      const drawingId = timestamp.toString();
+      
+      const newDrawing: SavedDrawing = {
+        id: drawingId,
+        name: currentDrawingName.trim(),
+        data: canvasData,
+        timestamp,
+        isLocal: !user // Mark as local-only if user is not logged in
+      };
+
+      // Always save to localStorage for offline access
+      const localDrawings = [...savedDrawings.filter(d => d.isLocal), newDrawing];
+      localStorage.setItem('canvas-drawings', JSON.stringify(localDrawings));
+
+      // Save to database if user is logged in
+      if (user) {
+        try {
+          // Convert canvas to blob
+          const response = await fetch(canvasData);
+          const blob = await response.blob();
+          const fileName = `${currentDrawingName.trim()}_${timestamp}.png`;
+          
+          // Create a file to upload
+          const file = new File([blob], fileName, { type: 'image/png' });
+          
+          // Upload to S3 using the same pattern as FileUpload
+          const formData = new FormData();
+          formData.append('file', file);
+
+          const uploadResponse = await fetch('/api/s3/upload', {
+            method: 'POST',
+            body: formData,
+            credentials: 'include'
+          });
+
+          if (uploadResponse.ok) {
+            const uploadData = await uploadResponse.json();
+            
+            // Create file record in database
+            const fileData = {
+              name: fileName,
+              originalName: fileName,
+              type: 'image/png',
+              size: blob.size,
+              url: uploadData.url,
+              s3Key: uploadData.key,
+              tags: ['canvas', 'drawing'],
+            };
+
+
+
+            const fileResponse = await fetch('/api/files/upload', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              credentials: 'include',
+              body: JSON.stringify(fileData),
+            });
+
+            if (fileResponse.ok) {
+              const savedFile = await fileResponse.json();
+              
+              // Update the drawing with database info
+              newDrawing.fileRecordId = savedFile.id;
+              newDrawing.isLocal = false;
+              newDrawing.id = `db-${savedFile.id}`;
+              
+
+            } else {
+              throw new Error('Failed to create file record');
+            }
+          } else {
+            throw new Error('S3 upload failed');
+          }
+        } catch (dbError) {
+
+          // Keep the local version even if database save failed
+        }
+      }
+
+      // Update state with new drawing
+      setSavedDrawings(prev => [newDrawing, ...prev.filter(d => d.id !== drawingId)]);
+      setCurrentDrawingName("");
+      setShowSaveDialog(false);
+      
+      const message = user 
+        ? `"${newDrawing.name}" saved successfully!` 
+        : `"${newDrawing.name}" saved locally (login to save to cloud)!`;
+      setSaveSuccess(message);
+      
+      // Refresh the drawings list to get the latest from database
+      if (user) {
+        setTimeout(() => loadAllDrawings(), 1000); // Give the server a moment to process
+      }
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setSaveSuccess(null), 3000);
+    } catch (error) {
+
+      setSaveError('Failed to save drawing. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  }, [canvasRef, currentDrawingName, user, savedDrawings, setSavedDrawings, setIsSaving, setSaveError, setSaveSuccess, setCurrentDrawingName, setShowSaveDialog]);
+
+  // Load drawing function
+  const loadDrawing = useCallback(async (drawing: SavedDrawing) => {
+    if (!canvasRef.current) return;
+    setIsLoading(true);
+    setLoadError(null);
+    setLoadSuccess(null);
+    
+    try {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        setLoadError('Unable to access canvas context');
+        return;
+      }
+
+      // Handle different data formats for backward compatibility
+      const imageData = drawing.data;
+      
+      // Check if the data is a valid image source
+      if (!imageData || (typeof imageData !== 'string')) {
+        setLoadError('Invalid drawing data format.');
+        return;
+      }
+
+      // If the data doesn't start with "data:" and isn't a URL, it might be old JSON format
+      if (!imageData.startsWith('data:') && !imageData.startsWith('http')) {
+        setLoadError('This drawing uses an old format that cannot be loaded. Please save a new drawing.');
+        return;
+      }
+
+      const img = new Image();
+      // Enable CORS for loading images from S3
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        // Clear canvas first
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Draw the loaded image
+        ctx.drawImage(img, 0, 0);
+        setShowLoadDialog(false);
+        setLoadSuccess(`"${drawing.name}" loaded successfully!`);
+        setIsLoading(false);
+        
+        // Clear success message after 3 seconds
+        setTimeout(() => setLoadSuccess(null), 3000);
+      };
+      img.onerror = (error) => {
+
+        setLoadError('Failed to load image data. The drawing may be corrupted.');
+        setIsLoading(false);
+      };
+      
+      img.src = imageData;
+    } catch (error) {
+
+      setLoadError('Failed to load drawing. Please try again.');
+      setIsLoading(false);
+    }
+  }, [canvasRef, setIsLoading, setLoadError, setLoadSuccess, setShowLoadDialog]);
+
+  // Delete drawing function
+  const deleteDrawing = useCallback((drawingId: string) => {
+    const drawingToDelete = savedDrawings.find(d => d.id === drawingId);
+    const updatedDrawings = savedDrawings.filter(d => d.id !== drawingId);
+    setSavedDrawings(updatedDrawings);
+    localStorage.setItem('canvas-drawings', JSON.stringify(updatedDrawings));
+    
+    if (drawingToDelete) {
+
+    }
+  }, [savedDrawings, setSavedDrawings]);
+
+  // Export canvas as image
+  const exportAsImage = useCallback(async () => {
+    if (!canvasRef.current) return;
+    setIsExporting(true);
+    try {
+      const canvas = canvasRef.current;
+      const imageData = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `canvas-drawing-${Date.now()}.png`;
+      link.href = imageData;
+      link.click();
+
+    } catch (error) {
+
+    } finally {
+      setIsExporting(false);
+    }
+  }, [canvasRef, setIsExporting]);
 
   return (
     <div className="flex flex-col h-full bg-gray-900 text-white">
@@ -901,6 +1230,41 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Save/Load/Export buttons */}
+          <div className="flex items-center space-x-1">
+            <button
+              onClick={() => setShowSaveDialog(true)}
+              disabled={isSaving}
+              className="p-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:opacity-50 rounded"
+              title="Save Drawing"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6a1 1 0 10-2 0v5.586l-1.293-1.293z" />
+                <path d="M5 3a2 2 0 00-2 2v1a1 1 0 002 0V5a1 1 0 011-1h8a1 1 0 011 1v1a1 1 0 102 0V5a2 2 0 00-2-2H5z" />
+              </svg>
+            </button>
+            <button
+              onClick={() => setShowLoadDialog(true)}
+              disabled={isLoading}
+              className="p-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:opacity-50 rounded"
+              title="Load Drawing"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+              </svg>
+            </button>
+            <button
+              onClick={exportAsImage}
+              disabled={isExporting}
+              className="p-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-gray-600 disabled:opacity-50 rounded"
+              title="Export as Image"
+            >
+              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 011 1v1a1 1 0 01-1 1H4a1 1 0 01-1-1v-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clipRule="evenodd" />
               </svg>
             </button>
           </div>
@@ -1214,6 +1578,228 @@ const CollaborativeCanvas: React.FC<CanvasProps> = ({
           ))}
         </div>
       </div>
+
+      {/* Save Dialog */}
+      {showSaveDialog && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <motion.div
+            className="bg-slate-800 border border-purple-500/20 rounded-xl p-6 max-w-md w-full mx-4"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <h3 className="text-xl font-bold text-purple-300 mb-4">Save Drawing</h3>
+            
+            {/* Success Message */}
+            {saveSuccess && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 p-3 bg-green-900/50 border border-green-500/50 text-green-200 rounded-lg text-sm"
+              >
+                {saveSuccess}
+              </motion.div>
+            )}
+            
+            {/* Error Message */}
+            {saveError && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 p-3 bg-red-900/50 border border-red-500/50 text-red-200 rounded-lg text-sm"
+              >
+                {saveError}
+                <button
+                  onClick={() => setSaveError(null)}
+                  className="ml-2 text-red-400 hover:text-red-300"
+                >
+                  ×
+                </button>
+              </motion.div>
+            )}
+            
+            {/* Saving Progress */}
+            {isSaving && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4"
+              >
+                <InlineLoading 
+                  size="sm" 
+                  speed="fast" 
+                  text="Saving drawing..."
+                />
+              </motion.div>
+            )}
+            
+            <input
+              type="text"
+              value={currentDrawingName}
+              onChange={(e) => setCurrentDrawingName(e.target.value)}
+              placeholder="Enter drawing name..."
+              className="w-full px-4 py-2 bg-slate-700 border border-purple-500/30 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 mb-4"
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && currentDrawingName.trim()) {
+                  saveDrawing();
+                }
+                if (e.key === 'Escape') {
+                  setShowSaveDialog(false);
+                  setCurrentDrawingName("");
+                }
+              }}
+            />
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowSaveDialog(false);
+                  setCurrentDrawingName("");
+                }}
+                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={saveDrawing}
+                disabled={!currentDrawingName.trim() || isSaving}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white rounded-lg transition-colors min-w-[80px] flex items-center justify-center"
+              >
+                {isSaving ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span>Saving...</span>
+                  </div>
+                ) : (
+                  'Save'
+                )}
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Load Dialog */}
+      {showLoadDialog && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+          <motion.div
+            className="bg-slate-800 border border-purple-500/20 rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-hidden"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-purple-300">Load Drawing</h3>
+              <button
+                onClick={() => setShowLoadDialog(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Success Message */}
+            {loadSuccess && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 p-3 bg-green-900/50 border border-green-500/50 text-green-200 rounded-lg text-sm"
+              >
+                {loadSuccess}
+              </motion.div>
+            )}
+            
+            {/* Error Message */}
+            {loadError && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4 p-3 bg-red-900/50 border border-red-500/50 text-red-200 rounded-lg text-sm"
+              >
+                {loadError}
+                <button
+                  onClick={() => setLoadError(null)}
+                  className="ml-2 text-red-400 hover:text-red-300"
+                >
+                  ×
+                </button>
+              </motion.div>
+            )}
+
+            {/* Loading Progress */}
+            {isLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="mb-4"
+              >
+                <InlineLoading 
+                  size="sm" 
+                  speed="fast" 
+                  text="Loading drawing..."
+                />
+              </motion.div>
+            )}
+
+            {/* Drawings List */}
+            <div className="max-h-96 overflow-y-auto">
+              {savedDrawings.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <svg className="w-12 h-12 mx-auto mb-4 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  <p>No saved drawings found</p>
+                  <p className="text-sm mt-1">Start creating and save your first drawing!</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {savedDrawings.map((drawing) => (
+                    <motion.div
+                      key={drawing.id}
+                      className="flex items-center justify-between p-3 bg-slate-700/50 border border-purple-500/20 rounded-lg hover:bg-slate-700/70 transition-colors"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      whileHover={{ scale: 1.02 }}
+                    >
+                      <div className="flex-1">
+                        <h4 className="font-medium text-white">{drawing.name}</h4>
+                        <div className="flex items-center gap-2 text-sm text-gray-400">
+                          <span>{new Date(drawing.timestamp).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <span>{new Date(drawing.timestamp).toLocaleTimeString()}</span>
+                          {drawing.isLocal && (
+                            <>
+                              <span>•</span>
+                              <span className="text-yellow-400">Local only</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => loadDrawing(drawing)}
+                          disabled={isLoading}
+                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 disabled:cursor-not-allowed text-white text-sm rounded transition-colors"
+                        >
+                          {isLoading ? 'Loading...' : 'Load'}
+                        </button>
+                        <button
+                          onClick={() => deleteDrawing(drawing.id)}
+                          className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-sm rounded transition-colors"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

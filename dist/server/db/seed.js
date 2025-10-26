@@ -253,32 +253,179 @@ async function seed(forceRecreate = false) {
             console.log('⚠️  Tasks table creation failed (continuing anyway):', err.message);
         }
         console.log('✅ Tasks table created');
+        // 11. Create budget_projects table
+        try {
+            await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS \`budget_projects\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`user_id\` INTEGER UNSIGNED NOT NULL,
+          \`name\` VARCHAR(255) NOT NULL,
+          \`description\` TEXT NULL,
+          \`color\` VARCHAR(7) NOT NULL DEFAULT '#8b5cf6',
+          \`is_active\` TINYINT(1) NOT NULL DEFAULT true,
+          \`tags\` JSON NULL,
+          \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          PRIMARY KEY (\`id\`),
+          FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`id\`) ON DELETE CASCADE
+        ) ENGINE=InnoDB;
+      `);
+            console.log('✅ Budget projects table created');
+        }
+        catch (err) {
+            console.log('⚠️  Budget projects table creation failed (continuing anyway):', err.message);
+        }
+        // 12. Create budget_entries table
+        try {
+            await sequelize.query(`
+        CREATE TABLE IF NOT EXISTS \`budget_entries\` (
+          \`id\` VARCHAR(36) NOT NULL,
+          \`user_id\` INTEGER UNSIGNED NOT NULL,
+          \`type\` ENUM('income', 'expense') NOT NULL,
+          \`amount\` DECIMAL(10,2) NOT NULL,
+          \`category\` VARCHAR(255) NOT NULL,
+          \`description\` TEXT NOT NULL,
+          \`date\` DATE NOT NULL,
+          \`project_id\` VARCHAR(36) NULL,
+          \`receipt_title\` VARCHAR(255) NULL,
+          \`ocr_scanned\` TINYINT(1) NOT NULL DEFAULT false,
+          \`ocr_confidence\` FLOAT NULL,
+          \`tags\` JSON NULL,
+          \`created_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          \`updated_at\` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          PRIMARY KEY (\`id\`),
+          FOREIGN KEY (\`user_id\`) REFERENCES \`users\` (\`id\`) ON DELETE CASCADE,
+          FOREIGN KEY (\`project_id\`) REFERENCES \`budget_projects\` (\`id\`) ON DELETE SET NULL
+        ) ENGINE=InnoDB;
+      `);
+            console.log('✅ Budget entries table created');
+        }
+        catch (err) {
+            console.log('⚠️  Budget entries table creation failed (continuing anyway):', err.message);
+        }
         console.log('🎉 All tables created successfully!');
         // Insert initial data
         console.log('🌱 Inserting initial seed data...');
-        // Insert test user
+        // Insert test users
         await sequelize.query(`
       INSERT IGNORE INTO \`users\` (\`id\`, \`email\`, \`name\`, \`google_id\`, \`created_at\`, \`updated_at\`) 
       VALUES (1, 'admin@streamscene.net', 'StreamScene Admin', 'streamscene-admin-001', NOW(), NOW());
     `);
         console.log('✅ Admin user created');
-        // Create a default canvas
+        // Insert specific user: allblk13@gmail.com
+        await sequelize.query(`
+      INSERT IGNORE INTO \`users\` (\`id\`, \`email\`, \`name\`, \`google_id\`, \`created_at\`, \`updated_at\`) 
+      VALUES (2, 'allblk13@gmail.com', 'AllBlk Creator', 'allblk-creator-13', NOW(), NOW());
+    `);
+        console.log('✅ AllBlk user created');
+        // Create default canvases
         await sequelize.query(`
       INSERT IGNORE INTO \`canvases\` (\`id\`, \`userId\`, \`name\`, \`description\`, \`canvasData\`, \`isPublic\`, \`allowAnonymousEdit\`) 
       VALUES ('project-center-main', 1, 'Project Center Main Canvas', 'Default canvas for project collaboration', '{"objects":[],"background":"#ffffff","version":"4.6.0"}', true, true);
     `);
         console.log('✅ Default canvas created');
+        // Create canvas for AllBlk user
+        await sequelize.query(`
+      INSERT IGNORE INTO \`canvases\` (\`id\`, \`userId\`, \`name\`, \`description\`, \`canvasData\`, \`isPublic\`, \`allowAnonymousEdit\`) 
+      VALUES ('allblk-creative-workspace', 2, 'AllBlk Creative Workspace', 'Creative collaboration space for content planning', '{"objects":[],"background":"#1a1a2e","version":"4.6.0"}', true, true);
+    `);
+        console.log('✅ AllBlk canvas created');
         // Create a welcome task using direct SQL for consistency
         await sequelize.query(`
       INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) 
       VALUES ('Welcome to StreamScene', 'Explore the collaborative features and get started with your first project!', 'medium', 'admin', 'pending', DATE_ADD(NOW(), INTERVAL 7 DAY), 2, 1);
     `);
         console.log('✅ Welcome task created');
+        // Add minimal demo tasks for presentation (greatly reduced)
+        console.log('🎮 Adding minimal demo tasks...');
+        // Get current date and calculate relative dates
+        const now = new Date();
+        const getCurrentDate = () => now.toISOString().slice(0, 19).replace('T', ' ');
+        const getDateOffset = (days) => {
+            const date = new Date(now);
+            date.setDate(date.getDate() + days);
+            return date.toISOString().slice(0, 19).replace('T', ' ');
+        };
+        // Essential tasks only (10 total tasks instead of hundreds)
+        await sequelize.query(`
+      INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) VALUES
+      ('Stream Setup & Testing', 'Test new overlay design and check audio levels', 'high', 'creative', 'in_progress', '${getCurrentDate()}', 3, 1),
+      ('YouTube Video Edit', 'Edit highlights from this week streams', 'medium', 'creative', 'pending', '${getDateOffset(2)}', 4, 1),
+      ('Sponsor Content Creation', 'Create sponsored segment for brand partnership', 'medium', 'admin', 'pending', '${getDateOffset(3)}', 2, 1),
+      ('Community Event Planning', 'Plan Discord movie night for subscribers', 'low', 'creative', 'pending', '${getDateOffset(5)}', 2, 1),
+      ('Analytics Review', 'Review weekly performance metrics', 'medium', 'admin', 'pending', '${getDateOffset(7)}', 1, 1);
+    `);
+        // A few completed tasks to show variety
+        await sequelize.query(`
+      INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) VALUES
+      ('Webcam Setup', 'Installed and configured new 4K webcam', 'high', 'admin', 'completed', '${getDateOffset(-2)}', 2, 1),
+      ('Weekly Schedule', 'Created and posted streaming schedule', 'medium', 'admin', 'completed', '${getDateOffset(-3)}', 1, 1),
+      ('Social Media Post', 'Posted community poll on Twitter', 'low', 'creative', 'completed', '${getDateOffset(-1)}', 1, 1);
+    `);
+        console.log('✅ Minimal demo tasks created (8 total)');
+        // Add minimal seed data for AllBlk user (allblk13@gmail.com)
+        console.log('🎨 Adding minimal AllBlk creator tasks...');
+        // Essential tasks only (5 total for second user)
+        await sequelize.query(`
+      INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) VALUES
+      ('Tech Review Script', 'Write script for iPhone 16 review video', 'high', 'creative', 'in_progress', '${getCurrentDate()}', 4, 2),
+      ('Thumbnail Design', 'Create eye-catching thumbnail for review video', 'medium', 'creative', 'pending', '${getDateOffset(1)}', 2, 2),
+      ('Brand Partnership Meeting', 'Video call with Sony about camera gear sponsorship', 'high', 'admin', 'pending', '${getDateOffset(3)}', 1, 2),
+      ('Content Calendar Planning', 'Plan next month content strategy', 'medium', 'admin', 'pending', '${getDateOffset(7)}', 3, 2);
+    `);
+        // One completed task for variety
+        await sequelize.query(`
+      INSERT IGNORE INTO \`tasks\` (\`title\`, \`description\`, \`priority\`, \`task_type\`, \`status\`, \`deadline\`, \`estimated_hours\`, \`user_id\`) VALUES
+      ('SEO Optimization', 'Optimized video titles and descriptions', 'medium', 'admin', 'completed', '${getDateOffset(-3)}', 2, 2);
+    `);
+        console.log('✅ Minimal AllBlk creator tasks created (5 total)');
+        // Add minimal budget tracker seed data
+        console.log('💰 Adding budget tracker demo data...');
+        // Create budget projects for both users
+        await sequelize.query(`
+      INSERT IGNORE INTO \`budget_projects\` (\`id\`, \`user_id\`, \`name\`, \`description\`, \`color\`, \`is_active\`, \`tags\`) VALUES
+      ('proj-streaming-setup', 1, 'Streaming Setup', 'Equipment and software for streaming', '#8b5cf6', true, '["streaming", "equipment"]'),
+      ('proj-content-creation', 1, 'Content Creation', 'Video editing and content tools', '#059669', true, '["content", "editing"]'),
+      ('proj-tech-reviews', 2, 'Tech Reviews', 'Equipment for tech review videos', '#dc2626', true, '["tech", "reviews"]'),
+      ('proj-brand-partnerships', 2, 'Brand Partnerships', 'Sponsored content expenses', '#f59e0b', true, '["sponsorship", "brand"]');
+    `);
+        // Create budget entries (income and expenses)
+        await sequelize.query(`
+      INSERT IGNORE INTO \`budget_entries\` (\`id\`, \`user_id\`, \`type\`, \`amount\`, \`category\`, \`description\`, \`date\`, \`project_id\`, \`tags\`) VALUES
+      -- StreamScene Admin income
+      ('entry-1', 1, 'income', 2500.00, 'Streaming Revenue', 'Twitch subscriber income', '${getDateOffset(-5)}', 'proj-streaming-setup', '["twitch", "subscribers"]'),
+      ('entry-2', 1, 'income', 800.00, 'Donations', 'Community donations and tips', '${getDateOffset(-3)}', 'proj-streaming-setup', '["donations", "community"]'),
+      ('entry-3', 1, 'income', 1200.00, 'Sponsorship', 'Gaming peripheral brand deal', '${getDateOffset(-7)}', 'proj-content-creation', '["sponsorship", "gaming"]'),
+      
+      -- StreamScene Admin expenses
+      ('entry-4', 1, 'expense', 450.00, 'Equipment', 'New microphone for better audio', '${getDateOffset(-10)}', 'proj-streaming-setup', '["microphone", "audio"]'),
+      ('entry-5', 1, 'expense', 89.99, 'Software', 'OBS Studio plugins and overlays', '${getDateOffset(-8)}', 'proj-streaming-setup', '["software", "obs"]'),
+      ('entry-6', 1, 'expense', 120.00, 'Utilities', 'Internet upgrade for streaming', '${getDateOffset(-15)}', 'proj-streaming-setup', '["internet", "utilities"]'),
+      
+      -- AllBlk Creator income
+      ('entry-7', 2, 'income', 3200.00, 'YouTube Revenue', 'YouTube AdSense earnings', '${getDateOffset(-4)}', 'proj-tech-reviews', '["youtube", "adsense"]'),
+      ('entry-8', 2, 'income', 1500.00, 'Brand Deal', 'Sony camera sponsorship payment', '${getDateOffset(-6)}', 'proj-brand-partnerships', '["sony", "camera", "sponsorship"]'),
+      
+      -- AllBlk Creator expenses
+      ('entry-9', 2, 'expense', 899.00, 'Equipment', 'iPhone 16 for review content', '${getDateOffset(-12)}', 'proj-tech-reviews', '["iphone", "review", "mobile"]'),
+      ('entry-10', 2, 'expense', 199.00, 'Software', 'Final Cut Pro annual subscription', '${getDateOffset(-20)}', 'proj-tech-reviews', '["editing", "finalcut"]'),
+      ('entry-11', 2, 'expense', 65.00, 'Supplies', 'Backdrop and lighting for videos', '${getDateOffset(-14)}', 'proj-tech-reviews', '["lighting", "backdrop"]');
+    `);
+        console.log('✅ Budget tracker demo data created');
+        console.log('📊 Budget Summary:');
+        console.log('   - 4 budget projects created');
+        console.log('   - 11 budget entries (income & expenses) for demo');
+        console.log('   - Realistic streaming/creator financial data');
         console.log('🎊 Database seeding completed successfully!');
         console.log('📊 Summary:');
-        console.log('   - 10 tables created with proper foreign key relationships');
+        console.log('   - 12 tables created with proper foreign key relationships');
         console.log('   - Fixed userId foreign key type mismatch (INTEGER UNSIGNED)');
-        console.log('   - Sample data inserted (admin user, default canvas, welcome task)');
+        console.log('   - Sample data inserted for 2 users:');
+        console.log('     • admin@streamscene.net (8 demo tasks + budget data)');
+        console.log('     • allblk13@gmail.com (5 demo tasks + budget data)');
+        console.log('   - Total demo tasks: 13 (dramatically reduced from hundreds)');
+        console.log('   - Budget tracker: 4 projects + 11 realistic entries');
+        console.log('   - Default canvases created');
         console.log('   - Database ready for production use');
     }
     catch (err) {

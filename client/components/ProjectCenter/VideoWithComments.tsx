@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { HiChatBubbleLeft, HiPlus, HiXMark } from 'react-icons/hi2';
+import { HiChatBubbleLeft, HiPlus } from 'react-icons/hi2';
 import ClosedCaptionButton from '../ClosedCaptionButton';
 
 interface TimestampedComment {
@@ -44,13 +44,15 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [comments, setComments] = useState<TimestampedComment[]>([]);
-  const [showCommentModal, setShowCommentModal] = useState(false);
-  const [commentTimestamp, setCommentTimestamp] = useState<number>(0);
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [showInlineCommentBox, setShowInlineCommentBox] = useState(false);
+  const [inlineCommentTimestamp, setInlineCommentTimestamp] = useState<number>(0);
   const [videoError, setVideoError] = useState(false);
+  const [videoLoading, setVideoLoading] = useState(true);
   const [hoveredComment, setHoveredComment] = useState<TimestampedComment | null>(null);
   const [showCommentsPanel, setShowCommentsPanel] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   // Format time helper
   const formatTime = (seconds: number): string => {
@@ -61,7 +63,21 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
 
   // Get the appropriate URL for video playback
   const getVideoUrl = (file: UploadedFile): string => {
-    if (file.s3Key && (file.url.includes('s3.') || file.url.includes('amazonaws.com'))) {
+    // For S3 files, always use the proxy for better CORS and range request handling
+    if (file.s3Key) {
+      return `/api/s3/proxy/${file.s3Key}`;
+    }
+    return file.url;
+  };
+
+  // Get fallback video URL in case primary fails
+  const getFallbackVideoUrl = (file: UploadedFile): string => {
+    // If we were using proxy, try direct URL
+    if (file.s3Key && file.url !== `/api/s3/proxy/${file.s3Key}`) {
+      return file.url;
+    }
+    // If we were using direct URL, try proxy
+    if (file.s3Key && !file.url.includes('/api/s3/proxy/')) {
       return `/api/s3/proxy/${file.s3Key}`;
     }
     return file.url;
@@ -82,7 +98,7 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
         setComments(timestampedComments);
       }
     } catch (error) {
-      console.error('Failed to load comments:', error);
+
     }
   }, [file.fileRecordId]);
 
@@ -100,19 +116,20 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
         body: JSON.stringify({
           fileId: file.fileRecordId,
           content: newComment.trim(),
-          timestampSeconds: commentTimestamp
+          timestampSeconds: inlineCommentTimestamp
         }),
       });
 
       if (response.ok) {
         setNewComment('');
-        setShowCommentModal(false);
+        setShowInlineCommentBox(false);
+        setNewComment('');
         await loadComments(); // Reload comments
       } else {
-        console.error('Failed to submit comment');
+
       }
     } catch (error) {
-      console.error('Error submitting comment:', error);
+
     } finally {
       setIsSubmittingComment(false);
     }
@@ -128,20 +145,94 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
   // Handle video loaded metadata
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
-      setDuration(videoRef.current.duration);
+      const video = videoRef.current;
+      setDuration(video.duration);
+      setVideoLoading(false);
+      setVideoError(false);
+      
+      // Video metadata loaded successfully
+      
       loadComments(); // Load comments when video metadata is ready
     }
   };
 
-  // Handle progress bar click
+  // Handle video error with fallback attempt
+  const handleVideoError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+
+    const videoElement = e.currentTarget;
+    const error = videoElement.error;
+    const currentSrc = videoElement.src;
+    const primaryUrl = getVideoUrl(file);
+    const fallbackUrl = getFallbackVideoUrl(file);
+    
+    let message = 'Failed to load video';
+    if (error) {
+      switch (error.code) {
+        case error.MEDIA_ERR_ABORTED:
+          message = 'Video loading was aborted';
+          break;
+        case error.MEDIA_ERR_NETWORK:
+          message = 'Network error while loading video';
+          break;
+        case error.MEDIA_ERR_DECODE:
+          message = 'Video format not supported or corrupted';
+          break;
+        case error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+          message = 'Video format not supported';
+          break;
+        default:
+          message = 'Unknown video error occurred';
+      }
+    }
+    
+    // Try fallback URL if we haven't already and it's different
+    if (currentSrc === primaryUrl && fallbackUrl !== primaryUrl) {
+
+      videoElement.src = fallbackUrl;
+      videoElement.load();
+      return; // Don't show error yet, give fallback a chance
+    }
+    
+    setVideoError(true);
+    setVideoLoading(false);
+    setErrorMessage(message);
+    // Video error occurred - details available in console
+  };
+
+  // Handle video loading start
+  const handleLoadStart = () => {
+    setVideoLoading(true);
+    setVideoError(false);
+    setErrorMessage('');
+  };
+
+  // Handle progress bar click with better error handling
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressBarRef.current || !videoRef.current) return;
     
     const rect = progressBarRef.current.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const newTime = (clickX / rect.width) * duration;
-    videoRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
+    
+    try {
+      // Check if the video is ready for seeking
+      if (videoRef.current.readyState >= 2) { // HAVE_CURRENT_DATA or higher
+        videoRef.current.currentTime = newTime;
+        setCurrentTime(newTime);
+      } else {
+
+        // Try again after a short delay
+        setTimeout(() => {
+          if (videoRef.current && videoRef.current.readyState >= 2) {
+            videoRef.current.currentTime = newTime;
+            setCurrentTime(newTime);
+          }
+        }, 100);
+      }
+    } catch (seekError) {
+
+      // Don't crash the app, just log the error
+    }
   };
 
   // Handle progress bar double click to add comment
@@ -151,15 +242,33 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
     const rect = progressBarRef.current.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
     const timestamp = (clickX / rect.width) * duration;
-    setCommentTimestamp(timestamp);
-    setShowCommentModal(true);
+    setInlineCommentTimestamp(timestamp);
+    setShowInlineCommentBox(true);
+    setNewComment('');
   };
 
-  // Jump to comment timestamp
+  // Jump to comment timestamp with error handling
   const jumpToComment = (timestamp: number) => {
-    if (videoRef.current) {
-      videoRef.current.currentTime = timestamp;
-      setCurrentTime(timestamp);
+    if (!videoRef.current) return;
+    
+    try {
+      if (videoRef.current.readyState >= 2) {
+        videoRef.current.currentTime = timestamp;
+        setCurrentTime(timestamp);
+      } else {
+
+        // Wait for video to be ready
+        const handleCanSeek = () => {
+          if (videoRef.current) {
+            videoRef.current.currentTime = timestamp;
+            setCurrentTime(timestamp);
+            videoRef.current.removeEventListener('canplay', handleCanSeek);
+          }
+        };
+        videoRef.current.addEventListener('canplay', handleCanSeek);
+      }
+    } catch (seekError) {
+
     }
   };
 
@@ -205,9 +314,31 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
 
   if (videoError) {
     return (
-      <div className={`bg-gray-800 rounded-lg p-4 ${className}`}>
-        <div className="flex items-center gap-2 text-red-400">
-          <span>⚠️ Failed to load video</span>
+      <div className={`bg-gray-800 rounded-lg p-6 ${className}`}>
+        <div className="text-center">
+          <div className="text-red-400 mb-4">
+            <svg className="w-16 h-16 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+            </svg>
+            <div className="text-lg font-medium">{errorMessage || 'Failed to load video'}</div>
+          </div>
+          <div className="text-gray-400 text-sm mb-4">
+            <div>File: {file.name}</div>
+            <div>Type: {file.type}</div>
+            <div>URL: {getVideoUrl(file)}</div>
+          </div>
+          <button
+            onClick={() => {
+              setVideoError(false);
+              setVideoLoading(true);
+              if (videoRef.current) {
+                videoRef.current.load(); // Reload the video
+              }
+            }}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     );
@@ -233,17 +364,29 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
 
           {/* Video Player */}
           <div className="relative bg-black">
+            {/* Loading overlay */}
+            {videoLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
+                <div className="text-center text-white">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
+                  <div>Loading video...</div>
+                </div>
+              </div>
+            )}
+            
             <video
               ref={videoRef}
               src={getVideoUrl(file)}
               className="w-full h-auto"
               onTimeUpdate={handleTimeUpdate}
               onLoadedMetadata={handleLoadedMetadata}
+              onLoadStart={handleLoadStart}
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
-              onError={() => setVideoError(true)}
+              onError={handleVideoError}
               controls={false}
               crossOrigin="anonymous"
+              preload="metadata"
             >
               {file.captionUrl && (
                 <track
@@ -255,6 +398,21 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
                 />
               )}
             </video>
+
+            {/* Quick Comment Button - Only show when playing and not already showing comment box */}
+            {isPlaying && !showInlineCommentBox && (
+              <button
+                onClick={() => {
+                  setInlineCommentTimestamp(currentTime);
+                  setShowInlineCommentBox(true);
+                  setNewComment('');
+                }}
+                className="absolute top-4 right-4 bg-purple-600/80 hover:bg-purple-700 text-white p-2 rounded-full transition-all duration-200 shadow-lg backdrop-blur-sm"
+                title="Quick comment"
+              >
+                <HiPlus className="w-4 h-4" />
+              </button>
+            )}
 
             {/* Video Controls Overlay */}
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-4">
@@ -366,8 +524,9 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
                   
                   <button
                     onClick={() => {
-                      setCommentTimestamp(currentTime);
-                      setShowCommentModal(true);
+                      setInlineCommentTimestamp(currentTime);
+                      setShowInlineCommentBox(true);
+                      setNewComment('');
                     }}
                     className="p-2 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
                     title="Add comment at current time"
@@ -397,7 +556,7 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
                   <ClosedCaptionButton 
                     fileId={file.fileRecordId} 
                     onCaptionReady={(captionUrl) => {
-                      console.log('🎬 Caption ready callback triggered:', { fileId: file.id, captionUrl });
+
                       if (onFileUpdated) {
                         onFileUpdated(file.id, { captionUrl });
                       }
@@ -441,6 +600,40 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
               </div>
             ) : null;
           })()}
+
+          {/* Inline Comment Input */}
+          {showInlineCommentBox && (
+            <div className="p-4 border-b border-gray-600 bg-gray-800">
+              <div className="text-sm text-purple-300 mb-2">
+                Add comment at {formatTime(inlineCommentTimestamp)}
+              </div>
+              <textarea
+                value={newComment}
+                onChange={(e) => setNewComment(e.target.value)}
+                placeholder="Enter your comment..."
+                className="w-full h-20 bg-gray-700 text-white rounded border border-gray-600 p-2 text-sm resize-none focus:outline-none focus:border-purple-500"
+                autoFocus
+              />
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={submitComment}
+                  disabled={!newComment.trim() || isSubmittingComment}
+                  className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white py-1.5 px-3 rounded text-sm transition-colors"
+                >
+                  {isSubmittingComment ? 'Adding...' : 'Add Comment'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowInlineCommentBox(false);
+                    setNewComment('');
+                  }}
+                  className="px-3 py-1.5 text-gray-400 hover:text-white transition-colors text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Comments List */}
           <div className="flex-1 overflow-y-auto max-h-96">
@@ -491,48 +684,7 @@ const VideoWithComments: React.FC<VideoWithCommentsProps> = ({
         </div>
       </div>
 
-      {/* Comment Modal */}
-      {showCommentModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-96 max-w-[90vw]">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-white">
-                Add Comment at {formatTime(commentTimestamp)}
-              </h3>
-              <button
-                onClick={() => setShowCommentModal(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <HiXMark className="w-5 h-5" />
-              </button>
-            </div>
-            
-            <textarea
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              placeholder="Enter your comment..."
-              className="w-full h-24 bg-gray-700 text-white rounded border border-gray-600 p-3 resize-none focus:outline-none focus:border-purple-500"
-              autoFocus
-            />
-            
-            <div className="flex gap-2 mt-4">
-              <button
-                onClick={submitComment}
-                disabled={!newComment.trim() || isSubmittingComment}
-                className="flex-1 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white py-2 px-4 rounded transition-colors"
-              >
-                {isSubmittingComment ? 'Adding...' : 'Add Comment'}
-              </button>
-              <button
-                onClick={() => setShowCommentModal(false)}
-                className="px-4 py-2 text-gray-400 hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 };

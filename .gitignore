@@ -35,6 +35,7 @@ secrets/
 
 # Documentation and test files
 docs/
+PRESENTATION_GUIDE.md
 IOS_SCROLL_FIX_DOCUMENTATION.md
 test-ios-scroll-fix.html
 test-*.js

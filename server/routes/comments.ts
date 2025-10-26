@@ -22,6 +22,122 @@ const optionalAuth = (req: Request, res: Response, next: express.NextFunction) =
   next();
 };
 
+// Get comments for a file with query parameters (for shared links)
+router.get('/', optionalAuth, async (req: Request, res: Response) => {
+  try {
+    const { fileId, sortBy = 'newest', page = 1, limit = 20, shareToken } = req.query;
+    
+    if (!fileId) {
+      return res.status(400).json({ error: 'fileId is required' });
+    }
+    
+    console.log(`📝 Loading comments for file ${fileId} with sortBy: ${sortBy}`);
+    
+    // Verify file exists and check access permissions
+    let file;
+    if (shareToken) {
+      // Check if accessing via share token
+      const { Share } = await import('../models/Share.js');
+      const share = await Share.findByToken(shareToken as string);
+      
+      if (!share || !share.canAccess() || share.fileId !== parseInt(fileId as string)) {
+        console.log(`❌ Invalid or expired share token for file ${fileId}`);
+        return res.status(403).json({ error: 'Access denied or share expired' });
+      }
+      
+      file = await File.findByPk(fileId as string);
+    } else {
+      // Regular access - file must exist and be accessible
+      file = await File.findByPk(fileId as string);
+    }
+    
+    if (!file) {
+      console.log(`❌ File ${fileId} not found`);
+      return res.status(404).json({ error: 'File not found' });
+    }
+    
+    const offset = (Number(page) - 1) * Number(limit);
+    
+    // Determine sort order based on sortBy parameter
+    let order: [string, string][] = [['timestampSeconds', 'ASC']];
+    if (sortBy === 'newest') {
+      order = [['createdAt', 'DESC']];
+    } else if (sortBy === 'oldest') {
+      order = [['createdAt', 'ASC']];
+    } else if (sortBy === 'timestamp') {
+      order = [['timestampSeconds', 'ASC']];
+    }
+    
+    // Get comments without User association for now to avoid the association error
+    const comments = await Comment.findAll({
+      where: { 
+        fileId: parseInt(fileId as string),
+        parentCommentId: null, // Only top-level comments
+        isDeleted: false // Don't show deleted comments
+      },
+      order,
+      limit: Number(limit),
+      offset,
+      include: [
+        {
+          model: CommentReaction,
+          as: 'reactions',
+          required: false
+        }
+      ]
+    });
+
+    // Get total count for pagination
+    const totalComments = await Comment.count({
+      where: { 
+        fileId: parseInt(fileId as string),
+        parentCommentId: null,
+        isDeleted: false
+      }
+    });
+
+    // Get nested replies for each comment
+    const commentsWithReplies = await Promise.all(
+      comments.map(async (comment) => {
+        const replies = await Comment.findAll({
+          where: {
+            parentCommentId: comment.id,
+            isDeleted: false
+          },
+          order: [['createdAt', 'ASC']],
+          include: [
+            {
+              model: CommentReaction,
+              as: 'reactions',
+              required: false
+            }
+          ]
+        });
+
+        return {
+          ...comment.toJSON(),
+          replies: replies.map(reply => reply.toJSON())
+        };
+      })
+    );
+
+    console.log(`✅ Found ${commentsWithReplies.length} comments for file ${fileId}`);
+
+    res.json({
+      comments: commentsWithReplies,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total: totalComments,
+        pages: Math.ceil(totalComments / Number(limit))
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    res.status(500).json({ error: 'Failed to fetch comments' });
+  }
+});
+
 // Get comments for a file with threading
 router.get('/file/:fileId', optionalAuth, async (req: Request, res: Response) => {
   try {

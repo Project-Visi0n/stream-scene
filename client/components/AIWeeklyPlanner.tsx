@@ -11,34 +11,23 @@ import {
   HiChartBarSquare,
   HiExclamationTriangle
 } from 'react-icons/hi2';
+import { 
+  FaRobot,
+  FaCalendarAlt,
+  FaBrain,
+  FaTasks,
+  FaCheckCircle,
+  FaTimes
+} from 'react-icons/fa';
 import TaskForm from './TaskForm';
+import TagInput from './TagInput';
 import { Task, TaskFormData } from '../types/task';
 
-// Custom SVG Icon Components (matching your navbar and landing page)
-const AIIcon = () => (
-  <svg className="w-8 h-8 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-  </svg>
-);
-
-const SchedulerIcon = () => (
-  <svg className="w-8 h-8 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
-  </svg>
-);
-
-// Smaller versions for inline use
-const AIIconSmall = () => (
-  <svg className="w-5 h-5 text-purple-400" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.94-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
-  </svg>
-);
-
-const SchedulerIconSmall = () => (
-  <svg className="w-6 h-6 text-blue-400" fill="currentColor" viewBox="0 0 24 24">
-    <path d="M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11zM7 10h5v5H7z"/>
-  </svg>
-);
+// Replace the problematic custom SVG components with React Icons
+const AIIcon = () => <FaRobot className="w-8 h-8 text-purple-400" />;
+const SchedulerIcon = () => <FaCalendarAlt className="w-8 h-8 text-blue-400" />;
+const AIIconSmall = () => <FaBrain className="w-5 h-5 text-purple-400" />;
+const SchedulerIconSmall = () => <FaCalendarAlt className="w-6 h-6 text-blue-400" />;
 
 interface WeeklySchedule {
   id?: string;
@@ -77,43 +66,11 @@ type CalendarView = 'monthly' | 'weekly' | 'daily';
 type TaskSortOption = 'priority' | 'deadline' | 'created' | 'type';
 
 const AIWeeklyPlanner: React.FC = () => {
-  // Mock data for demo
-  const [tasks, setTasks] = useState<Task[]>([
-    {
-      id: 1,
-      title: 'Design new landing page',
-      description: 'Create wireframes and mockups for the new product landing page',
-      priority: 'high',
-      task_type: 'creative',
-      status: 'pending',
-      deadline: '2025-09-25',
-      estimated_hours: 4,
-      created_at: '2025-09-19'
-    },
-    {
-      id: 2,
-      title: 'Review quarterly reports',
-      description: 'Analyze Q3 performance metrics and prepare summary',
-      priority: 'medium',
-      task_type: 'admin',
-      status: 'in_progress',
-      deadline: '2025-09-22',
-      estimated_hours: 2,
-      created_at: '2025-09-18'
-    },
-    {
-      id: 3,
-      title: 'Client presentation prep',
-      description: 'Prepare slides and demo for client meeting',
-      priority: 'high',
-      task_type: 'creative',
-      status: 'pending',
-      deadline: '2025-09-21',
-      estimated_hours: 3,
-      created_at: '2025-09-17'
-    }
-  ]);
-
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [isFormVisible, setIsFormVisible] = useState(false);
+  const [taskFilter, setTaskFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed' | 'creative' | 'admin'>('all');
+  const [selectedTagsFilter, setSelectedTagsFilter] = useState<string[]>([]);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isLoadingTasks, setIsLoadingTasks] = useState(false);
   const [isCreatingTask, setIsCreatingTask] = useState(false);
   const [isGeneratingSchedule, setIsGeneratingSchedule] = useState(false);
@@ -129,7 +86,6 @@ const AIWeeklyPlanner: React.FC = () => {
   const [calendarView, setCalendarView] = useState<CalendarView>('monthly');
   
   // Task filtering and sorting state
-  const [taskFilter, setTaskFilter] = useState<'all' | 'pending' | 'in_progress' | 'completed' | 'creative' | 'admin'>('all');
   const [taskSort, setTaskSort] = useState<TaskSortOption>('priority');
   const [expandedStats, setExpandedStats] = useState<string | null>(null);
   
@@ -140,6 +96,10 @@ const AIWeeklyPlanner: React.FC = () => {
   // Task details modal state
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [showTaskDetails, setShowTaskDetails] = useState(false);
+
+  // Day details modal state
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
+  const [showDayDetails, setShowDayDetails] = useState(false);
 
   // Suggestion edit form
   const [editingSuggestion, setEditingSuggestion] = useState<AISuggestion | null>(null);
@@ -175,32 +135,43 @@ const AIWeeklyPlanner: React.FC = () => {
     });
   };
 
-  // Filter tasks based on current filter
+  useEffect(() => {
+    loadTasks();
+  }, []);
+
   const getFilteredTasks = () => {
-    const safeTasksArray = Array.isArray(tasks) ? tasks : [];
-    let filtered;
+    if (!tasks || tasks.length === 0) return [];
     
+    // Apply status/type filter first
+    let filtered;
     switch (taskFilter) {
       case 'pending':
-        filtered = safeTasksArray.filter(t => t.status === 'pending');
+        filtered = tasks.filter(task => task.status === 'pending');
         break;
       case 'in_progress':
-        filtered = safeTasksArray.filter(t => t.status === 'in_progress');
+        filtered = tasks.filter(task => task.status === 'in_progress');
         break;
       case 'completed':
-        filtered = safeTasksArray.filter(t => t.status === 'completed');
+        filtered = tasks.filter(task => task.status === 'completed');
         break;
       case 'creative':
-        filtered = safeTasksArray.filter(t => t.task_type === 'creative');
+        filtered = tasks.filter(task => task.task_type === 'creative');
         break;
       case 'admin':
-        filtered = safeTasksArray.filter(t => t.task_type === 'admin');
+        filtered = tasks.filter(task => task.task_type === 'admin');
         break;
       default:
-        filtered = safeTasksArray;
+        filtered = tasks;
     }
     
-    return sortTasks(filtered, taskSort);
+    // Apply tag filter if any tags are selected
+    if (selectedTagsFilter.length > 0) {
+      filtered = filtered.filter(task => 
+        task.tags && task.tags.some(tag => selectedTagsFilter.includes(tag))
+      );
+    }
+    
+    return filtered;
   };
 
   const filteredTasks = getFilteredTasks();
@@ -240,14 +211,14 @@ const AIWeeklyPlanner: React.FC = () => {
           // Wrapped in data property
           tasksData = responseData.data;
         } else {
-          console.error('Unexpected response format:', responseData);
+
           tasksData = [];
         }
 
         // Validate and sanitize task data
         const validTasks = tasksData.filter((task: any) => {
           if (!task || typeof task !== 'object') {
-            console.warn('Invalid task object:', task);
+
             return false;
           }
           
@@ -264,14 +235,14 @@ const AIWeeklyPlanner: React.FC = () => {
           return true;
         });
         
-        console.log('Validated tasks:', validTasks.length, 'of', tasksData.length);
+
         setTasks(validTasks);
       } else {
-        console.error('Failed to load tasks');
+
         setTasks([]); // Fallback to empty array on error
       }
     } catch (error) {
-      console.error('Error loading tasks:', error);
+
       setTasks([]); // Fallback to empty array on error
     } finally {
       setIsLoadingTasks(false);
@@ -328,7 +299,7 @@ const AIWeeklyPlanner: React.FC = () => {
         showNotification('error', `Failed to create task: ${error.message || error.error}`);
       }
     } catch (error) {
-      console.error('Error creating task:', error);
+
       showNotification('error', 'Failed to create task. Please check your connection and try again.');
     } finally {
       setIsCreatingTask(false);
@@ -359,7 +330,7 @@ const AIWeeklyPlanner: React.FC = () => {
         showNotification('error', `Failed to delete task: ${error.message || error.error}`);
       }
     } catch (error) {
-      console.error('Error deleting task:', error);
+
       showNotification('error', 'Failed to delete task. Please try again.');
     } finally {
       setIsDeleting(false);
@@ -485,7 +456,7 @@ const AIWeeklyPlanner: React.FC = () => {
         showNotification('error', `Failed to generate schedule: ${error.message || error.error}`);
       }
     } catch (error) {
-      console.error('Error generating schedule:', error);
+
       showNotification('error', 'Failed to generate schedule. Please try again.');
     } finally {
       setIsGeneratingSchedule(false);
@@ -515,14 +486,14 @@ const AIWeeklyPlanner: React.FC = () => {
 
       if (response.ok) {
         const suggestions = await response.json();
-        console.log('AI suggestions received:', suggestions);
+
         setAiSuggestions(suggestions || []);
       } else {
-        console.log('AI API failed, using local suggestions');
+
         generateLocalSuggestions();
       }
     } catch (error) {
-      console.error('Error calling AI API, using local suggestions:', error);
+
       generateLocalSuggestions();
     } finally {
       setIsGeneratingSuggestions(false);
@@ -579,7 +550,7 @@ const AIWeeklyPlanner: React.FC = () => {
       });
     }
 
-    console.log('Generated local suggestions:', suggestions);
+
     setAiSuggestions(suggestions.slice(0, 6));
   };
 
@@ -590,7 +561,8 @@ const AIWeeklyPlanner: React.FC = () => {
       priority: suggestion.priority || 'medium',
       task_type: suggestion.task_type || 'admin',
       deadline: suggestion.suggestedDate || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      estimated_hours: suggestion.estimatedHours || 1
+      estimated_hours: suggestion.estimatedHours || 1,
+      tags: []
     };
 
     try {
@@ -639,10 +611,10 @@ const AIWeeklyPlanner: React.FC = () => {
       } else {
         const error = await response.json();
         showNotification('error', `Failed to create task: ${error.message || error.error}`);
-        console.error('Task creation failed:', error);
+
       }
     } catch (error) {
-      console.error('Failed to add task from suggestion:', error);
+
       showNotification('error', 'Failed to create task. Please check your connection and try again.');
     }
   };
@@ -772,7 +744,10 @@ const AIWeeklyPlanner: React.FC = () => {
                   isCurrentMonth ? 'bg-white/5 border-white/10 hover:bg-white/10' : 
                   'bg-gray-800/30 border-gray-700'
                 }`}
-                onClick={() => setCurrentDate(day)}
+                onClick={() => {
+                  setSelectedDay(day);
+                  setShowDayDetails(true);
+                }}
               >
                 <div className={`text-sm font-medium mb-1 ${
                   isToday ? 'text-blue-300' : 
@@ -832,9 +807,16 @@ const AIWeeklyPlanner: React.FC = () => {
               <div key={index} className={`bg-white/5 rounded-lg p-4 min-h-[300px] ${
                 isToday ? 'ring-2 ring-blue-400 bg-blue-500/10' : ''
               }`}>
-                <div className={`text-center mb-4 ${
-                  isToday ? 'text-blue-300 font-bold' : 'text-white'
-                }`}>
+                <div 
+                  className={`text-center mb-4 cursor-pointer hover:bg-white/10 rounded-lg p-2 transition-colors ${
+                    isToday ? 'text-blue-300 font-bold' : 'text-white'
+                  }`}
+                  onClick={() => {
+                    setSelectedDay(day);
+                    setShowDayDetails(true);
+                  }}
+                  title="Click to view day details"
+                >
                   <div className="text-sm font-medium">
                     {day.toLocaleDateString('en-US', { weekday: 'short' })}
                   </div>
@@ -1354,9 +1336,9 @@ const AIWeeklyPlanner: React.FC = () => {
 
         {/* Header */}
         <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6 mb-6 text-center">
-          <h1 className="text-4xl font-bold mb-2 flex items-center justify-center">
+          <h1 className="text-4xl font-bold mb-2 flex items-center justify-center leading-relaxed">
             <AIIcon />
-            <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            <span className="ml-3 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent leading-relaxed py-1">
               AI Weekly Planner
             </span>
           </h1>
@@ -1655,6 +1637,239 @@ const AIWeeklyPlanner: React.FC = () => {
           </div>
         )}
 
+        {/* Day Details Modal */}
+        {selectedDay && showDayDetails && (
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-gradient-to-br from-slate-800/95 to-gray-900/95 border border-purple-500/20 backdrop-blur-sm rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                      <FaCalendarAlt className="w-6 h-6 text-blue-400" />
+                      {selectedDay.toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        month: 'long', 
+                        day: 'numeric', 
+                        year: 'numeric' 
+                      })}
+                    </h2>
+                    {selectedDay.toDateString() === new Date().toDateString() && (
+                      <span className="text-blue-300 text-sm font-medium">Today</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowDayDetails(false);
+                      setSelectedDay(null);
+                    }}
+                    className="text-gray-400 hover:text-white transition-colors p-2 hover:bg-white/10 rounded-lg"
+                  >
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+
+                {/* Day Overview Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  {(() => {
+                    const dayEvents = getEventsForDay(selectedDay);
+                    const tasks = dayEvents.filter(e => e.type === 'task');
+                    const deadlines = dayEvents.filter(e => e.type === 'deadline');
+                    const meetings = dayEvents.filter(e => e.type === 'meeting');
+                    const totalHours = dayEvents.reduce((sum, event) => {
+                      if (event.start && event.end) {
+                        const start = new Date(event.start);
+                        const end = new Date(event.end);
+                        return sum + (end.getTime() - start.getTime()) / (1000 * 60 * 60);
+                      }
+                      return sum + 1; // Default 1 hour for events without end time
+                    }, 0);
+
+                    return (
+                      <>
+                        <div className="bg-blue-500/20 border border-blue-400/30 rounded-lg p-4 text-center">
+                          <div className="text-2xl font-bold text-blue-300">{tasks.length}</div>
+                          <div className="text-sm text-gray-300">Tasks</div>
+                        </div>
+                        <div className="bg-red-500/20 border border-red-400/30 rounded-lg p-4 text-center">
+                          <div className="text-2xl font-bold text-red-300">{deadlines.length}</div>
+                          <div className="text-sm text-gray-300">Deadlines</div>
+                        </div>
+                        <div className="bg-purple-500/20 border border-purple-400/30 rounded-lg p-4 text-center">
+                          <div className="text-2xl font-bold text-purple-300">{meetings.length}</div>
+                          <div className="text-sm text-gray-300">Meetings</div>
+                        </div>
+                        <div className="bg-green-500/20 border border-green-400/30 rounded-lg p-4 text-center">
+                          <div className="text-2xl font-bold text-green-300">{Math.round(totalHours * 10) / 10}</div>
+                          <div className="text-sm text-gray-300">Hours</div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+
+                {/* Timeline View */}
+                <div className="space-y-6">
+                  <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                    <HiClock className="w-5 h-5 text-blue-400" />
+                    Timeline
+                  </h3>
+                  
+                  {(() => {
+                    const dayEvents = getEventsForDay(selectedDay);
+                    
+                    if (dayEvents.length === 0) {
+                      return (
+                        <div className="text-center py-12 text-gray-400">
+                          <div className="mb-4 flex justify-center">
+                            <SchedulerIconSmall />
+                          </div>
+                          <h4 className="text-lg font-medium text-white mb-2">No events scheduled</h4>
+                          <p className="text-sm">This day is completely free!</p>
+                        </div>
+                      );
+                    }
+
+                    // Sort events by start time
+                    const sortedEvents = [...dayEvents].sort((a, b) => {
+                      const timeA = a.start ? new Date(a.start).getTime() : 0;
+                      const timeB = b.start ? new Date(b.start).getTime() : 0;
+                      return timeA - timeB;
+                    });
+
+                    return (
+                      <div className="space-y-3">
+                        {sortedEvents.map((event) => {
+                          const relatedTask = event.taskId ? tasks.find(t => String(t.id) === event.taskId) : null;
+                          const startTime = event.start ? new Date(event.start) : null;
+                          const endTime = event.end ? new Date(event.end) : null;
+                          
+                          return (
+                            <div 
+                              key={event.id} 
+                              className={`flex items-start gap-4 p-4 rounded-lg border transition-all hover:scale-[1.02] cursor-pointer ${
+                                event.type === 'deadline' ? 'bg-red-500/10 border-red-400/30 hover:bg-red-500/20' :
+                                event.type === 'task' ? 'bg-blue-500/10 border-blue-400/30 hover:bg-blue-500/20' :
+                                event.type === 'meeting' ? 'bg-purple-500/10 border-purple-400/30 hover:bg-purple-500/20' :
+                                'bg-green-500/10 border-green-400/30 hover:bg-green-500/20'
+                              }`}
+                              onClick={() => {
+                                if (relatedTask) {
+                                  setSelectedTask(relatedTask);
+                                  setShowTaskDetails(true);
+                                }
+                              }}
+                            >
+                              {/* Time indicator */}
+                              <div className="flex-shrink-0 text-center min-w-[80px]">
+                                {startTime && (
+                                  <div className="text-sm font-medium text-white">
+                                    {startTime.toLocaleTimeString('en-US', { 
+                                      hour: 'numeric', 
+                                      minute: '2-digit',
+                                      hour12: true 
+                                    })}
+                                  </div>
+                                )}
+                                {endTime && startTime && (
+                                  <div className="text-xs text-gray-400">
+                                    {Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60))}min
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Event details */}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <h4 className="font-medium text-white truncate">{event.title}</h4>
+                                  <span className={`text-xs px-2 py-1 rounded ${
+                                    event.type === 'deadline' ? 'bg-red-500/30 text-red-300' :
+                                    event.type === 'task' ? 'bg-blue-500/30 text-blue-300' :
+                                    event.type === 'meeting' ? 'bg-purple-500/30 text-purple-300' :
+                                    'bg-green-500/30 text-green-300'
+                                  }`}>
+                                    {event.type}
+                                  </span>
+                                  {event.priority && (
+                                    <span className={`text-xs px-2 py-1 rounded ${
+                                      event.priority === 'high' ? 'bg-red-500/30 text-red-300' :
+                                      event.priority === 'medium' ? 'bg-yellow-500/30 text-yellow-300' :
+                                      'bg-green-500/30 text-green-300'
+                                    }`}>
+                                      {event.priority}
+                                    </span>
+                                  )}
+                                </div>
+                                
+                                {relatedTask && (
+                                  <div className="space-y-1">
+                                    {relatedTask.description && (
+                                      <p className="text-sm text-gray-300 truncate">{relatedTask.description}</p>
+                                    )}
+                                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                                      {relatedTask.estimated_hours && (
+                                        <span className="flex items-center gap-1">
+                                          <HiClock className="w-3 h-3" />
+                                          {relatedTask.estimated_hours}h estimated
+                                        </span>
+                                      )}
+                                      {relatedTask.deadline && (
+                                        <span>Due: {new Date(relatedTask.deadline).toLocaleDateString()}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Action indicator */}
+                              <div className="flex-shrink-0">
+                                {relatedTask && (
+                                  <div className="text-gray-400 hover:text-white">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-3 mt-8 pt-6 border-t border-white/10">
+                  <button
+                    onClick={() => {
+                      setShowDayDetails(false);
+                      setSelectedDay(null);
+                    }}
+                    className="flex-1 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                  >
+                    Close
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowTaskForm(true);
+                      setShowDayDetails(false);
+                    }}
+                    className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Add Task
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Tab Content */}
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1761,8 +1976,8 @@ const AIWeeklyPlanner: React.FC = () => {
             <div className="space-y-6">
               <div className="bg-gradient-to-br from-slate-800/50 to-gray-900/50 border border-purple-500/20 backdrop-blur-sm rounded-xl p-6">
                 <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-                  <HiChartBarSquare className="w-8 h-8 text-purple-400" />
-                  AI Weekly Schedule
+                  <HiDocumentText className="w-8 h-8 text-blue-400" />
+                  Your Weekly Schedule
                 </h2>
                 
                 {weeklySchedule ? (

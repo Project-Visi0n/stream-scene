@@ -88,7 +88,7 @@ export const shareService = {
       const data = await response.json();
       return data.share;
     } catch (error) {
-      console.error('Error creating share:', error);
+
       throw error;
     }
   },
@@ -108,7 +108,7 @@ export const shareService = {
       const data = await response.json();
       return data.shares || [];
     } catch (error) {
-      console.error('Error fetching file shares:', error);
+
       throw error;
     }
   },
@@ -128,7 +128,7 @@ export const shareService = {
       const data = await response.json();
       return data.shares || [];
     } catch (error) {
-      console.error('Error fetching canvas shares:', error);
+
       throw error;
     }
   },
@@ -148,7 +148,7 @@ export const shareService = {
       const data = await response.json();
       return data.shares || [];
     } catch (error) {
-      console.error('Error fetching user shares:', error);
+
       throw error;
     }
   },
@@ -166,7 +166,7 @@ export const shareService = {
       const data = await response.json();
       return data;
     } catch (error) {
-      console.error('Error accessing shared file:', error);
+
       throw error;
     }
   },
@@ -187,7 +187,7 @@ export const shareService = {
       const data = await response.json();
       return data.share;
     } catch (error) {
-      console.error('Error deactivating share:', error);
+
       throw error;
     }
   },
@@ -205,7 +205,7 @@ export const shareService = {
         throw new Error(errorData.error || `Failed to delete share: ${response.statusText}`);
       }
     } catch (error) {
-      console.error('Error deleting share:', error);
+
       throw error;
     }
   },

@@ -29,6 +29,7 @@ interface FileCarouselProps {
   onFileShare?: (file: UploadedFile) => void;
   onFileDelete?: (file: UploadedFile) => void;
   className?: string;
+  horizontal?: boolean;
 }
 
 const FileCarousel: React.FC<FileCarouselProps> = ({
@@ -37,7 +38,8 @@ const FileCarousel: React.FC<FileCarouselProps> = ({
   onFileSelect,
   onFileShare,
   onFileDelete,
-  className = ''
+  className = '',
+  horizontal = false
 }) => {
   if (files.length === 0) {
     return null;
@@ -83,6 +85,134 @@ const FileCarousel: React.FC<FileCarouselProps> = ({
     );
   };
 
+  // Check if horizontal layout is requested via className
+  const isHorizontal = horizontal || className.includes('horizontal');
+
+  if (isHorizontal) {
+    return (
+      <div className={`${className}`}>
+        {/* Header */}
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-white mb-1">
+            Your Files ({files.length})
+          </h3>
+          <p className="text-sm text-gray-400">
+            Scroll horizontally to browse and click to select
+          </p>
+        </div>
+
+        {/* Horizontal Scrolling Carousel */}
+        <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-purple-600/50 scrollbar-track-slate-800/50 -mx-2 px-2">
+          <div className="flex gap-4 pb-2" style={{ minWidth: 'max-content' }}>
+            {files.map((file, index) => (
+              <motion.button
+                key={file.id}
+                onClick={() => onFileSelect(file)}
+                className={`flex-shrink-0 w-56 sm:w-64 p-4 rounded-lg border transition-all duration-200 ${
+                  selectedFile?.id === file.id
+                    ? 'bg-purple-600/20 border-purple-500 shadow-lg ring-2 ring-purple-500/50'
+                    : 'bg-slate-800/50 border-slate-600 hover:border-purple-400 hover:bg-slate-700/50'
+                }`}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: index * 0.05 }}
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <div className="space-y-3">
+                  {/* Larger Thumbnail/Icon */}
+                  <div className="flex justify-center">
+                    {file.type.startsWith('image/') ? (
+                      <img
+                        src={file.url}
+                        alt={file.name}
+                        className="w-20 h-20 object-cover rounded-lg"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-20 h-20 flex items-center justify-center bg-slate-700/50 rounded-lg text-gray-400 ${file.type.startsWith('image/') ? 'hidden' : ''}`}>
+                      {getFileIcon(file.type)}
+                    </div>
+                  </div>
+
+                  {/* File Info */}
+                  <div className="text-center space-y-2">
+                    <div className="text-sm font-medium text-white truncate" title={file.name}>
+                      {file.name}
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      {formatFileSize(file.size)}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {file.uploadedAt.toLocaleDateString()}
+                    </div>
+                    
+                    {/* Tags - Compact Display */}
+                    {file.tags && file.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 justify-center">
+                        {file.tags.slice(0, 2).map((tag, tagIndex) => (
+                          <span
+                            key={tagIndex}
+                            className="px-1.5 py-0.5 text-xs bg-blue-600/30 text-blue-300 rounded"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                        {file.tags.length > 2 && (
+                          <span className="px-1.5 py-0.5 text-xs bg-gray-600/30 text-gray-400 rounded">
+                            +{file.tags.length - 2}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Action Buttons - Bottom Row */}
+                  <div className="flex justify-center items-center gap-2 pt-2 border-t border-slate-600/50">
+                    {onFileShare && file.fileRecordId && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onFileShare(file);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-blue-400 transition-colors rounded"
+                        title="Share file"
+                      >
+                        <HiShare className="w-4 h-4" />
+                      </button>
+                    )}
+                    
+                    {onFileDelete && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onFileDelete(file);
+                        }}
+                        className="p-1.5 text-gray-400 hover:text-red-400 transition-colors rounded"
+                        title="Delete file"
+                      >
+                        <HiTrash className="w-4 h-4" />
+                      </button>
+                    )}
+
+                    {/* Selection Indicator */}
+                    {selectedFile?.id === file.id && (
+                      <div className="w-3 h-3 bg-purple-500 rounded-full animate-pulse"></div>
+                    )}
+                  </div>
+                </div>
+              </motion.button>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Original vertical layout
   return (
     <div className={`${className}`}>
       {/* Header */}

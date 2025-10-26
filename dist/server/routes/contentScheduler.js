@@ -3,17 +3,6 @@ import { TwitterApi } from 'twitter-api-v2';
 import cron from 'node-cron';
 import { requireAuth } from '../middleware/authMiddleWare.js';
 const router = Router();
-// Debug logging middleware
-router.use((req, res, next) => {
-    var _a, _b;
-    console.log(`[Content Scheduler] ${req.method} ${req.path}`, {
-        hasSession: !!req.session,
-        hasXAuth: !!((_a = req.session) === null || _a === void 0 ? void 0 : _a.xAuth),
-        hasThreadsAuth: !!((_b = req.session) === null || _b === void 0 ? void 0 : _b.threadsAuth),
-        bodyKeys: Object.keys(req.body || {})
-    });
-    next();
-});
 // In-memory store for scheduled posts (use database in production)
 const scheduledPosts = new Map();
 // Create/save a post
@@ -319,37 +308,6 @@ function schedulePost(post) {
         timezone: "America/New_York"
     });
 }
-// Debug endpoint
-router.get('/debug/auth', (req, res) => {
-    var _a, _b;
-    res.json({
-        session: {
-            exists: !!req.session,
-            id: req.sessionID
-        },
-        xAuth: ((_a = req.session) === null || _a === void 0 ? void 0 : _a.xAuth) ? {
-            platform: req.session.xAuth.platform,
-            userId: req.session.xAuth.userId,
-            username: req.session.xAuth.username,
-            hasAccessToken: !!req.session.xAuth.accessToken,
-            hasTokenSecret: !!req.session.xAuth.tokenSecret
-        } : null,
-        threadsAuth: ((_b = req.session) === null || _b === void 0 ? void 0 : _b.threadsAuth) ? {
-            platform: req.session.threadsAuth.platform,
-            userId: req.session.threadsAuth.userId,
-            username: req.session.threadsAuth.username,
-            hasAccessToken: !!req.session.threadsAuth.accessToken,
-            connectedAt: req.session.threadsAuth.connectedAt
-        } : null,
-        env: {
-            hasTwitterKey: !!process.env.TWITTER_CONSUMER_KEY,
-            hasTwitterSecret: !!process.env.TWITTER_CONSUMER_SECRET,
-            hasThreadsId: !!process.env.THREADS_CLIENT_ID,
-            hasThreadsSecret: !!process.env.THREADS_CLIENT_SECRET,
-            baseUrl: process.env.BASE_URL
-        }
-    });
-});
 // Test endpoint for Threads posting
 router.post('/test-threads', async (req, res) => {
     var _a;

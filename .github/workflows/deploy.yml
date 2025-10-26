@@ -2,7 +2,7 @@ name: Deploy to Personal Server
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Check every 5 minutes
+    - cron: '0 */12 * * *'  # Check every 12 hours
   push:
     branches: [ main ]  # Deploy from your main branch too
   workflow_dispatch: # Allow manual trigger
@@ -57,14 +57,16 @@ jobs:
       if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       uses: actions/setup-node@v4
       with:
-        node-version: '18'
+        node-version: '20'
         cache: 'npm'
 
     - name: Clean install dependencies
       if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       run: |
-        rm -rf node_modules
-        npm ci
+        rm -rf node_modules package-lock.json
+        npm install
+        # Install platform-specific lightningcss binary for GitHub Actions (ubuntu)
+        npm install lightningcss-linux-x64-gnu --save-optional
       
     - name: Build application
       if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'

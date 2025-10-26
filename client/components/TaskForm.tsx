@@ -1,13 +1,6 @@
 import React, { useState } from 'react';
-
-interface TaskFormData {
-  title: string;
-  description: string;
-  priority: 'low' | 'medium' | 'high';
-  task_type: 'creative' | 'admin';
-  deadline: string;
-  estimated_hours: number | '';
-}
+import TagInput from './TagInput';
+import { TaskFormData } from '../types/task';
 
 interface TaskFormProps {
   onSubmit: (taskData: TaskFormData) => void;
@@ -22,7 +15,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
     priority: 'medium',
     task_type: 'creative',
     deadline: '',
-    estimated_hours: ''
+    estimated_hours: '',
+    tags: []
   });
 
   const [errors, setErrors] = useState<Partial<TaskFormData>>({});
@@ -85,7 +79,8 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
       priority: 'medium',
       task_type: 'creative',
       deadline: '',
-      estimated_hours: ''
+      estimated_hours: '',
+      tags: []
     });
     setErrors({});
   };
@@ -240,6 +235,20 @@ const TaskForm: React.FC<TaskFormProps> = ({ onSubmit, onCancel, isLoading = fal
             />
             {errors.estimated_hours && <p className="mt-1 text-sm text-red-600">{errors.estimated_hours}</p>}
           </div>
+        </div>
+
+        {/* Tags */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Tags
+            <span className="text-xs text-gray-500 ml-2">(Optional - organize and categorize tasks)</span>
+          </label>
+          <TagInput
+            selectedTags={formData.tags}
+            onTagsChange={(newTags: string[]) => setFormData(prev => ({ ...prev, tags: newTags }))}
+            placeholder="Add tags to organize this task..."
+            className="w-full"
+          />
         </div>
 
         {/* Action Buttons */}
