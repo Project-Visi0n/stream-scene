@@ -42,6 +42,13 @@ jobs:
         REACT_APP_SERVER_URL: https://streamscene.net
       run: |
         npm run build
+
+    - name: Compile TypeScript
+      if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      run: |
+        echo "Compiling TypeScript to JavaScript..."
+        npm install typescript --save-dev
+        npx tsc --project server/tsconfig.json
         
     - name: Create deployment package
       if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -52,8 +59,11 @@ jobs:
         # Copy built client files
         cp -r public/ deploy/
         
-        # Copy server source files
+        # Copy server source files  
         cp -r server/ deploy/
+        
+        # Copy compiled TypeScript files
+        cp -r dist/ deploy/
         
         # Copy configuration files
         cp ecosystem.config.cjs deploy/
@@ -161,9 +171,11 @@ jobs:
             sudo npm install -g pm2
           fi
           
-          echo "Installing production dependencies and TypeScript runtime..."
+          echo "Installing production dependencies..."
           npm install --production
-          npm install tsx --save-dev
+          
+          echo "Checking compiled files..."
+          ls -la dist/server/*.js | head -5 || echo "No JS files found in dist/server/"
           
           echo "Setting up database schema..."
           echo "Installing tsx for seed script execution..."
