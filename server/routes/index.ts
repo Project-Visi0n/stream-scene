@@ -16,8 +16,8 @@ import canvasRouter from './canvas.js';
 console.log('✅ Canvas router imported');
 import canvasCalendarRouter from './canvasCalendar.js';
 console.log('✅ Canvas calendar router imported');
-import budgetRouter from './budget.js';
-console.log('✅ Budget router imported:', typeof budgetRouter); 
+import budgetRouter from './budget-simple.js';
+console.log('✅ Simple budget router imported:', typeof budgetRouter); 
 
 const router = Router();
 
