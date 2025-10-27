@@ -75,7 +75,10 @@ jobs:
         PORT=8000
         CLIENT_URL=https://streamscene.net
         REACT_APP_API_URL=https://streamscene.net
+        REACT_APP_SERVER_URL=https://streamscene.net
+        REACT_APP_ENABLE_WEBSOCKET=true
         BASE_URL=https://streamscene.net
+        ALLOW_DEMO_LOGIN=true
         SESSION_SECRET=${{ secrets.SESSION_SECRET }}
         GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
         GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
@@ -93,7 +96,6 @@ jobs:
         DB_PASS=StreamRoot2024!
         ENABLE_MONITORING=true
         LOG_LEVEL=error
-        DB_PASS=StreamRoot2024!
         EOF
 
     - name: Quick connectivity test
