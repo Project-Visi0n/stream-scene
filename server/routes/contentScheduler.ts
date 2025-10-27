@@ -5,8 +5,10 @@ import { requireAuth } from '../middleware/authMiddleWare.js';
 
 interface AuthenticatedRequest extends Request {
   user: {
-    id: string;
+    id: number;
     email: string;
+    name: string;
+    google_id?: string;
   };
 }
 

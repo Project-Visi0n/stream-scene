@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 import { createServer } from 'http';
 
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -31,7 +32,6 @@ import filesRoutes from "./routes/files.js";
 import sharesRoutes from "./routes/shares.js";
 import budgetRoutes from './routes/budget.js';
 import socialAuthRoutes from './routes/socialAuth.js';
-import threadsRoutes from './routes/threads.js';
 import { syncDB, associate } from "./db/index.js";
 import captionRouter from './routes/caption.js';
 import taskRoutes from './routes/tasks.js';
@@ -137,7 +137,8 @@ app.use((req, res, next) => {
     userAgent: req.headers['user-agent']?.substring(0, 50) + '...',
     referer: req.headers.referer || 'NO_REFERER',
     host: req.headers.host,
-    user: req.user ? 'authenticated' : 'not authenticated'
+    user: req.user ? 'authenticated' : 'not authenticated',
+    sessionID: req.sessionID || 'NO_SESSION'
   });
   next();
 });
@@ -175,18 +176,32 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Session middleware - environment-aware configuration
+// Session middleware - FIXED configuration for OAuth flows
 app.use(session({
   secret: process.env.SESSION_SECRET || 'fallback-secret-key-change-in-production',
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: true,  // Changed to true to ensure session is created before OAuth
+  name: 'streamscene.sid',  // Custom cookie name
   cookie: {
     secure: isProd,  // HTTPS cookies in production, HTTP in development
     httpOnly: true,
-    sameSite: isProd ? 'none' : 'lax',  // 'none' for cross-domain in production
-    maxAge: 24 * 60 * 60 * 1000  // 24 hours
+    sameSite: 'lax',  // Changed from 'none' to 'lax' for better OAuth compatibility
+    maxAge: 24 * 60 * 60 * 1000,  // 24 hours
+    domain: isProd ? '.streamscene.net' : undefined  // Allow subdomain cookies in production
   }
 }));
+
+// Session debugging middleware (remove in production later)
+app.use((req, res, next) => {
+  console.log('📝 Session Debug:', {
+    sessionID: req.sessionID,
+    hasSession: !!req.session,
+    sessionData: req.session ? Object.keys(req.session) : [],
+    threadsOAuthState: req.session?.threadsState ? 'present' : 'missing',
+    cookie: req.headers.cookie ? 'present' : 'missing'
+  });
+  next();
+});
 
 // Passport middleware
 app.use(passport.initialize());
@@ -217,6 +232,7 @@ app.use('/api/shares', sharesRoutes);
 app.use('/api/budget', budgetRoutes);
 // Note: threads routes are mounted in routes/index.ts at /api/threads
 app.use('/api/caption', captionRouter);
+
 
 // Serve static files from public directory
 const publicPath = __dirname.includes('dist/server')

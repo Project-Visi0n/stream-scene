@@ -210,6 +210,12 @@ async function generateAISuggestions(
   calendarEvents: CalendarEvent[], 
   preferences: AISuggestionsRequest['preferences']
 ): Promise<AISuggestion[]> {
+  // Temporarily disable Gemini AI due to model compatibility issues
+  // Use rule-based fallback suggestions instead
+  console.log('Using rule-based suggestions due to Gemini API model issues');
+  return generateIntelligentSuggestions(tasks, calendarEvents, preferences);
+
+  /* Disabled until Gemini API model issues are resolved
   try {
     const aiPrompt = `
 You are an AI productivity coach analyzing a content creator's workflow. Based on their current tasks and calendar, provide intelligent suggestions.
@@ -269,6 +275,7 @@ Respond with ONLY valid JSON array:`;
     console.error('AI suggestions generation failed:', error);
     return [];
   }
+  */
 }
 
 // Your existing rule-based suggestions (keeping this as fallback)
@@ -327,23 +334,6 @@ function generateIntelligentSuggestions(
   }
 
   return suggestions.slice(0, 5);
-}
-
-// Helper functions
-function getNextMonday(): Date {
-  const date = new Date();
-  const day = date.getDay();
-  const daysUntilMonday = day === 0 ? 1 : 8 - day;
-  date.setDate(date.getDate() + daysUntilMonday);
-  return date;
-}
-
-function getOptimalCreativeDay(): Date {
-  const date = new Date();
-  const currentDay = date.getDay();
-  const daysUntilWednesday = currentDay <= 3 ? 3 - currentDay : 10 - currentDay;
-  date.setDate(date.getDate() + daysUntilWednesday);
-  return date;
 }
 
 export default router;

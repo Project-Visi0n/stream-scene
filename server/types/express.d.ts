@@ -27,5 +27,11 @@ import { File } from 'multer';
 declare module 'express-serve-static-core' {
   interface Request {
     file?: File;
+    user?: {
+      id: number;
+      email: string;
+      name: string;
+      google_id?: string;
+    };
   }
 }

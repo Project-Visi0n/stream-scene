@@ -9,25 +9,25 @@ interface BudgetProjectAttributes {
   description?: string;
   color: string;
   is_active: boolean;
-  tags?: string;
-  created_at?: Date;
-  updated_at?: Date;
+  tags?: string[];
+  created_at: Date;
+  updated_at: Date;
 }
 
 // Creation attributes (optional id and timestamps)
-type BudgetProjectCreationAttributes = Optional<BudgetProjectAttributes, 'id' | 'created_at' | 'updated_at'>;
+type BudgetProjectCreationAttributes = Optional<BudgetProjectAttributes, 'id' | 'created_at' | 'updated_at' | 'description' | 'tags' | 'is_active'>;
 
 // Sequelize BudgetProject model class
 export class BudgetProject extends Model<BudgetProjectAttributes, BudgetProjectCreationAttributes> implements BudgetProjectAttributes {
-  declare id: string;
-  declare user_id: number;
-  declare name: string;
-  declare description?: string;
-  declare color: string;
-  declare is_active: boolean;
-  declare tags?: string;
-  declare created_at?: Date;
-  declare updated_at?: Date;
+  public id!: string;
+  public user_id!: number;
+  public name!: string;
+  public description?: string;
+  public color!: string;
+  public is_active!: boolean;
+  public tags?: string[];
+  public created_at!: Date;
+  public updated_at!: Date;
 }
 
 // Initialize the model with the database connection
@@ -41,13 +41,13 @@ BudgetProject.init(
       primaryKey: true,
     },
     user_id: {
-      type: DataTypes.INTEGER,
-      allowNull: false,
-      references: {
-        model: 'users',
-        key: 'id',
-      },
-    },
+    type: DataTypes.BIGINT,
+    allowNull: false,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
+  },
     name: {
       type: DataTypes.STRING,
       allowNull: false,

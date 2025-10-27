@@ -9,10 +9,9 @@ server/node_modules/
 dist/
 build/
 server/dist/
-public/bundle.js
-public/bundle.js.LICENSE.txt
+public/*.js
+public/*.js.LICENSE.txt
 public/index.html
-public/
 !public/favicon*.svg
 
 # Environment files
