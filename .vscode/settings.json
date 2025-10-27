@@ -1,4 +1,29 @@
 {
   "editor.suggest.showStatusBar": false,
-  "window.autoDetectColorScheme": false
+  "window.autoDetectColorScheme": false,
+  
+  // AI Task Suggestions Configuration
+  "github.copilot.enable": {
+    "*": true,
+    "yaml": false,
+    "plaintext": false
+  },
+  
+  // Enhanced AI context for task suggestions
+  "typescript.suggest.includeCompletionsForModuleExports": true,
+  "typescript.preferences.includePackageJsonAutoImports": "on",
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  
+  // Code quality settings that help AI understand priorities
+  "eslint.validate": ["typescript", "typescriptreact", "javascript", "javascriptreact"],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit",
+    "source.organizeImports": "explicit"
+  },
+  
+  // AI workspace understanding
+  "files.associations": {
+    "*.ts": "typescript",
+    "*.tsx": "typescriptreact"
+  }
 }
