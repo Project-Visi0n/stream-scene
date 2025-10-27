@@ -8,7 +8,8 @@ import socialAuthRouter from './socialAuth.js';
 import threadsRouter from './threads.js'; 
 import commentsRouter from './comments.js';
 import canvasRouter from './canvas.js'; 
-import canvasCalendarRouter from './canvasCalendar.js'; 
+import canvasCalendarRouter from './canvasCalendar.js';
+import budgetRouter from './budget.js'; 
 
 const router = Router();
 
@@ -26,6 +27,7 @@ router.get("/healthz", (_req, res) => {
       comments: true,
       canvas: true,
       canvasCalendar: true,
+      budget: true,
     }
   });
 });
@@ -38,5 +40,6 @@ router.use('/api/threads', threadsRouter);
 router.use('/api/comments', commentsRouter);
 router.use('/api/canvas', canvasRouter);
 router.use('/api/canvas-calendar', canvasCalendarRouter);
+router.use('/api/budget', budgetRouter);
 
 export default router;
