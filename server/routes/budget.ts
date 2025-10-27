@@ -5,7 +5,7 @@ import BudgetProject from '../models/BudgetProject.js';
 
 const router = express.Router();
 
-// Test route to verify budget routes are loaded
+// Test route to verify budget routes are loaded (no auth required for testing)
 router.get('/test', (req, res) => {
   console.log('📊 Budget test route accessed');
   res.json({ 
@@ -16,6 +16,16 @@ router.get('/test', (req, res) => {
       BudgetEntry: typeof BudgetEntry,
       BudgetProject: typeof BudgetProject
     }
+  });
+});
+
+// Debug route - no authentication required
+router.get('/debug', (req, res) => {
+  res.json({
+    status: 'Budget routes loaded successfully',
+    timestamp: new Date().toISOString(),
+    path: req.path,
+    method: req.method
   });
 });
 

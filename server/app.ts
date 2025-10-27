@@ -263,6 +263,38 @@ app.get('/test-server', (req, res) => {
   res.json({ message: 'Server is working!' });
 });
 
+// Debug route to test budget endpoints directly
+app.get('/debug-budget', (req, res) => {
+  res.json({ 
+    message: 'Budget debug route working from app.ts!',
+    timestamp: new Date().toISOString(),
+    routes_mounted: true,
+    path: req.path,
+    originalUrl: req.originalUrl,
+    method: req.method
+  });
+});
+
+// Debug route to show route mounting info
+app.get('/debug-routing', (req, res) => {
+  res.json({
+    message: 'Route debugging info',
+    mountOrder: [
+      '1. /auth -> authRoutes',
+      '2. /social -> socialAuthRoutes', 
+      '3. / -> routes (from index.ts) - THIS CATCHES ALL!',
+      '4. /api/ai -> aiRoutes',
+      '5. /api/schedule -> scheduleRoutes',
+      '6. /api/s3 -> s3ProxyRoutes',
+      '7. /api/files -> filesRoutes',
+      '8. /api/shares -> sharesRoutes',
+      '9. /api/caption -> captionRouter'
+    ],
+    note: 'Budget routes should be in step 3 (routes/index.ts)',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Catch-all: serve frontend app unless it's an API route or static file
 app.get('*', (req, res) => {
   // Skip catch-all for API routes
