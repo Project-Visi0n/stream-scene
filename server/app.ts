@@ -31,11 +31,8 @@ import s3ProxyRoutes from "./routes/s3Proxy.js";
 import filesRoutes from "./routes/files.js";
 import sharesRoutes from "./routes/shares.js";
 import socialAuthRoutes from './routes/socialAuth.js';
-import budgetRouter from './routes/budget.js';
 import { syncDB } from "./db/index.js";
 import captionRouter from './routes/caption.js';
-import taskRoutes from './routes/tasks.js';
-import contentSchedulerRoutes from './routes/contentScheduler.js';
 import { initializeWebSocket } from './services/WebSocketService.js';
 
 const app = express();
@@ -224,15 +221,11 @@ app.use('/social', socialAuthRoutes);
 app.use('/', routes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/schedule', scheduleRoutes);
-app.use('/api/content-scheduler', contentSchedulerRoutes);
-app.use('/api/tasks', taskRoutes);
 app.use('/api/s3', s3ProxyRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/shares', sharesRoutes);
-app.use('/api/budget', budgetRouter);
-console.log('✅ Budget routes mounted directly at /api/budget');
-// Note: threads routes are mounted in routes/index.ts at /api/threads
 app.use('/api/caption', captionRouter);
+// Note: All other API routes (tasks, content-scheduler, threads, budget, etc.) are mounted in routes/index.ts
 
 
 // Serve static files from public directory
