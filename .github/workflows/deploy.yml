@@ -183,6 +183,11 @@ jobs:
           echo "Installing tsx for seed script execution..."
           npm install tsx --save-dev
           
+          echo "Fixing User table schema for Threads integration..."
+          mysql -h localhost -u root -pStreamRoot2024! stream_scene_db -e "ALTER TABLE users ADD COLUMN IF NOT EXISTS threads_access_token VARCHAR(500) NULL, ADD COLUMN IF NOT EXISTS threads_user_id VARCHAR(100) NULL;" || {
+            echo "Schema update failed or columns already exist. Continuing..."
+          }
+          
           echo "Running database seed script to ensure proper schema..."
           npm run seed:production || {
             echo "WARNING: Database seed failed. This might be expected if database is already seeded."
