@@ -15,6 +15,9 @@ router.get('/test', (req: Request, res: Response) => {
   res.json({ message: 'Auth routes are working!' });
 });
 
+// Store recent auth errors for debugging
+const recentAuthErrors: {timestamp: string, error: string, details?: unknown}[] = [];
+
 // Debug endpoint to check environment and database
 router.get('/debug', async (req: Request, res: Response) => {
   try {
@@ -40,7 +43,8 @@ router.get('/debug', async (req: Request, res: Response) => {
       database: {
         connected: true,
         userCount: userCount
-      }
+      },
+      recentAuthErrors: recentAuthErrors.slice(-5) // Show last 5 errors
     });
   } catch (error) {
     res.status(500).json({
@@ -81,11 +85,23 @@ router.get(
 
       if (err) {
         console.error('Authentication error:', err);
+        // Store error for debugging
+        recentAuthErrors.push({
+          timestamp: new Date().toISOString(),
+          error: 'Authentication error',
+          details: err instanceof Error ? err.message : err
+        });
         return res.redirect('/?error=auth_failed');
       }
 
       if (!user) {
         console.error('No user returned from authentication');
+        // Store error for debugging
+        recentAuthErrors.push({
+          timestamp: new Date().toISOString(),
+          error: 'No user returned from authentication',
+          details: { info }
+        });
         return res.redirect('/?error=no_user');
       }
 
