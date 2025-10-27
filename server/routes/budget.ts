@@ -5,6 +5,15 @@ import BudgetProject from '../models/BudgetProject.js';
 
 const router = express.Router();
 
+// Test route to verify budget routes are loaded
+router.get('/test', (req, res) => {
+  res.json({ 
+    message: 'Budget routes are working!', 
+    timestamp: new Date().toISOString(),
+    user: req.user ? { id: req.user.id, email: req.user.email } : 'Not authenticated'
+  });
+});
+
 // Helper function to safely get user ID
 const getUserId = (req: express.Request): number | null => {
   return req.user?.id ?? null;

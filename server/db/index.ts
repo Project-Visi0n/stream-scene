@@ -29,8 +29,20 @@ initScheduledPostModel(sequelizeInstance);
 // Just make sure it's using the same sequelize instance
 
 export const associate = () => {
+  console.log('✅ Setting up database associations...');
+  
+  // Budget model associations
+  BudgetEntry.belongsTo(BudgetProject, {
+    foreignKey: 'project_id',
+    as: 'project',
+  });
+
+  BudgetProject.hasMany(BudgetEntry, {
+    foreignKey: 'project_id',
+    as: 'entries',
+  });
+  
   console.log('✅ Database associations ready');
-  // Associations can be added here as needed
 };
 
 // Sync EVERYTHING including new models

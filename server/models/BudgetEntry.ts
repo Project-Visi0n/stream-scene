@@ -1,6 +1,5 @@
 import { DataTypes, Model, Optional } from 'sequelize';
 import { getSequelize } from '../db/connection.js';
-import BudgetProject from './BudgetProject.js';
 
 // BudgetEntry attributes interface
 interface BudgetEntryAttributes {
@@ -121,16 +120,5 @@ BudgetEntry.init(
     updatedAt: 'updated_at',
   }
 );
-
-// Define associations
-BudgetEntry.belongsTo(BudgetProject, {
-  foreignKey: 'project_id',
-  as: 'project',
-});
-
-BudgetProject.hasMany(BudgetEntry, {
-  foreignKey: 'project_id',
-  as: 'entries',
-});
 
 export default BudgetEntry;
