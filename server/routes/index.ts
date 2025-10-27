@@ -16,8 +16,7 @@ import canvasRouter from './canvas.js';
 console.log('✅ Canvas router imported');
 import canvasCalendarRouter from './canvasCalendar.js';
 console.log('✅ Canvas calendar router imported');
-import budgetRouter from './budget-simple.js';
-console.log('✅ Simple budget router imported:', typeof budgetRouter); 
+// Budget router now imported in app.ts 
 
 const router = Router();
 
@@ -56,7 +55,6 @@ router.use('/api/canvas', canvasRouter);
 console.log('✅ Canvas routes mounted at /api/canvas');
 router.use('/api/canvas-calendar', canvasCalendarRouter);
 console.log('✅ Canvas calendar routes mounted at /api/canvas-calendar');
-router.use('/api/budget', budgetRouter);
-console.log('✅ Budget routes mounted at /api/budget');
+// Budget routes now mounted directly in app.ts
 
 export default router;

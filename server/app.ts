@@ -31,6 +31,7 @@ import s3ProxyRoutes from "./routes/s3Proxy.js";
 import filesRoutes from "./routes/files.js";
 import sharesRoutes from "./routes/shares.js";
 import socialAuthRoutes from './routes/socialAuth.js';
+import budgetRouter from './routes/budget-simple.js';
 import { syncDB, associate } from "./db/index.js";
 import captionRouter from './routes/caption.js';
 import taskRoutes from './routes/tasks.js';
@@ -228,7 +229,8 @@ app.use('/api/tasks', taskRoutes);
 app.use('/api/s3', s3ProxyRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/shares', sharesRoutes);
-// Budget routes now mounted in routes/index.ts
+app.use('/api/budget', budgetRouter);
+console.log('✅ Budget routes mounted directly at /api/budget');
 // Note: threads routes are mounted in routes/index.ts at /api/threads
 app.use('/api/caption', captionRouter);
 
