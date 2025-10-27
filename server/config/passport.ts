@@ -17,20 +17,34 @@ passport.use(
     },
     async (req: any, accessToken: string, refreshToken: string, profile: any, done: Function) => {
       try {
+        console.log('🔍 Google OAuth Strategy - Profile received:', {
+          id: profile.id,
+          email: profile.emails?.[0]?.value,
+          name: profile.displayName
+        });
+
         // Find or create user
         let user = await User.findOne({ where: { google_id: profile.id } });
+        console.log('🔍 Database lookup result:', user ? 'User found' : 'User not found');
 
         if (!user) {
+          console.log('🔍 Creating new user...');
           user = await User.create({
             google_id: profile.id,
             email: profile.emails?.[0]?.value,
             name: `${profile.name?.givenName || ''} ${profile.name?.familyName || ''}`.trim(),
           });
+          console.log('✅ New user created:', { id: user.id, email: user.email });
         }
 
         return done(null, user);
       } catch (error) {
-        console.error('Error in Google strategy:', error);
+        console.error('❌ Error in Google strategy:', error);
+        console.error('❌ Error details:', {
+          message: error.message,
+          stack: error.stack,
+          name: error.name
+        });
         return done(error, null);
       }
     }
