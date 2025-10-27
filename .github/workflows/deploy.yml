@@ -161,12 +161,9 @@ jobs:
             sudo npm install -g pm2
           fi
           
-          echo "Installing production dependencies..."
+          echo "Installing production dependencies and TypeScript runtime..."
           npm install --production
-          cd /var/www/stream-scene
-          
-          echo "Installing production dependencies..."
-          npm install --production
+          npm install tsx --save-dev
           
           echo "Setting up database schema..."
           echo "Installing tsx for seed script execution..."

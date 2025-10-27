@@ -15,7 +15,23 @@ router.get('/test', (req, res) => {
     models: {
       BudgetEntry: typeof BudgetEntry,
       BudgetProject: typeof BudgetProject
-    }
+    },
+    routes_available: [
+      'GET /api/budget/test',
+      'GET /api/budget/debug', 
+      'GET /api/budget/entries',
+      'GET /api/budget/projects',
+      'POST /api/budget/entries',
+      'POST /api/budget/projects'
+    ]
+  });
+});
+
+// Simple health check route
+router.get('/health', (req, res) => {
+  res.json({ 
+    status: 'Budget routes loaded successfully',
+    timestamp: new Date().toISOString()
   });
 });
 

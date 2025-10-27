@@ -1,7 +1,8 @@
 module.exports = {
   apps: [{
     name: 'stream-scene',
-    script: 'dist/server/app.js',
+    script: 'server/app.ts',
+    interpreter: 'tsx',
     instances: 1,
     autorestart: true,
     watch: false,
