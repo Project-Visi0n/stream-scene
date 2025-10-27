@@ -171,6 +171,12 @@ jobs:
             echo "Continuing with deployment..."
           }
           
+          echo "Cleaning up demo task data..."
+          node server/cleanup-demo-tasks.js || {
+            echo "WARNING: Demo task cleanup failed. This might be expected."
+            echo "Continuing with deployment..."
+          }
+          
           echo "Stopping existing PM2 processes..."
           pm2 stop stream-scene || echo "No existing process to stop"
           pm2 delete stream-scene || echo "No existing process to delete"
