@@ -4,17 +4,22 @@ import crypto from 'crypto';
 
 const router = express.Router();
 
+// Threads constants (leaving these in case you still use them elsewhere)
 const THREADS_CLIENT_ID = process.env.THREADS_CLIENT_ID;
 const THREADS_CLIENT_SECRET = process.env.THREADS_CLIENT_SECRET;
 const BASE_URL = process.env.BASE_URL || 'https://streamscene.net';
 const THREADS_REDIRECT_URI = `${BASE_URL}/auth/threads/callback`;
 
+// Simple test route
 router.get('/test', (req: Request, res: Response) => {
   res.json({ message: 'Auth routes are working!' });
 });
 
+// ──────────────────────────────────────────
+// GOOGLE OAUTH START
+// ──────────────────────────────────────────
 
-
+// Kick off Google OAuth
 router.get(
   '/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
@@ -29,85 +34,132 @@ router.get(
       console.log('Error:', err);
       console.log('User:', user ? 'User object present' : 'No user');
       console.log('Info:', info);
-      
+
       if (err) {
         console.error('Authentication error:', err);
         return res.redirect('/?error=auth_failed');
       }
-      
+
       if (!user) {
         console.error('No user returned from authentication');
         return res.redirect('/?error=no_user');
       }
-      
+
       req.logIn(user, (loginErr) => {
         if (loginErr) {
           console.error('Login error:', loginErr);
           return res.redirect('/?error=login_failed');
         }
-        
+
         console.log('Login successful, saving session...');
-        
+
         req.session.save((saveErr) => {
           if (saveErr) {
             console.error('Session save error:', saveErr);
             return res.redirect('/?error=session_failed');
           }
-          
-          console.log('Session saved, redirecting to client...');
-          const redirectUrl = process.env.CLIENT_URL || `https://${req.get('host')}`;
+
+          console.log('Session saved, preparing redirect...');
+
+          // ─────────────────────────────
+          // ✅ REDIRECT LOGIC (updated)
+          // ─────────────────────────────
+          //
+          // We do NOT want to bounce the user to an ngrok URL anymore.
+          //
+          // Instead:
+          // - In production, if you explicitly define CLIENT_URL in .env,
+          //   we'll trust that.
+          // - In development, we ALWAYS send them back to localhost:8000
+          //   so that the browser stays on the same origin that issued
+          //   the session cookie.
+          //
+          // This fixes the "Google login works but you're still not authenticated"
+          // bug that Bradley saw.
+
+          const isProd =
+            process.env.NODE_ENV === 'production' ||
+            process.env.NODE_ENV === 'prod';
+
+          const LOCAL_DEV_URL = 'http://localhost:8000';
+          const envClient = process.env.CLIENT_URL; // e.g. real deployed frontend
+
+          const redirectUrl =
+            (isProd && envClient)
+              ? envClient
+              : LOCAL_DEV_URL;
+
           console.log('Redirecting to:', redirectUrl);
-          res.redirect(redirectUrl);
+          return res.redirect(redirectUrl);
         });
       });
     })(req, res, next);
   }
 );
 
-// Demo login for development/presentation (controlled by environment)
+// ──────────────────────────────────────────
+// GOOGLE OAUTH END
+// ──────────────────────────────────────────
+
+
+
+// ──────────────────────────────────────────
+// DEMO LOGIN (dev / presentation mode only)
+// ──────────────────────────────────────────
+//
+// This lets you log in as a specific demo user without Google OAuth.
+// To use this in production you'd WANT THIS LOCKED DOWN HARD,
+// but for your current flow it's helpful.
+
 router.post('/demo-login', async (req: Request, res: Response) => {
-  // Allow demo login in development OR if ALLOW_DEMO_LOGIN is set to true
-  const isDemoAllowed = process.env.NODE_ENV === 'development' || process.env.ALLOW_DEMO_LOGIN === 'true';
-  
+  // Allow demo login in development OR if ALLOW_DEMO_LOGIN=true
+  const isDemoAllowed =
+    process.env.NODE_ENV === 'development' ||
+    process.env.ALLOW_DEMO_LOGIN === 'true';
+
   if (!isDemoAllowed) {
     return res.status(403).json({ error: 'Demo login disabled' });
   }
-  
+
   try {
-    // Import User model
+    // Lazy-import models so we don't create circular deps at load time
     const { User } = await import('../models/User.js');
-    
-    // Find the demo user created in seed data
+
+    // Find the seeded demo user
     const demoUser = await User.findOne({
       where: { email: 'allblk13@gmail.com' }
     });
-    
+
     if (!demoUser) {
-      return res.status(404).json({ error: 'Demo user not found. Please run seed script first.' });
+      return res.status(404).json({
+        error: 'Demo user not found. Please run seed script first.'
+      });
     }
-    
-    // Log in the demo user
+
+    // Log in the demo user and also reset demo data
     req.logIn(demoUser, (err) => {
       if (err) {
         console.error('Demo login error:', err);
         return res.status(500).json({ error: 'Demo login failed' });
       }
 
-      // Always reset demo tasks on demo-login to ensure consistent demo experience
+      // Wrap reset in an IIFE so we can await inside
       (async () => {
         try {
+          // Reset tasks
           const { Task } = await import('../models/Task.js');
 
-          // Always remove existing demo user's tasks and insert a fresh, minimal set
           await Task.destroy({ where: { user_id: demoUser.id } });
 
           const now = Date.now();
-          const days = (n: number) => new Date(now + n * 24 * 60 * 60 * 1000);
+          const days = (n: number) =>
+            new Date(now + n * 24 * 60 * 60 * 1000);
 
           const demoTasks = [
             {
               title: 'Welcome to StreamScene',
-              description: 'Explore the collaborative features and get started with your first project!',
+              description:
+                'Explore the collaborative features and get started with your first project!',
               priority: 'medium',
               task_type: 'admin',
               status: 'pending',
@@ -137,7 +189,8 @@ router.post('/demo-login', async (req: Request, res: Response) => {
             },
             {
               title: 'Brand Partnership Meeting',
-              description: 'Video call with Sony about camera gear sponsorship',
+              description:
+                'Video call with Sony about camera gear sponsorship',
               priority: 'high',
               task_type: 'admin',
               status: 'pending',
@@ -157,7 +210,8 @@ router.post('/demo-login', async (req: Request, res: Response) => {
             },
             {
               title: 'SEO Optimization',
-              description: 'Optimized video titles and descriptions',
+              description:
+                'Optimized video titles and descriptions',
               priority: 'medium',
               task_type: 'admin',
               status: 'completed',
@@ -169,20 +223,19 @@ router.post('/demo-login', async (req: Request, res: Response) => {
 
           await Task.bulkCreate(demoTasks as any);
 
-          // Reset budget data for consistent demo experience
+          // Reset budget data
           const { default: BudgetProject } = await import('../models/BudgetProject.js');
           const { default: BudgetEntry } = await import('../models/BudgetEntry.js');
 
-          // Clear existing budget data
           await BudgetEntry.destroy({ where: { user_id: demoUser.id } });
           await BudgetProject.destroy({ where: { user_id: demoUser.id } });
 
-          // Create demo budget projects
           const demoProjects = [
             {
               user_id: demoUser.id,
               name: 'YouTube Channel',
-              description: 'Main content creation expenses and revenue',
+              description:
+                'Main content creation expenses and revenue',
               color: '#ff6b6b',
               is_active: true,
               tags: ['content', 'youtube', 'main']
@@ -190,7 +243,8 @@ router.post('/demo-login', async (req: Request, res: Response) => {
             {
               user_id: demoUser.id,
               name: 'Equipment Fund',
-              description: 'Camera gear and tech equipment purchases',
+              description:
+                'Camera gear and tech equipment purchases',
               color: '#4ecdc4',
               is_active: true,
               tags: ['equipment', 'gear', 'investment']
@@ -198,7 +252,8 @@ router.post('/demo-login', async (req: Request, res: Response) => {
             {
               user_id: demoUser.id,
               name: 'Business Operations',
-              description: 'General business and operational expenses',
+              description:
+                'General business and operational expenses',
               color: '#45b7d1',
               is_active: true,
               tags: ['business', 'operations', 'overhead']
@@ -207,13 +262,12 @@ router.post('/demo-login', async (req: Request, res: Response) => {
 
           const createdProjects = await BudgetProject.bulkCreate(demoProjects);
 
-          // Create demo budget entries
           const demoEntries = [
-            // Income entries
+            // Income
             {
               user_id: demoUser.id,
               type: 'income',
-              amount: 2500.00,
+              amount: 2500.0,
               category: 'YouTube Revenue',
               description: 'Monthly AdSense revenue',
               date: days(-5),
@@ -223,7 +277,7 @@ router.post('/demo-login', async (req: Request, res: Response) => {
             {
               user_id: demoUser.id,
               type: 'income',
-              amount: 1800.00,
+              amount: 1800.0,
               category: 'Sponsorship',
               description: 'Brand partnership payment',
               date: days(-10),
@@ -233,14 +287,15 @@ router.post('/demo-login', async (req: Request, res: Response) => {
             {
               user_id: demoUser.id,
               type: 'income',
-              amount: 350.00,
+              amount: 350.0,
               category: 'Merchandise',
               description: 'T-shirt and sticker sales',
               date: days(-15),
               project_id: createdProjects[0].id,
               tags: ['merchandise', 'merch', 'sales']
             },
-            // Expense entries
+
+            // Expenses
             {
               user_id: demoUser.id,
               type: 'expense',
@@ -267,7 +322,7 @@ router.post('/demo-login', async (req: Request, res: Response) => {
             {
               user_id: demoUser.id,
               type: 'expense',
-              amount: 45.50,
+              amount: 45.5,
               category: 'Office Supplies',
               description: 'SD cards and batteries',
               date: days(-7),
@@ -277,7 +332,7 @@ router.post('/demo-login', async (req: Request, res: Response) => {
             {
               user_id: demoUser.id,
               type: 'expense',
-              amount: 25.00,
+              amount: 25.0,
               category: 'Transportation',
               description: 'Gas for location shooting',
               date: days(-3),
@@ -290,16 +345,17 @@ router.post('/demo-login', async (req: Request, res: Response) => {
 
         } catch (taskTrimErr) {
           console.error('Demo data reset failed:', taskTrimErr);
-          // Proceed with login even if data reset fails
+          // We still continue to log them in
         } finally {
           console.log('Demo login successful for:', demoUser.email);
+
           res.json({
             message: 'Demo login successful',
             user: {
               id: demoUser.id,
               email: demoUser.email,
-              name: demoUser.name
-            }
+              name: demoUser.name,
+            },
           });
         }
       })();
@@ -310,9 +366,13 @@ router.post('/demo-login', async (req: Request, res: Response) => {
   }
 });
 
-// Get current authenticated user
+// ──────────────────────────────────────────
+// CURRENT USER
+// ─────────────────────────────────────────-
+
 router.get('/user', (req: Request, res: Response) => {
   let userData = null;
+
   if (req.user) {
     const user = req.user as any;
     userData = {
@@ -325,30 +385,36 @@ router.get('/user', (req: Request, res: Response) => {
       created_at: user.created_at,
       updated_at: user.updated_at,
       threadsConnected: !!req.session?.threadsAuth,
-      threadsUsername: req.session?.threadsAuth?.username || null
+      threadsUsername: req.session?.threadsAuth?.username || null,
     };
   }
 
   const responseData = {
     authenticated: !!req.user,
     user: userData,
-    threadsAuth: req.session?.threadsAuth ? {
-      connected: true,
-      username: req.session.threadsAuth.username,
-      userId: req.session.threadsAuth.userId
-    } : {
-      connected: false
-    },
+    threadsAuth: req.session?.threadsAuth
+      ? {
+          connected: true,
+          username: req.session.threadsAuth.username,
+          userId: req.session.threadsAuth.userId,
+        }
+      : {
+          connected: false,
+        },
     debug: {
       sessionId: req.sessionID,
       hasSession: !!req.session,
       hasUser: !!req.user,
-      hasThreads: !!req.session?.threadsAuth
-    }
+      hasThreads: !!req.session?.threadsAuth,
+    },
   };
-  
+
   res.json(responseData);
 });
+
+// ──────────────────────────────────────────
+// LOGOUT
+// ─────────────────────────────────────────-
 
 router.post('/logout', (req: Request, res: Response) => {
   req.logout((err) => {
@@ -356,16 +422,17 @@ router.post('/logout', (req: Request, res: Response) => {
       console.error('Logout error:', err);
       return res.status(500).json({ error: 'Logout failed' });
     }
-    
+
     req.session.destroy((err) => {
       if (err) {
         console.error('Session destroy error:', err);
         return res.status(500).json({ error: 'Session cleanup failed' });
       }
-      
+
       res.clearCookie('connect.sid');
       res.clearCookie('streamscene.sid');
       console.log('Logout successful');
+
       res.json({ message: 'Logged out successfully' });
     });
   });
