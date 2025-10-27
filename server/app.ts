@@ -25,6 +25,7 @@ import cors from 'cors';
 import "./config/passport.js";
 import authRoutes from "./routes/auth.js";
 import routes from "./routes/index.js";
+import budgetRoutes from "./routes/budget.js";
 import aiRoutes from "./routes/ai.js";
 import scheduleRoutes from "./routes/schedule.js";
 import s3ProxyRoutes from "./routes/s3Proxy.js";
@@ -219,6 +220,7 @@ if (!isProd) {
 app.use('/auth', authRoutes);
 app.use('/social', socialAuthRoutes);
 app.use('/', routes);
+app.use('/api/budget', budgetRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/schedule', scheduleRoutes);
 app.use('/api/s3', s3ProxyRoutes);
