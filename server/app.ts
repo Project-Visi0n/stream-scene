@@ -25,7 +25,7 @@ import cors from 'cors';
 import "./config/passport.js";
 import authRoutes from "./routes/auth.js";
 import routes from "./routes/index.js";
-import budgetRoutes from "./routes/budget.js";
+import budgetRoutes from "./routes/budget-minimal.js";
 import aiRoutes from "./routes/ai.js";
 import scheduleRoutes from "./routes/schedule.js";
 import s3ProxyRoutes from "./routes/s3Proxy.js";
