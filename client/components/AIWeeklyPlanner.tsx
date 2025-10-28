@@ -1,27 +1,30 @@
-import React, { useState, useEffect } from 'react';
+// TODO: Implement AI-powered task prioritization algorithm
+// TODO: Add calendar integration for deadline synchronization  
+// FIXME: Improve mobile responsiveness for task cards
+// URGENT: Optimize performance for large task lists
+// BUG: Task filtering not working properly on mobile devices
+// HACK: Using any types in several places - needs proper TypeScript interfaces
+// TODO: Add drag-and-drop functionality for task reordering
+// FIXME: Memory leak in useEffect cleanup functions
 import { motion } from 'framer-motion';
-import { 
+import React, { useEffect, useState } from 'react';
+import {
+  FaBrain,
+  FaCalendarAlt,
+  FaRobot
+} from 'react-icons/fa';
+import {
+  HiClock,
+  HiCog6Tooth,
+  HiDocumentText,
+  HiExclamationTriangle,
+  HiLightBulb,
   HiMagnifyingGlass,
   HiPencilSquare,
-  HiLightBulb,
-  HiCog6Tooth,
-  HiSparkles,
-  HiClock,
-  HiDocumentText,
-  HiChartBarSquare,
-  HiExclamationTriangle
+  HiSparkles
 } from 'react-icons/hi2';
-import { 
-  FaRobot,
-  FaCalendarAlt,
-  FaBrain,
-  FaTasks,
-  FaCheckCircle,
-  FaTimes
-} from 'react-icons/fa';
-import TaskForm from './TaskForm';
-import TagInput from './TagInput';
 import { Task, TaskFormData } from '../types/task';
+import TaskForm from './TaskForm';
 
 // Replace the problematic custom SVG components with React Icons
 const AIIcon = () => <FaRobot className="w-8 h-8 text-purple-400" />;
@@ -504,54 +507,243 @@ const AIWeeklyPlanner: React.FC = () => {
     const suggestions: AISuggestion[] = [];
     const timestamp = Date.now();
     
-    // Generate fresh suggestions every time
     // Ensure tasks is always an array before filtering
     const safeTasksArray = Array.isArray(tasks) ? tasks : [];
     const creativeTasks = safeTasksArray.filter(t => t.task_type === 'creative' && t.status !== 'completed');
     const adminTasks = safeTasksArray.filter(t => t.task_type === 'admin' && t.status !== 'completed');
-    
-    // 1. Planning and organization suggestions
-    suggestions.push({
-      id: `weekly-planning-${timestamp}`,
-      type: 'task',
-      title: 'Weekly planning and goal review',
-      description: 'Review progress from last week and set priorities for the upcoming week',
-      reason: 'Regular planning sessions improve productivity by 25% and help maintain focus on important goals.',
-      estimatedHours: 1,
-      priority: 'medium',
-      task_type: 'admin'
+    const completedTasks = safeTasksArray.filter(t => t.status === 'completed');
+    const upcomingDeadlines = safeTasksArray.filter(t => {
+      if (!t.deadline) return false;
+      const deadline = new Date(t.deadline);
+      const now = new Date();
+      const daysUntil = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      return daysUntil > 0 && daysUntil <= 7 && t.status !== 'completed';
     });
 
-    // 2. Content creation suggestions
-    if (creativeTasks.length < 3) {
+    // Analyze existing tasks for intelligent suggestions
+    const taskTitles = safeTasksArray.map(t => t.title.toLowerCase());
+    const taskDescriptions = safeTasksArray.map(t => (t.description || '').toLowerCase()).join(' ');
+
+    // Helper function to check if a keyword exists in user's tasks
+    const hasKeyword = (keywords: string[]) => {
+      return keywords.some(keyword => 
+        taskTitles.some(title => title.includes(keyword)) ||
+        taskDescriptions.includes(keyword)
+      );
+    };
+
+    // 1. SMART FOLLOW-UP SUGGESTIONS based on existing tasks
+    safeTasksArray.forEach(task => {
+      const title = task.title.toLowerCase();
+      const isCreative = task.task_type === 'creative';
+      
+      // Video/Content creation workflow suggestions
+      if (title.includes('script') && !hasKeyword(['record', 'film', 'shoot'])) {
+        suggestions.push({
+          id: `record-${task.id}-${timestamp}`,
+          type: 'task',
+          title: `Record ${task.title.replace(/script/i, 'Video')}`,
+          description: `Film the video content for "${task.title}"`,
+          reason: `You have a script ready - the next logical step is recording the content.`,
+          estimatedHours: isCreative ? 3 : 2,
+          priority: task.priority,
+          task_type: 'creative',
+          suggestedDate: task.deadline ? new Date(new Date(task.deadline).getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : undefined
+        });
+      }
+
+      if (title.includes('record') && !hasKeyword(['edit', 'editing'])) {
+        suggestions.push({
+          id: `edit-${task.id}-${timestamp}`,
+          type: 'task',
+          title: `Edit ${task.title.replace(/record/i, 'Video')}`,
+          description: `Post-production editing for "${task.title}"`,
+          reason: `After recording, editing is essential to create polished content.`,
+          estimatedHours: 4,
+          priority: task.priority,
+          task_type: 'creative'
+        });
+      }
+
+      if ((title.includes('video') || title.includes('content')) && !hasKeyword(['thumbnail', 'cover'])) {
+        suggestions.push({
+          id: `thumbnail-${task.id}-${timestamp}`,
+          type: 'task',
+          title: `Create thumbnail for ${task.title}`,
+          description: `Design eye-catching thumbnail for "${task.title}"`,
+          reason: `Thumbnails can increase click-through rates by up to 90%.`,
+          estimatedHours: 1,
+          priority: 'medium',
+          task_type: 'creative'
+        });
+      }
+
+      // Meeting follow-ups
+      if (title.includes('meeting') && task.status === 'completed' && !hasKeyword(['follow-up', 'followup'])) {
+        suggestions.push({
+          id: `followup-${task.id}-${timestamp}`,
+          type: 'task',
+          title: `Follow-up: ${task.title}`,
+          description: `Send follow-up email and action items from "${task.title}"`,
+          reason: `Following up within 24 hours increases project success rates by 40%.`,
+          estimatedHours: 0.5,
+          priority: 'high',
+          task_type: 'admin'
+        });
+      }
+
+      // Brand/Partnership workflow
+      if (title.includes('brand') || title.includes('partnership') || title.includes('sponsor')) {
+        if (!hasKeyword(['contract', 'agreement'])) {
+          suggestions.push({
+            id: `contract-${task.id}-${timestamp}`,
+            type: 'task',
+            title: `Review contract for ${task.title}`,
+            description: `Legal review and contract negotiation for "${task.title}"`,
+            reason: `Proper contracts protect your interests and clarify expectations.`,
+            estimatedHours: 1,
+            priority: 'high',
+            task_type: 'admin'
+          });
+        }
+        if (!hasKeyword(['content plan', 'deliverables'])) {
+          suggestions.push({
+            id: `content-plan-${task.id}-${timestamp}`,
+            type: 'task',
+            title: `Content planning for ${task.title}`,
+            description: `Plan deliverables and content timeline for "${task.title}"`,
+            reason: `Clear content planning ensures successful brand partnerships.`,
+            estimatedHours: 2,
+            priority: 'medium',
+            task_type: 'creative'
+          });
+        }
+      }
+    });
+
+    // 2. DEADLINE-BASED URGENT SUGGESTIONS
+    if (upcomingDeadlines.length > 0) {
       suggestions.push({
-        id: `content-brainstorm-${timestamp}`,
-        type: 'task',
-        title: 'Content brainstorming session',
-        description: 'Generate new content ideas and plan upcoming creative projects',
-        reason: 'Regular creative brainstorming prevents content burnout and maintains fresh ideas.',
-        estimatedHours: 2,
-        priority: 'medium',
-        task_type: 'creative'
+        id: `deadline-prep-${timestamp}`,
+        type: 'optimization',
+        title: 'Prepare for upcoming deadlines',
+        description: `You have ${upcomingDeadlines.length} task(s) due this week. Consider breaking them into smaller chunks.`,
+        reason: `Breaking large tasks into smaller ones increases completion rates by 60%.`,
+        estimatedHours: 1,
+        priority: 'high',
+        task_type: 'admin'
       });
     }
 
-    // 3. Balance suggestions
-    if (creativeTasks.length > adminTasks.length * 2) {
+    // 3. WORKLOAD BALANCE SUGGESTIONS
+    const totalHours = safeTasksArray.reduce((sum, task) => sum + (task.estimated_hours || 0), 0);
+    const creativeHours = creativeTasks.reduce((sum, task) => sum + (task.estimated_hours || 0), 0);
+    const adminHours = adminTasks.reduce((sum, task) => sum + (task.estimated_hours || 0), 0);
+
+    if (creativeHours > adminHours * 3) {
       suggestions.push({
-        id: `balance-admin-${timestamp}`,
+        id: `admin-balance-${timestamp}`,
         type: 'optimization',
-        title: 'Business administration session',
-        description: 'Handle invoicing, contracts, and other business-related tasks',
-        reason: 'You have many creative tasks but few admin tasks. Balance helps prevent admin overflow.',
+        title: 'Schedule admin time',
+        description: 'You have mostly creative work scheduled. Consider blocking time for business tasks.',
+        reason: `Creative-heavy schedules often lead to admin task pile-up. Balance prevents overwhelm.`,
         estimatedHours: 2,
         priority: 'medium',
         task_type: 'admin'
       });
     }
 
+    if (adminHours > creativeHours * 2) {
+      suggestions.push({
+        id: `creative-balance-${timestamp}`,
+        type: 'optimization',
+        title: 'Schedule creative time',
+        description: 'Add some creative work to balance your administrative tasks.',
+        reason: `Too much admin work can lead to creative burnout. Maintain your creative flow.`,
+        estimatedHours: 3,
+        priority: 'medium',
+        task_type: 'creative'
+      });
+    }
 
-    setAiSuggestions(suggestions.slice(0, 6));
+    // 4. PROJECT-SPECIFIC SUGGESTIONS based on patterns
+    if (hasKeyword(['tech', 'review', 'iphone', 'camera', 'gadget'])) {
+      if (!hasKeyword(['unbox', 'first look'])) {
+        suggestions.push({
+          id: `unboxing-${timestamp}`,
+          type: 'task',
+          title: 'Create unboxing content',
+          description: 'Film first impressions and unboxing experience',
+          reason: 'Unboxing videos perform 300% better than standard reviews.',
+          estimatedHours: 2,
+          priority: 'medium',
+          task_type: 'creative'
+        });
+      }
+      if (!hasKeyword(['comparison', 'vs', 'compare'])) {
+        suggestions.push({
+          id: `comparison-${timestamp}`,
+          type: 'task',
+          title: 'Create comparison content',
+          description: 'Compare with competing products or previous versions',
+          reason: 'Comparison content helps viewers make informed decisions.',
+          estimatedHours: 3,
+          priority: 'medium',
+          task_type: 'creative'
+        });
+      }
+    }
+
+    // 5. MAINTENANCE & GROWTH SUGGESTIONS
+    if (completedTasks.length > 0 && !hasKeyword(['analytics', 'metrics', 'performance'])) {
+      suggestions.push({
+        id: `analytics-review-${timestamp}`,
+        type: 'task',
+        title: 'Review content performance',
+        description: 'Analyze metrics and performance of recent content',
+        reason: 'Regular analytics review improves content strategy by 45%.',
+        estimatedHours: 1,
+        priority: 'low',
+        task_type: 'admin'
+      });
+    }
+
+    if (safeTasksArray.length > 3 && !hasKeyword(['social media', 'promotion', 'marketing'])) {
+      suggestions.push({
+        id: `social-promotion-${timestamp}`,
+        type: 'task',
+        title: 'Social media promotion strategy',
+        description: 'Plan social media posts to promote your content',
+        reason: 'Consistent social promotion increases content reach by 200%.',
+        estimatedHours: 1,
+        priority: 'medium',
+        task_type: 'admin'
+      });
+    }
+
+    // 6. SEASONAL/TRENDING SUGGESTIONS
+    const now = new Date();
+    const month = now.getMonth();
+    
+    if (month === 11 || month === 0) { // December or January
+      suggestions.push({
+        id: `year-review-${timestamp}`,
+        type: 'task',
+        title: 'Year in review content',
+        description: 'Create year-end summary or new year planning content',
+        reason: 'Year-end content performs exceptionally well during holiday season.',
+        estimatedHours: 3,
+        priority: 'medium',
+        task_type: 'creative'
+      });
+    }
+
+    // Remove duplicates and limit to 8 suggestions
+    const uniqueSuggestions = suggestions.filter((suggestion, index, self) => 
+      index === self.findIndex(s => s.title === suggestion.title)
+    );
+
+    setAiSuggestions(uniqueSuggestions.slice(0, 8));
   };
 
   const addTaskFromSuggestion = async (suggestion: AISuggestion) => {
