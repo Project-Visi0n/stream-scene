@@ -1,8 +1,8 @@
 name: Deploy to Personal Server
 
 on:
-  schedule:
-    - cron: '*/5 * * * *'  # Check every 5 minutes
+  # schedule:
+  #   - cron: '0 */12 * * *'  # Check every 12 hours - DISABLED
   push:
     branches: [ main ]  # Deploy from your main branch too
   workflow_dispatch: # Allow manual trigger
@@ -18,50 +18,17 @@ jobs:
         fetch-depth: 0  # Fetch full history to compare with upstream
         token: ${{ secrets.GITHUB_TOKEN }}
         
-    - name: Add upstream remote
-      run: |
-        git remote add upstream https://github.com/Project-Visi0n/stream-scene.git || true
-        git fetch upstream
-        
-    - name: Configure Git
-      run: |
-        git config --global user.email "action@github.com"
-        git config --global user.name "GitHub Actions"
-        
-    - name: Check for upstream changes
-      id: check_changes
-      run: |
-        # Get the latest commit hash from upstream main
-        UPSTREAM_HASH=$(git rev-parse upstream/main)
-        
-        # Get the latest commit hash from our main branch
-        LOCAL_HASH=$(git rev-parse origin/main)
-        
-        echo "Upstream main: $UPSTREAM_HASH"
-        echo "Local main: $LOCAL_HASH"
-        
-        if [ "$UPSTREAM_HASH" != "$LOCAL_HASH" ]; then
-          echo "Changes detected in upstream!"
-          echo "should_deploy=true" >> $GITHUB_OUTPUT
-          
-          # Merge upstream changes
-          git checkout main
-          git merge upstream/main --no-edit
-          git push origin main
-        else
-          echo "No new changes in upstream"
-          echo "should_deploy=false" >> $GITHUB_OUTPUT
-        fi
+    # Upstream syncing disabled - deploy only from current branch
       
     - name: Setup Node.js
-      if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       uses: actions/setup-node@v4
       with:
         node-version: '20'
         cache: 'npm'
 
     - name: Clean install dependencies
-      if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       run: |
         rm -rf node_modules package-lock.json
         npm install
@@ -69,12 +36,19 @@ jobs:
         npm install lightningcss-linux-x64-gnu --save-optional
       
     - name: Build application
-      if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
       env:
         REACT_APP_API_URL: https://streamscene.net
         REACT_APP_SERVER_URL: https://streamscene.net
       run: |
         npm run build
+
+    - name: Compile TypeScript
+      if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+      run: |
+        echo "Compiling TypeScript to JavaScript..."
+        npm install typescript --save-dev
+        npx tsc --project server/tsconfig.json
         
     - name: Create deployment package
       if: steps.check_changes.outputs.should_deploy == 'true' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
@@ -85,8 +59,11 @@ jobs:
         # Copy built client files
         cp -r public/ deploy/
         
-        # Copy server source files
+        # Copy server source files  
         cp -r server/ deploy/
+        
+        # Copy compiled TypeScript files
+        cp -r dist/ deploy/
         
         # Copy configuration files
         cp ecosystem.config.cjs deploy/
@@ -98,7 +75,10 @@ jobs:
         PORT=8000
         CLIENT_URL=https://streamscene.net
         REACT_APP_API_URL=https://streamscene.net
+        REACT_APP_SERVER_URL=https://streamscene.net
+        REACT_APP_ENABLE_WEBSOCKET=true
         BASE_URL=https://streamscene.net
+        ALLOW_DEMO_LOGIN=true
         SESSION_SECRET=${{ secrets.SESSION_SECRET }}
         GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}
         GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}
@@ -116,7 +96,6 @@ jobs:
         DB_PASS=StreamRoot2024!
         ENABLE_MONITORING=true
         LOG_LEVEL=error
-        DB_PASS=StreamRoot2024!
         EOF
 
     - name: Quick connectivity test
@@ -196,18 +175,28 @@ jobs:
           
           echo "Installing production dependencies..."
           npm install --production
-          cd /var/www/stream-scene
           
-          echo "Installing production dependencies..."
-          npm install --production
+          echo "Checking compiled files..."
+          ls -la dist/server/*.js | head -5 || echo "No JS files found in dist/server/"
           
           echo "Setting up database schema..."
           echo "Installing tsx for seed script execution..."
           npm install tsx --save-dev
           
+          echo "Fixing User table schema for Threads integration..."
+          mysql -h localhost -u root -pStreamRoot2024! stream_scene_db -e "ALTER TABLE users ADD COLUMN IF NOT EXISTS threads_access_token VARCHAR(500) NULL, ADD COLUMN IF NOT EXISTS threads_user_id VARCHAR(100) NULL;" || {
+            echo "Schema update failed or columns already exist. Continuing..."
+          }
+          
           echo "Running database seed script to ensure proper schema..."
           npm run seed:production || {
             echo "WARNING: Database seed failed. This might be expected if database is already seeded."
+            echo "Continuing with deployment..."
+          }
+          
+          echo "Cleaning up demo task data..."
+          node server/cleanup-demo-tasks.js || {
+            echo "WARNING: Demo task cleanup failed. This might be expected."
             echo "Continuing with deployment..."
           }
           

@@ -5,6 +5,46 @@ import BudgetProject from '../models/BudgetProject.js';
 
 const router = express.Router();
 
+// Test route to verify budget routes are loaded (no auth required for testing)
+router.get('/test', (req, res) => {
+  console.log('📊 Budget test route accessed');
+  res.json({ 
+    message: 'Budget routes are working!', 
+    timestamp: new Date().toISOString(),
+    user: req.user ? { id: req.user.id, email: req.user.email } : 'Not authenticated',
+    models: {
+      BudgetEntry: typeof BudgetEntry,
+      BudgetProject: typeof BudgetProject
+    },
+    routes_available: [
+      'GET /api/budget/test',
+      'GET /api/budget/debug', 
+      'GET /api/budget/entries',
+      'GET /api/budget/projects',
+      'POST /api/budget/entries',
+      'POST /api/budget/projects'
+    ]
+  });
+});
+
+// Simple health check route
+router.get('/health', (req, res) => {
+  res.json({ 
+    status: 'Budget routes loaded successfully',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Debug route - no authentication required
+router.get('/debug', (req, res) => {
+  res.json({
+    status: 'Budget routes loaded successfully',
+    timestamp: new Date().toISOString(),
+    path: req.path,
+    method: req.method
+  });
+});
+
 // Helper function to safely get user ID
 const getUserId = (req: express.Request): number | null => {
   return req.user?.id ?? null;
@@ -13,11 +53,14 @@ const getUserId = (req: express.Request): number | null => {
 // GET - Fetch all user's budget entries (both income and expenses)
 router.get('/entries', requireAuth, async (req, res) => {
   try {
+    console.log('📊 Budget entries route accessed by user:', req.user?.id);
     const userId = req.user?.id;
     if (!userId) {
+      console.log('❌ No user ID found in request');
       return res.status(401).json({ error: 'User not authenticated' });
     }
     
+    console.log('🔍 Fetching entries for user:', userId);
     const entries = await BudgetEntry.findAll({
       where: { user_id: userId },
       include: [{
@@ -28,10 +71,14 @@ router.get('/entries', requireAuth, async (req, res) => {
       order: [['created_at', 'DESC']]
     });
 
+    console.log(`✅ Found ${entries.length} budget entries`);
     res.json(entries);
   } catch (error) {
-    console.error('Error fetching budget entries:', error);
-    res.status(500).json({ error: 'Failed to fetch budget entries' });
+    console.error('❌ Error fetching budget entries:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch budget entries',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
@@ -146,20 +193,27 @@ router.delete('/entries/:id', requireAuth, async (req, res) => {
 // GET - Fetch all user's budget projects
 router.get('/projects', requireAuth, async (req, res) => {
   try {
+    console.log('📊 Budget projects route accessed by user:', req.user?.id);
     const userId = getUserId(req);
     if (!userId) {
+      console.log('❌ No user ID found in request');
       return res.status(401).json({ error: 'User not authenticated' });
     }
     
+    console.log('🔍 Fetching projects for user:', userId);
     const projects = await BudgetProject.findAll({
       where: { user_id: userId },
       order: [['created_at', 'DESC']]
     });
 
+    console.log(`✅ Found ${projects.length} budget projects`);
     res.json(projects);
   } catch (error) {
-    console.error('Error fetching budget projects:', error);
-    res.status(500).json({ error: 'Failed to fetch budget projects' });
+    console.error('❌ Error fetching budget projects:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch budget projects',
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 

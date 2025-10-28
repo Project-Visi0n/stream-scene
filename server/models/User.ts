@@ -7,8 +7,6 @@ interface UserAttributes {
   email: string;
   name: string;
   google_id?: string;
-  threadsAccessToken?: string; 
-  threadsUserId?: string;        
   created_at?: Date;
   updated_at?: Date;
 }
@@ -22,8 +20,6 @@ export class User extends Model<UserAttributes, UserCreationAttributes> implemen
   declare email: string;
   declare name: string;
   declare google_id?: string;
-  declare threadsAccessToken?: string;  
-  declare threadsUserId?: string;        
   declare created_at?: Date;
   declare updated_at?: Date;
 
@@ -69,17 +65,6 @@ User.init(
       type: DataTypes.STRING(255),
       allowNull: true,
       unique: true,
-    },
-    // ✅ ADD THESE TWO FIELDS:
-    threadsAccessToken: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-      field: 'threads_access_token',  // Database column name (snake_case)
-    },
-    threadsUserId: {
-      type: DataTypes.STRING(255),
-      allowNull: true,
-      field: 'threads_user_id',  // Database column name (snake_case)
     },
     created_at: {
       type: DataTypes.DATE,

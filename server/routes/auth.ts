@@ -15,6 +15,54 @@ router.get('/test', (req: Request, res: Response) => {
   res.json({ message: 'Auth routes are working!' });
 });
 
+// Store recent auth errors for debugging
+const recentAuthErrors: {timestamp: string, error: string, details?: unknown}[] = [];
+
+// Debug endpoint to check environment and database
+router.get('/debug', async (req: Request, res: Response) => {
+  try {
+    // Import User model to test database connection
+    const { User } = await import('../models/User.js');
+    
+    // Test database connection
+    const userCount = await User.count();
+    
+    res.json({
+      message: 'Debug info',
+      environment: {
+        NODE_ENV: process.env.NODE_ENV,
+        hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID,
+        hasGoogleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+        hasSessionSecret: !!process.env.SESSION_SECRET,
+        callbackUrl: process.env.GOOGLE_CALLBACK_URL,
+        clientUrl: process.env.CLIENT_URL,
+        dbHost: process.env.DB_HOST,
+        dbName: process.env.DB_NAME,
+        hasDbPass: !!process.env.DB_PASS
+      },
+      database: {
+        connected: true,
+        userCount: userCount
+      },
+      recentAuthErrors: recentAuthErrors.slice(-5) // Show last 5 errors
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Debug error',
+      error: error instanceof Error ? error.message : 'Unknown error',
+      environment: {
+        NODE_ENV: process.env.NODE_ENV,
+        hasGoogleClientId: !!process.env.GOOGLE_CLIENT_ID,
+        hasGoogleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+        hasSessionSecret: !!process.env.SESSION_SECRET
+      },
+      database: {
+        connected: false
+      }
+    });
+  }
+});
+
 // ──────────────────────────────────────────
 // GOOGLE OAUTH START
 // ──────────────────────────────────────────
@@ -37,11 +85,23 @@ router.get(
 
       if (err) {
         console.error('Authentication error:', err);
+        // Store error for debugging
+        recentAuthErrors.push({
+          timestamp: new Date().toISOString(),
+          error: 'Authentication error',
+          details: err instanceof Error ? err.message : err
+        });
         return res.redirect('/?error=auth_failed');
       }
 
       if (!user) {
         console.error('No user returned from authentication');
+        // Store error for debugging
+        recentAuthErrors.push({
+          timestamp: new Date().toISOString(),
+          error: 'No user returned from authentication',
+          details: { info }
+        });
         return res.redirect('/?error=no_user');
       }
 

@@ -25,17 +25,15 @@ import cors from 'cors';
 import "./config/passport.js";
 import authRoutes from "./routes/auth.js";
 import routes from "./routes/index.js";
+import budgetRoutes from "./routes/budget.js";
 import aiRoutes from "./routes/ai.js";
 import scheduleRoutes from "./routes/schedule.js";
 import s3ProxyRoutes from "./routes/s3Proxy.js";
 import filesRoutes from "./routes/files.js";
 import sharesRoutes from "./routes/shares.js";
-import budgetRoutes from './routes/budget.js';
 import socialAuthRoutes from './routes/socialAuth.js';
-import { syncDB, associate } from "./db/index.js";
+import { syncDB } from "./db/index.js";
 import captionRouter from './routes/caption.js';
-import taskRoutes from './routes/tasks.js';
-import contentSchedulerRoutes from './routes/contentScheduler.js';
 import { initializeWebSocket } from './services/WebSocketService.js';
 
 const app = express();
@@ -221,17 +219,15 @@ if (!isProd) {
 // API routes MUST come before static file serving
 app.use('/auth', authRoutes);
 app.use('/social', socialAuthRoutes);
+app.use('/api/budget', budgetRoutes);
 app.use('/', routes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/schedule', scheduleRoutes);
-app.use('/api/content-scheduler', contentSchedulerRoutes);
-app.use('/api/tasks', taskRoutes);
 app.use('/api/s3', s3ProxyRoutes);
 app.use('/api/files', filesRoutes);
 app.use('/api/shares', sharesRoutes);
-app.use('/api/budget', budgetRoutes);
-// Note: threads routes are mounted in routes/index.ts at /api/threads
 app.use('/api/caption', captionRouter);
+// Note: All other API routes (tasks, content-scheduler, threads, budget, etc.) are mounted in routes/index.ts
 
 
 // Serve static files from public directory
@@ -269,6 +265,38 @@ app.get('/test-server', (req, res) => {
   res.json({ message: 'Server is working!' });
 });
 
+// Debug route to test budget endpoints directly
+app.get('/debug-budget', (req, res) => {
+  res.json({ 
+    message: 'Budget debug route working from app.ts!',
+    timestamp: new Date().toISOString(),
+    routes_mounted: true,
+    path: req.path,
+    originalUrl: req.originalUrl,
+    method: req.method
+  });
+});
+
+// Debug route to show route mounting info
+app.get('/debug-routing', (req, res) => {
+  res.json({
+    message: 'Route debugging info',
+    mountOrder: [
+      '1. /auth -> authRoutes',
+      '2. /social -> socialAuthRoutes', 
+      '3. / -> routes (from index.ts) - THIS CATCHES ALL!',
+      '4. /api/ai -> aiRoutes',
+      '5. /api/schedule -> scheduleRoutes',
+      '6. /api/s3 -> s3ProxyRoutes',
+      '7. /api/files -> filesRoutes',
+      '8. /api/shares -> sharesRoutes',
+      '9. /api/caption -> captionRouter'
+    ],
+    note: 'Budget routes should be in step 3 (routes/index.ts)',
+    timestamp: new Date().toISOString()
+  });
+});
+
 // Catch-all: serve frontend app unless it's an API route or static file
 app.get('*', (req, res) => {
   // Skip catch-all for API routes
@@ -304,7 +332,6 @@ const server = createServer(app);
 const webSocketService = initializeWebSocket(server);
 
 // Initialize database and start server
-associate(); // Set up model associations
 syncDB().then(() => {
   server.listen(PORT, HOST, () => {
     const protocol = isProd ? 'https' : 'http';
